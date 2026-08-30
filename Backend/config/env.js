@@ -32,10 +32,16 @@ export const env = {
     (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
-  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || ''
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
+  automationCron: process.env.AUTOMATION_INTERVAL_CRON || '*/15 * * * *',
+  maxAutomationTradesPerDay: Number(process.env.MAX_AUTOMATION_TRADES_PER_DAY) || 10,
+  accuracyResolveCron: process.env.ACCURACY_RESOLVE_CRON || '30 21 * * 1-5'
 }
 
 export const isProduction = env.nodeEnv === 'production'
+
+// Demo accuracy presentation is dev-only (never in production builds)
+export const mlDemoMode = parseBoolean(process.env.ML_DEMO_MODE) && !isProduction
 
 export const getCookieOptions = () => ({
   httpOnly: true,

@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import { env } from '../config/env.js'
 const { verify } = jwt
 
 export const verifyToken = (...allowedRoles) => {
@@ -8,7 +9,7 @@ export const verifyToken = (...allowedRoles) => {
       const token = req.cookies?.token
       if (!token)
         return res.status(401).json({ message: 'Please Login first' })
-      const decodedToken = verify(token, process.env.SECRET_KEY)
+      const decodedToken = verify(token, env.secretKey)
       if (!decodedToken?.id || !decodedToken?.role) {
         return res.status(401).json({ message: 'Invalid token' })
       }

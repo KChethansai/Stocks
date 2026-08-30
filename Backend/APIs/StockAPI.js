@@ -3,8 +3,12 @@ import YahooFinance from 'yahoo-finance2'
 import { verifyToken } from '../middlewares/verifyToken.js'
 import { stockModel } from '../models/StockModel.js'
 import { historyModel } from '../models/HistoryModel.js'
+import { cached, invalidateCache } from '../config/cache.js'
 
 export const stockApp = exp.Router()
+
+// Stock list is re-synced every 5 minutes, so a 60s in-memory read cache is safe.
+const STOCKS_LIST_CACHE_TTL_MS = 60 * 1000
 
 // -----------------------------
 // Yahoo Finance Setup
@@ -140,9 +144,6 @@ export const syncStocksData = async (force = false) => {
     }
 
     if (stocks.length > 0) {
-      const previousStocks = await stockModel.find().lean()
-      const previousStockMap = new Map(previousStocks.map(s => [s.symbol, s]))
-
       const bulkOps = stocks.map(stock => ({
         updateOne: {
           filter: { symbol: stock.symbol },
@@ -154,17 +155,9 @@ export const syncStocksData = async (force = false) => {
       await stockModel.bulkWrite(bulkOps)
       lastSyncTime = now
 
-      // Detailed logging for each stock update
-      stocks.forEach(stock => {
-        const prev = previousStockMap.get(stock.symbol)
-        console.log('[Stock Refresh]', JSON.stringify({
-          symbol: stock.symbol,
-          previousPrice: prev ? prev.price : null,
-          newPrice: stock.price,
-          timestamp: new Date().toISOString(),
-          updateSource: isFallback ? 'Simulation Fallback' : 'Yahoo Finance API'
-        }))
-      })
+      // Fresh data is in — drop stale read caches
+      invalidateCache('stocks-list')
+      invalidateCache('market-summary')
 
       console.log(`[Background Sync] Successfully updated ${stocks.length} stocks. Source: ${isFallback ? 'Simulation' : 'Yahoo Finance'}`)
 
@@ -210,7 +203,9 @@ stockApp.get('/stocks', async (req, res, next) => {
       syncStocksData().catch(err => console.error('[Background Sync Error]', err.message))
     }
 
-    const stocks = await stockModel.find().sort({ symbol: 1 }).lean()
+    const stocks = await cached(`stocks-list`, STOCKS_LIST_CACHE_TTL_MS, () =>
+      stockModel.find().sort({ symbol: 1 }).lean()
+    )
 
     return res.status(200).json({
       message: 'Stocks fetched',
@@ -277,17 +272,6 @@ stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
 // -----------------------------
 // Cache lifetime: 24 hours (daily candles don't change intraday)
 const HISTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
-
-// Range → how many calendar days to fetch
-const RANGE_DAYS = {
-  '1D':  1,
-  '1W':  7,
-  '1M':  30,
-  '3M':  90,
-  '6M':  180,
-  '1Y':  365,
-  'ALL': 730 // ~2 years
-}
 
 stockApp.get('/history/:symbol', async (req, res, next) => {
   try {

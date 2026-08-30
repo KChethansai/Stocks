@@ -1,13 +1,16 @@
 import exp from 'express'
 import { stockModel } from '../models/StockModel.js'
+import { cached } from '../config/cache.js'
 
 export const marketApp = exp.Router()
 
 //get market summary
 marketApp.get('/summary', async (req, res, next) => {
   try {
-    //fetch stocks
-    const stocks = await stockModel.find().lean()
+    //fetch stocks (60s read cache; data is re-synced every 5 minutes)
+    const stocks = await cached('market-summary', 60 * 1000, () =>
+      stockModel.find().lean()
+    )
 
     //calculate totals
     const totalMarketCap = stocks.reduce((sum, item) => sum + item.marketCap, 0)

@@ -1,6 +1,5 @@
 import exp from 'express'
 import { hash, compare } from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { verifyToken } from '../middlewares/verifyToken.js'
 import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
@@ -8,10 +7,12 @@ import { upload, allowedImageTypes } from '../config/multer.js'
 import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
 import cloudinary from '../config/cloudinary.js'
 import { env, isProduction, getCookieOptions, getProfileImage } from '../config/env.js'
+import { authLimiter } from '../config/security.js'
+import { signToken } from '../config/jwt.js'
+import { SYMBOL_PATTERN } from '../services/tradeService.js'
 
 export const userApp = exp.Router()
 
-const { sign } = jwt
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const profileImageFields = 'profileImage username email balance'
 
@@ -192,7 +193,7 @@ userApp.post('/register', upload.single('profileImage'), async (req, res, next) 
 })
 
 //login user
-userApp.post('/login', async (req, res, next) => {
+userApp.post('/login', authLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body
     const normalizedEmail = email?.toLowerCase()?.trim()
@@ -215,16 +216,7 @@ userApp.post('/login', async (req, res, next) => {
     }
 
     //generate token
-    const token = sign(
-      {
-        id: foundUser._id,
-        username: foundUser.username,
-        email: foundUser.email,
-        role: 'USER'
-      },
-      process.env.SECRET_KEY,
-      { expiresIn: '7d' }
-    )
+    const token = signToken(foundUser)
 
     //set token in cookie
     res.cookie('token', token, getCookieOptions())
@@ -366,17 +358,12 @@ userApp.put('/password', verifyToken('USER'), async (req, res, next) => {
 //get watchlist
 userApp.get('/watchlist', verifyToken('USER'), async (req, res, next) => {
   try {
-    console.log('[Watchlist Request] GET /watchlist', JSON.stringify({ userId: req.user.id, status: 'started' }))
     const foundUser = await userModel.findById(req.user.id).select('watchlist')
     if (!foundUser) {
-      console.log('[Watchlist Response] User not found', JSON.stringify({ userId: req.user.id, status: 404 }))
       return res.status(404).json({ message: 'User not found' })
     }
-    const wl = foundUser.watchlist || []
-    console.log('[Watchlist Response] GET /watchlist success', JSON.stringify({ userId: req.user.id, watchlistSymbols: wl, status: 200 }))
-    return res.status(200).json({ message: 'Watchlist fetched', watchlist: wl })
+    return res.status(200).json({ message: 'Watchlist fetched', watchlist: foundUser.watchlist || [] })
   } catch (err) {
-    console.error('[Watchlist Request Error] GET /watchlist failed:', err.message)
     next(err)
   }
 })
@@ -385,9 +372,7 @@ userApp.get('/watchlist', verifyToken('USER'), async (req, res, next) => {
 userApp.post('/watchlist', verifyToken('USER'), async (req, res, next) => {
   try {
     const { symbol } = req.body
-    console.log('[Watchlist Request] POST /watchlist', JSON.stringify({ userId: req.user.id, symbol, status: 'started' }))
-    if (!symbol || typeof symbol !== 'string') {
-      console.log('[Watchlist Response] Invalid symbol', JSON.stringify({ userId: req.user.id, symbol, status: 400 }))
+    if (typeof symbol !== 'string' || !SYMBOL_PATTERN.test(symbol.trim().toUpperCase())) {
       return res.status(400).json({ message: 'Valid symbol is required' })
     }
 
@@ -399,14 +384,11 @@ userApp.post('/watchlist', verifyToken('USER'), async (req, res, next) => {
     ).select('watchlist')
 
     if (!updatedUser) {
-      console.log('[Watchlist Response] User not found', JSON.stringify({ userId: req.user.id, status: 404 }))
       return res.status(404).json({ message: 'User not found' })
     }
 
-    console.log('[Watchlist Response] POST /watchlist success', JSON.stringify({ userId: req.user.id, watchlistSymbols: updatedUser.watchlist, status: 200 }))
     return res.status(200).json({ message: 'Added to watchlist', watchlist: updatedUser.watchlist })
   } catch (err) {
-    console.error('[Watchlist Request Error] POST /watchlist failed:', err.message)
     next(err)
   }
 })
@@ -415,9 +397,7 @@ userApp.post('/watchlist', verifyToken('USER'), async (req, res, next) => {
 userApp.delete('/watchlist/:symbol', verifyToken('USER'), async (req, res, next) => {
   try {
     const symbol = req.params.symbol?.trim().toUpperCase()
-    console.log('[Watchlist Request] DELETE /watchlist', JSON.stringify({ userId: req.user.id, symbol, status: 'started' }))
-    if (!symbol) {
-      console.log('[Watchlist Response] Invalid symbol', JSON.stringify({ userId: req.user.id, symbol, status: 400 }))
+    if (!SYMBOL_PATTERN.test(symbol || '')) {
       return res.status(400).json({ message: 'Valid symbol is required' })
     }
 
@@ -428,14 +408,11 @@ userApp.delete('/watchlist/:symbol', verifyToken('USER'), async (req, res, next)
     ).select('watchlist')
 
     if (!updatedUser) {
-      console.log('[Watchlist Response] User not found', JSON.stringify({ userId: req.user.id, status: 404 }))
       return res.status(404).json({ message: 'User not found' })
     }
 
-    console.log('[Watchlist Response] DELETE /watchlist success', JSON.stringify({ userId: req.user.id, watchlistSymbols: updatedUser.watchlist, status: 200 }))
     return res.status(200).json({ message: 'Removed from watchlist', watchlist: updatedUser.watchlist })
   } catch (err) {
-    console.error('[Watchlist Request Error] DELETE /watchlist failed:', err.message)
     next(err)
   }
 })

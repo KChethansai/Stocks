@@ -4,12 +4,15 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 
 import { env, isProduction } from './config/env.js'
-import { securityMiddleware, rejectUnsafePayload } from './config/security.js'
+import { securityMiddleware, rejectUnsafePayload, authLimiter } from './config/security.js'
 import { userApp } from './APIs/UserAPI.js'
 import { stockApp } from './APIs/StockAPI.js'
 import { tradeApp } from './APIs/TradeAPI.js'
 import { marketApp } from './APIs/MarketAPI.js'
+import { mlApp } from './APIs/MlAPI.js'
 import { googleAuth } from './controllers/googleAuthController.js'
+import { startAutomationScheduler } from './ml/automationJob.js'
+import { startAccuracyResolver } from './ml/accuracyResolver.js'
 
 const app = exp()
 
@@ -40,10 +43,11 @@ app.use(rejectUnsafePayload)
 
 // API Routes
 app.use('/user-api', userApp)
-app.post('/api/auth/google', googleAuth)
+app.post('/api/auth/google', authLimiter, googleAuth)
 app.use('/stock-api', stockApp)
 app.use('/trade-api', tradeApp)
 app.use('/market-api', marketApp)
+app.use('/ml-api', mlApp)
 
 // 404 handler
 app.use((req, res) => {
@@ -76,7 +80,20 @@ const connectDB = async () => {
   try {
     await connect(env.dbUrl, { family: 4 })
     console.log('DB connected')
-    app.listen(env.port, () => console.log(`Server listening on ${env.port}`))
+    const server = app.listen(env.port, () => {
+      console.log(`Server listening on ${env.port}`)
+      // Start ML background schedulers (automation pass + accuracy resolution)
+      startAutomationScheduler()
+      startAccuracyResolver()
+    })
+
+    const gracefulShutdown = (signal) => {
+      console.log(`${signal} received, shutting down`)
+      server.close(() => process.exit(0))
+      setTimeout(() => process.exit(1), 10_000).unref()
+    }
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
   } catch (err) {
     console.error('DB connection failed:', err.message)
     process.exit(1)

@@ -41,6 +41,11 @@ const transactionSchema = new Schema(
     balanceAfter: {
       type: Number,
       required: [true, 'Balance after is required']
+    },
+    source: {
+      type: String,
+      enum: ['MANUAL', 'AUTOMATION'],
+      default: 'MANUAL'
     }
   },
   { timestamps: true, versionKey: false, strict: 'throw' }

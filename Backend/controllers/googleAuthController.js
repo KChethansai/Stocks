@@ -1,13 +1,12 @@
 import { OAuth2Client } from 'google-auth-library'
-import jwt from 'jsonwebtoken'
 import { hash } from 'bcryptjs'
 import crypto from 'crypto'
 import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
 import { env, getCookieOptions, getProfileImage } from '../config/env.js'
+import { signToken } from '../config/jwt.js'
 
 const client = new OAuth2Client(env.googleClientId)
-const { sign } = jwt
 
 export const googleAuth = async (req, res, next) => {
   try {
@@ -113,16 +112,7 @@ export const googleAuth = async (req, res, next) => {
     }
 
     // Generate JWT token
-    const token = sign(
-      {
-        id: foundUser._id,
-        username: foundUser.username,
-        email: foundUser.email,
-        role: 'USER'
-      },
-      process.env.SECRET_KEY,
-      { expiresIn: '7d' }
-    )
+    const token = signToken(foundUser)
 
     // Set token in cookie
     res.cookie('token', token, getCookieOptions())

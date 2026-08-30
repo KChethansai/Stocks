@@ -20,6 +20,15 @@ export const securityMiddleware = [
   })
 ]
 
+// Brute-force guard for credential endpoints (login + social sign-in)
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many sign-in attempts, please try again later' }
+})
+
 const hasUnsafeKey = (value) => {
   if (!value || typeof value !== 'object') return false
   return Object.keys(value).some((key) => {

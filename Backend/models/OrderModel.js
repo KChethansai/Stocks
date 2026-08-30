@@ -38,6 +38,11 @@ const orderSchema = new Schema(
       type: String,
       enum: ['COMPLETED', 'PENDING', 'FAILED'],
       default: 'COMPLETED'
+    },
+    source: {
+      type: String,
+      enum: ['MANUAL', 'AUTOMATION'],
+      default: 'MANUAL'
     }
   },
   { timestamps: true, versionKey: false, strict: 'throw' }
