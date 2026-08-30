@@ -30,7 +30,7 @@ export default function Login() {
   } = useForm()
 
   const onSubmit = async (data) => {
-    const res = await login(data.email, data.password)
+    const res = await login({ email: data.email, password: data.password })
     if (res.success) {
       toast.success('Welcome back to MarketForge!')
       navigate('/dashboard')
