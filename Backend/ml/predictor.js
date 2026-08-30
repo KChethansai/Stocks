@@ -1,4 +1,5 @@
 import { computeFeatures, loadFeatures, DEFAULT_LOOKBACK, MIN_CANDLES } from './features.js'
+import { scoreWithTrained } from './trainedPredictor.js'
 
 /**
  * Composite technical scoring model — pure JavaScript, no Python, no training step.
@@ -46,6 +47,30 @@ const rsiSignal = (rsi14) => {
   if (rsi14 > RSI_OVERBOUGHT) return -clamp((rsi14 - RSI_OVERBOUGHT) / (100 - RSI_OVERBOUGHT), 0, 1)
   if (rsi14 < RSI_OVERSOLD) return clamp((RSI_OVERSOLD - rsi14) / RSI_OVERSOLD, 0, 1)
   return 0
+}
+
+/**
+ * Apply the trained ONNX model as an overlay on a heuristic prediction:
+ * it replaces direction + confidence; everything else (price, range, chart,
+ * factors) stays from the heuristic. Returns the base unchanged when no
+ * model bundle is available or inference fails.
+ */
+async function overlayTrained(base, features) {
+  try {
+    const trained = await scoreWithTrained(features)
+    if (trained && trained.direction && trained.confidence) {
+      return {
+        ...base,
+        direction: trained.direction,
+        confidence: round(trained.confidence, 4),
+        confidencePct: round(trained.confidence * 100, 1),
+        model: trained.model
+      }
+    }
+  } catch (err) {
+    // heuristic result already populated — trained is purely additive
+  }
+  return base
 }
 
 /**
@@ -261,12 +286,20 @@ export function scoreFeatures(features, options = {}) {
 
 /**
  * Score raw candles directly. Kept for callers that already hold OHLC data.
+ * Synchronous heuristic — call predictFromCandlesAsync for the trained model.
  * @param {Array<object>} candles
  * @param {{horizonDays?: number, horizon?: number, lookback?: number}} [options]
  */
 export function predictFromCandles(candles, options = {}) {
   const features = computeFeatures(candles, { lookback: options.lookback || DEFAULT_LOOKBACK })
   return scoreFeatures(features, { horizon: options.horizon ?? options.horizonDays ?? 1 })
+}
+
+/** predictFromCandles + trained-model overlay (async, prefer when available). */
+export async function predictFromCandlesAsync(candles, options = {}) {
+  const features = computeFeatures(candles, { lookback: options.lookback || DEFAULT_LOOKBACK })
+  const base = scoreFeatures(features, { horizon: options.horizon ?? options.horizonDays ?? 1 })
+  return overlayTrained(base, features)
 }
 
 /**
@@ -280,7 +313,9 @@ export async function predict(symbol, options = {}) {
   const ticker = String(symbol || '').toUpperCase().trim()
   try {
     const features = await loadFeatures(ticker, { lookback: options.lookback || DEFAULT_LOOKBACK })
-    return { symbol: ticker, ...scoreFeatures(features, { horizon: options.horizon ?? 1 }) }
+    const base = scoreFeatures(features, { horizon: options.horizon ?? 1 })
+    const predicted = await overlayTrained(base, features)
+    return { symbol: ticker, ...predicted }
   } catch (err) {
     console.error(`[ML] predict(${ticker}) failed:`, err.message)
     return {

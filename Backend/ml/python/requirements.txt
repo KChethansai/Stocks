@@ -1,0 +1,6 @@
+yfinance>=0.2.40
+pandas>=2.2
+numpy>=1.26
+xgboost>=2.0
+onnx>=1.16
+onnxruntime>=1.18

@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import { computeFeatures, rsi, rateOfChange, returnVolatility, MIN_CANDLES } from './features.js'
-import { predictFromCandles, scoreFeatures, WEIGHTS, NEUTRAL_DEADBAND } from './predictor.js'
+import { predictFromCandles, predictFromCandlesAsync, scoreFeatures, WEIGHTS, NEUTRAL_DEADBAND } from './predictor.js'
 
 const day = 86400000
 const candles = (closes, startVolume = 1_000_000) =>
@@ -216,4 +216,18 @@ check('scoreFeatures handles a null feature set', () => {
   assert.equal(scoreFeatures(null).ok, false)
 })
 
-console.log(`\n${checks} checks passed\n`)
+// Async tail: trained overlay must never crash — with onnxruntime-node / bundle
+// absent it returns the heuristic prediction untouched (same model id).
+export async function runAsyncTail() {
+  const p = await predictFromCandlesAsync(candles(series(40, (i) => 100 * 1.004 ** i)))
+  assert.equal(typeof p.direction, 'string', 'direction present')
+  assert.ok(p.confidence >= 0 && p.confidence <= 1, 'confidence in [0,1]')
+  assert.equal(typeof p.model, 'string', 'model id present')
+}
+
+runAsyncTail()
+  .then(() => console.log(`\n${checks} checks passed\n`))
+  .catch((err) => {
+    console.error('\nASYNC CHECK FAILED:', err.message)
+    process.exitCode = 1
+  })
