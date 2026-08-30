@@ -1,0 +1,469 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* MarketForge Design System Tokens (Stitch Source of Truth) */
+  --bg-primary: #09090B;
+  --bg-surface: #111318;
+  --bg-elevated: #151820;
+  
+  --surface-container-low: #1c1b1d;
+  --surface-container-lowest: #0e0e10;
+  --surface-container-high: #2a2a2c;
+  --surface-container-highest: #353437;
+
+  --text-primary: #F5F7FA;
+  --text-secondary: #9CA3AF;
+  --text-muted: #667085;
+
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --primary-container: #4d8eff;
+  --primary-subtle: rgba(59, 130, 246, 0.12);
+
+  --positive: #22C55E;
+  --positive-subtle: rgba(34, 197, 94, 0.12);
+  --positive-glow: rgba(34, 197, 94, 0.25);
+
+  --negative: #EF4444;
+  --negative-subtle: rgba(239, 68, 68, 0.12);
+  --negative-glow: rgba(239, 68, 68, 0.25);
+
+  --warning: #F59E0B;
+  --warning-subtle: rgba(245, 158, 11, 0.12);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --border-focus: rgba(59, 130, 246, 0.5);
+
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-active: rgba(255, 255, 255, 0.08);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  /* Chart & Financial Tokens */
+  --chart-profit: #22C55E;
+  --chart-loss: #EF4444;
+  --chart-primary: #3B82F6;
+
+  /* Compatibility variables */
+  --background: #09090B;
+  --foreground: #F5F7FA;
+  --card: #111318;
+  --card-foreground: #F5F7FA;
+  --popover: #151820;
+  --popover-foreground: #F5F7FA;
+  --muted: #151820;
+  --muted-foreground: #9CA3AF;
+  --accent: rgba(255, 255, 255, 0.05);
+  --accent-foreground: #F5F7FA;
+  --destructive: #EF4444;
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #3B82F6;
+  --radius: 0.5rem;
+}
+
+body {
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Monospace for financial figures, codes, and tickers */
+.font-mono,
+.financial-num,
+.font-data,
+.terminal-mono {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum' on, 'zero' on;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: #FFFFFF;
+}
+
+/* Custom Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Modern Card & Surface */
+.glass-panel {
+  background: rgba(17, 19, 24, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+
+.data-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 60%);
+}
+
+.elevated-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Ticker Ribbon */
+.terminal-ticker {
+  display: flex;
+  gap: 2rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(17, 19, 24, 0.75);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.terminal-ticker-track {
+  display: flex;
+  min-width: 100%;
+  gap: 2.5rem;
+  animation: ticker-scroll 35s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Quantity Control */
+.terminal-quantity-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.terminal-quantity-control button {
+  width: 36px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  border: none;
+}
+
+.terminal-quantity-control button:hover:not(:disabled) {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+.terminal-quantity-control input {
+  flex: 1;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-weight: 600;
+  outline: none;
+  height: 38px;
+  padding: 0 4px;
+}
+
+/* Animations & 3D Micro-interactions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+  }
+}
+
+.animate-shimmer-slide {
+  animation: shimmer-slide var(--speed) ease-in-out infinite alternate;
+}
+
+@keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+  }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+  }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
+.animate-spin-around {
+  animation: spin-around calc(var(--speed) * 2) infinite linear;
+}
+
+@keyframes border-beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam var(--duration) infinite linear;
+}
+
+@keyframes gradient-text {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-text {
+  animation: gradient-text 6s ease infinite;
+}
+
+@keyframes shiny-text {
+  0%, 100% {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+  50%, 60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+.animate-shiny-text {
+  animation: shiny-text var(--shimmer-speed) infinite linear;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.15);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-aurora-drift {
+  animation: aurora-drift 24s ease-in-out infinite alternate;
+}
+
+/* Terminal Charts System */
+.terminal-chart-shell {
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-chart-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+.terminal-chart-tools button {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.terminal-chart-tools button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.terminal-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.terminal-plot-area {
+  fill: rgba(255, 255, 255, 0.015);
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+  rx: 6px;
+}
+
+.terminal-grid-line {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.terminal-grid-line-vertical {
+  stroke: rgba(255, 255, 255, 0.03);
+  stroke-dasharray: 2 2;
+}
+
+.terminal-axis-label {
+  fill: #667085;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+.terminal-axis-label-x {
+  fill: #9CA3AF;
+  font-size: 10px;
+}
+
+.terminal-zero-line {
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.terminal-line-path {
+  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.3));
+}
+
+.terminal-hover-line {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.terminal-hover-dot {
+  stroke: #ffffff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
+}
+
+.terminal-tooltip {
+  background: #151820;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 11px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.terminal-tooltip strong {
+  color: #F5F7FA;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.terminal-tooltip span {
+  color: #3B82F6;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.terminal-empty-chart {
+  fill: #667085;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+.sparkline {
+  display: block;
+  overflow: visible;
+}
+
+.allocation-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allocation-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+.allocation-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-primary);
+}
+
+.allocation-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.allocation-track > span {
+  display: block;
+  height: 100%;
+  background: var(--allocation-color, var(--primary));
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
