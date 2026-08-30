@@ -2,7 +2,7 @@ import exp from 'express'
 import YahooFinance from 'yahoo-finance2'
 import { verifyToken } from '../middlewares/verifyToken.js'
 import { stockModel } from '../models/StockModel.js'
-import { historyModel } from '../models/HistoryModel.js'
+import { historyModel, intradayHistoryModel } from '../models/HistoryModel.js'
 import { cached, invalidateCache } from '../config/cache.js'
 
 export const stockApp = exp.Router()
@@ -59,7 +59,7 @@ const baseStocks = [
 let lastSyncTime = 0
 let syncInProgress = false
 
-export const syncStocksData = async (force = false) => {
+const syncStocksData = async (force = false) => {
   try {
     const now = Date.now()
 
@@ -252,9 +252,18 @@ stockApp.get('/stocks/:symbol', async (req, res, next) => {
   }
 })
 
-// Manual seed/update route
+// Manual seed/update route — throttled so any authenticated user cannot force
+// repeated full Yahoo syncs (third-party API cost / abuse vector).
 stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
   try {
+    if (Date.now() - lastSyncTime < 5 * 60 * 1000) {
+      return res.status(200).json({
+        message: 'Stock data is fresh — manual sync is throttled to once per 5 minutes',
+        count: 0,
+        stocks: []
+      })
+    }
+
     const stocks = await syncStocksData(true)
 
     return res.status(200).json({
@@ -270,8 +279,11 @@ stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
 // -----------------------------
 // Historical OHLC Data
 // -----------------------------
-// Cache lifetime: 24 hours (daily candles don't change intraday)
+// Daily candles don't change intraday: 24h cache. Intraday (60m) candles are
+// fresher: 15m cache. Both are answered from the same route via ?interval=.
 const HISTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const INTRADAY_CACHE_TTL_MS = 15 * 60 * 1000
+const MAX_LIMIT = 500
 
 stockApp.get('/history/:symbol', async (req, res, next) => {
   try {
@@ -282,34 +294,50 @@ stockApp.get('/history/:symbol', async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid stock symbol' })
     }
 
+    const interval = String(req.query.interval || '1d')
+    if (!['1d', '60m'].includes(interval)) {
+      return res.status(400).json({ message: 'Unsupported interval' })
+    }
+    const requestedLimit = Math.max(0, Math.min(Number(req.query.limit) || 0, MAX_LIMIT))
+
+    const isIntraday = interval === '60m'
+    const Model = isIntraday ? intradayHistoryModel : historyModel
+    const ttlMs = isIntraday ? INTRADAY_CACHE_TTL_MS : HISTORY_CACHE_TTL_MS
+    const periodDays = isIntraday ? 6 : 730
+
     // Check MongoDB cache first
-    const cached = await historyModel.findOne({ symbol }).lean()
+    const cached = await Model.findOne({ symbol }).lean()
     const now = Date.now()
 
-    if (cached && (now - new Date(cached.updatedAt).getTime()) < HISTORY_CACHE_TTL_MS) {
-      return res.status(200).json({ message: 'History fetched (cache)', symbol, data: cached.data })
+    if (cached && (now - new Date(cached.updatedAt).getTime()) < ttlMs) {
+      const data = requestedLimit ? cached.data.slice(-requestedLimit) : cached.data
+      return res.status(200).json({ message: 'History fetched (cache)', symbol, interval, data })
     }
 
     // Cache miss — fetch from Yahoo Finance
-    console.log(`[History] Fetching historical data for ${symbol} from Yahoo Finance`)
+    console.log(`[History] Fetching ${isIntraday ? 'intraday (60m)' : 'daily'} data for ${symbol} from Yahoo Finance`)
 
     const period2 = new Date()
     const period1 = new Date()
-    period1.setDate(period1.getDate() - 730) // fetch up to 2 years
+    period1.setDate(period1.getDate() - periodDays)
 
     let rawData = []
     try {
-      const result = await yahooFinance.historical(symbol, {
-        period1: period1.toISOString().split('T')[0],
-        period2: period2.toISOString().split('T')[0],
-        interval: '1d'
-      })
-      rawData = result || []
+      if (isIntraday) {
+        // hourly: chart() over the last 6 days
+        const result = await yahooFinance.chart(symbol, { period1, interval })
+        rawData = result?.quotes || []
+      } else {
+        // daily: chart() over the last 730 days (historical() maps here anyway)
+        const result = await yahooFinance.chart(symbol, { period1, interval: '1d' })
+        rawData = result?.quotes || []
+      }
     } catch (err) {
       console.error(`[History] Yahoo Finance fetch failed for ${symbol}:`, err.message)
       // If cache exists (even stale), return it as fallback
       if (cached) {
-        return res.status(200).json({ message: 'History fetched (stale cache fallback)', symbol, data: cached.data })
+        const data = requestedLimit ? cached.data.slice(-requestedLimit) : cached.data
+        return res.status(200).json({ message: 'History fetched (stale cache fallback)', symbol, interval, data })
       }
       return res.status(502).json({ message: 'Historical data temporarily unavailable' })
     }
@@ -328,14 +356,15 @@ stockApp.get('/history/:symbol', async (req, res, next) => {
       .sort((a, b) => a.timestamp - b.timestamp)
 
     // Upsert into cache
-    await historyModel.findOneAndUpdate(
+    await Model.findOneAndUpdate(
       { symbol },
       { symbol, data, updatedAt: new Date() },
       { upsert: true, new: true }
     )
 
-    console.log(`[History] Cached ${data.length} candles for ${symbol}`)
-    return res.status(200).json({ message: 'History fetched (live)', symbol, data })
+    const limitData = requestedLimit ? data.slice(-requestedLimit) : data
+    console.log(`[History] Cached ${data.length} candles for ${symbol} (${interval})`)
+    return res.status(200).json({ message: 'History fetched (live)', symbol, interval, data: limitData })
   } catch (err) {
     next(err)
   }

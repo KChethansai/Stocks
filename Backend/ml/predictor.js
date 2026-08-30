@@ -15,7 +15,7 @@ export const WEIGHTS = {
 }
 
 /** Normalisation scales — the move size that saturates each signal at ±1. */
-export const SCALES = {
+const SCALES = {
   /** Regression slope as a fraction of price, per session. 0.5%/day === full trend score. */
   slopePerDay: 0.005,
   /** SMA5-vs-SMA20 gap as a fraction. 2% separation === full crossover score. */
@@ -32,7 +32,7 @@ export const NEUTRAL_DEADBAND = 0.12
 const RSI_OVERBOUGHT = 70
 const RSI_OVERSOLD = 30
 
-export const MODEL_ID = 'composite-trend-crossover-momentum-rsi-v2'
+const MODEL_ID = 'composite-trend-crossover-momentum-rsi-v2'
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const round = (value, digits = 2) => Number(Number(value).toFixed(digits))
@@ -342,5 +342,3 @@ export async function predictBatch(symbols = [], options = {}) {
   }
   return results
 }
-
-export { MIN_CANDLES }

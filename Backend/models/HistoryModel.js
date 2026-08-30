@@ -32,3 +32,7 @@ const historySchema = new Schema(
 )
 
 export const historyModel = model('history', historySchema)
+
+// Intraday (60m) candles for the 1D view. Separate collection so it never
+// collides with the daily snapshot (the symbol field is unique per collection).
+export const intradayHistoryModel = model('intradayhistory', historySchema)

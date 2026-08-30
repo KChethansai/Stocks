@@ -4,7 +4,6 @@ import { stockModel } from '../models/StockModel.js'
 import { userModel } from '../models/UserModel.js'
 import { automationRuleModel } from '../models/AutomationRuleModel.js'
 import { alertModel } from '../models/AlertModel.js'
-import { ensureHistory } from '../ml/history.js'
 import { predict, predictBatch } from '../ml/predictor.js'
 import { predictionLogModel } from '../models/PredictionLogModel.js'
 import { resolvePredictionAccuracy } from '../ml/accuracyResolver.js'
@@ -50,7 +49,7 @@ const cacheKey = (symbol, horizon) => `${symbol}:${horizon}`
  * Prediction for one symbol, served from the 5-minute cache when warm.
  * Never throws — failures resolve to `{ ok: false, insufficientData: true }`.
  */
-export async function predictSymbol(symbol, horizonDays = 1) {
+async function predictSymbol(symbol, horizonDays = 1) {
   const key = cacheKey(symbol, horizonDays)
   const hit = predictionCache.get(key)
   if (hit && Date.now() - hit.at < PREDICTION_TTL_MS) return hit.value
@@ -128,9 +127,6 @@ async function logPrediction(prediction, horizonDays) {
     console.error('[ML] prediction log write failed:', error.message)
   }
 }
-
-/** Re-exported so existing callers keep working. */
-export { ensureHistory }
 
 // ── GET /ml-api/predict/:symbol?horizon=1 ─────────────────────────
 mlApp.get('/predict/:symbol', async (req, res, next) => {
@@ -421,7 +417,7 @@ const accuracySummary = async (query, limit = 30) => {
 mlApp.get('/accuracy/:symbol', async (req, res, next) => {
   try {
     if (isDemoAccuracyEnabled()) return res.json(demoAccuracy)
-    return res.json(await accuracySummary({ symbol: req.params.symbol.toUpperCase() }, Math.min(100, Number(req.query.limit) || 30)))
+    return res.json(await accuracySummary({ symbol: req.params.symbol.toUpperCase() }, Math.min(100, Math.max(1, Number(req.query.limit) || 30))))
   } catch (e) { next(e) }
 })
 mlApp.get('/accuracy', async (req, res, next) => {

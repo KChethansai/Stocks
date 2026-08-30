@@ -173,48 +173,6 @@ textarea {
   to   { transform: translateX(-50%); }
 }
 
-/* Quantity Control */
-.terminal-quantity-control {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  overflow: hidden;
-}
-
-.terminal-quantity-control button {
-  width: 36px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  transition: background 0.15s, color 0.15s;
-  cursor: pointer;
-  border: none;
-}
-
-.terminal-quantity-control button:hover:not(:disabled) {
-  background: var(--surface-active);
-  color: var(--text-primary);
-}
-
-.terminal-quantity-control input {
-  flex: 1;
-  text-align: center;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  font-weight: 600;
-  outline: none;
-  height: 38px;
-  padding: 0 4px;
-}
-
 /* Animations & 3D Micro-interactions */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
@@ -309,6 +267,8 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .terminal-chart-tools {
@@ -321,25 +281,16 @@ textarea {
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
 }
 
-.terminal-chart-tools button {
-  font-size: 0.68rem;
-  padding: 0.2rem 0.55rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.terminal-chart-tools button:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
+.terminal-chart-hint {
+  opacity: 0.65;
+  font-size: 0.6rem;
 }
 
 .terminal-chart {
   width: 100%;
-  height: auto;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: block;
   overflow: visible;
 }
@@ -466,4 +417,27 @@ textarea {
   background: var(--allocation-color, var(--primary));
   border-radius: 9999px;
   transition: width 0.3s ease;
+}
+/* ML prediction widgets (ported from CandleCraft) */
+.cc-panel {
+  background: rgba(12, 18, 27, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+
+.cc-pred-up {
+  color: #2ECF8E;
+  border-color: rgba(46, 207, 142, 0.35);
+}
+
+.cc-pred-down {
+  color: #F0656E;
+  border-color: rgba(240, 101, 110, 0.35);
+}
+
+.cc-pred-neutral {
+  color: #8B97A8;
+  border-color: rgba(139, 151, 168, 0.35);
 }

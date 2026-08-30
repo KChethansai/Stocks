@@ -4,7 +4,6 @@ import { useTrade } from '../store/tradeStore'
 import { useAuth } from '../store/authStore'
 import { TerminalLineChart } from './TerminalCharts'
 import {
-  createPortfolioHistory,
   formatCurrency,
   summarizePortfolio
 } from '../utils/marketAnalytics'
@@ -13,6 +12,7 @@ import { ShimmerButton } from './magicui/ShimmerButton'
 import { BorderBeam } from './magicui/BorderBeam'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShinyText } from './reactbits/ShinyText'
+import { SegmentedControl } from './ui/SegmentedControl'
 
 export default function Analytics() {
   const [range, setRange] = useState('3M')
@@ -24,9 +24,13 @@ export default function Analytics() {
     fetchPortfolio,
     fetchTransactions,
     fetchStocks,
+    fetchPortfolioPerformance,
     startPolling,
     stopPolling
   } = useTrade()
+
+  const [history, setHistory] = useState([])
+  const [benchmarkReturn, setBenchmarkReturn] = useState(null)
 
   useEffect(() => {
     fetchPortfolio()
@@ -41,10 +45,20 @@ export default function Analytics() {
     [portfolio, transactions, stocks]
   )
 
-  const history = useMemo(
-    () => createPortfolioHistory(portfolio, transactions, range),
-    [portfolio, transactions, range]
-  )
+  // Real portfolio equity curve for the selected range (server-computed)
+  useEffect(() => {
+    let cancelled = false
+    fetchPortfolioPerformance(range).then((res) => {
+      if (cancelled) return
+      setHistory(res.data || [])
+      if (typeof res.meta?.benchmarkReturn === 'number') {
+        setBenchmarkReturn(res.meta.benchmarkReturn)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [range, fetchPortfolioPerformance])
 
   const holdings = useMemo(() => portfolio?.holdings || [], [portfolio?.holdings])
 
@@ -114,22 +128,13 @@ export default function Analytics() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-[#111318] border border-white/8 rounded-lg p-1">
-            {['1M', '3M', '6M', 'YTD', '1Y'].map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`px-3 py-1 text-xs font-mono rounded transition cursor-pointer ${
-                  range === r
-                    ? 'bg-[#353437] text-[#F5F7FA] font-semibold shadow-sm'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+<div className="flex items-center gap-3">
+          <SegmentedControl
+            value={range}
+            onChange={setRange}
+            ariaLabel="Analytics range"
+            options={['1M', '3M', '6M', 'YTD', '1Y'].map((r) => ({ value: r, label: r }))}
+          />
 
           <ShimmerButton
             onClick={handleGenerateReport}
@@ -166,7 +171,12 @@ export default function Analytics() {
                     {Number(analytics.returnPercent || 0).toFixed(2)}%
                   </span>
                   <span className="text-[#667085]">
-                    vs S&amp;P 500 <span className="text-[#9CA3AF]">+8.4%</span>
+                    vs S&amp;P 500{' '}
+                    <span className="text-[#9CA3AF]">
+                      {benchmarkReturn != null
+                        ? `${benchmarkReturn >= 0 ? '+' : ''}${benchmarkReturn.toFixed(2)}%`
+                        : '—'}
+                    </span>
                   </span>
                 </div>
               </div>

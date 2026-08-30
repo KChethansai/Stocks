@@ -3,7 +3,7 @@ import { hash } from 'bcryptjs'
 import crypto from 'crypto'
 import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
-import { env, getCookieOptions, getProfileImage } from '../config/env.js'
+import { env, getCookieOptions, getProfileImage, isProduction } from '../config/env.js'
 import { signToken } from '../config/jwt.js'
 
 const client = new OAuth2Client(env.googleClientId)
@@ -117,7 +117,8 @@ export const googleAuth = async (req, res, next) => {
     // Set token in cookie
     res.cookie('token', token, getCookieOptions())
 
-    // Return response
+    // Return response — the JWT lives only in the httpOnly cookie; never echo
+    // it to the client body (XSS could exfiltrate it from JS).
     return res.status(200).json({
       success: true,
       message: 'Google authentication successful',
@@ -129,11 +130,10 @@ export const googleAuth = async (req, res, next) => {
         role: 'USER',
         profileImage: getProfileImage(foundUser),
         watchlist: foundUser.watchlist || []
-      },
-      token
+      }
     })
   } catch (err) {
-    console.error('Google auth handler error:', err)
+    if (!isProduction) console.error('Google auth handler error:', err)
     next(err)
   }
 }

@@ -7,6 +7,10 @@ import { useAuth } from '../../store/authStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
 import { BorderBeam } from '../magicui/BorderBeam'
 import { ShimmerButton } from '../magicui/ShimmerButton'
+import { BuyButton } from '../ui/BuyButton'
+import { Button, Chip } from '../ui/Button'
+import { SegmentedControl } from '../ui/SegmentedControl'
+import { QuantityStepper } from '../ui/QuantityStepper'
 
 export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY' }) {
   const { buyStock, sellStock, portfolio } = useTrade()
@@ -15,12 +19,10 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
   const [confirmed, setConfirmed] = useState(false)
 
   const {
-    register,
     handleSubmit,
     setValue,
     reset,
-    control,
-    formState: { errors }
+    control
   } = useForm({
     defaultValues: {
       quantity: 1,
@@ -148,30 +150,25 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
         ) : (
           <form onSubmit={handleSubmit(onSubmitTrade)} className="mt-5 space-y-4">
             {/* Side Selector (BUY / SELL) */}
-            <div className="grid grid-cols-2 p-1 rounded-xl bg-[#09090B] border border-[rgba(255,255,255,0.08)]">
-              <button
-                type="button"
-                onClick={() => setValue('side', 'BUY')}
-                className={`py-2 text-xs font-semibold rounded-lg transition uppercase tracking-wider ${
-                  isBuy
-                    ? 'bg-[#22C55E] text-white shadow-md'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                }`}
-              >
-                Buy {stock.symbol}
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue('side', 'SELL')}
-                className={`py-2 text-xs font-semibold rounded-lg transition uppercase tracking-wider ${
-                  !isBuy
-                    ? 'bg-[#EF4444] text-white shadow-md'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                }`}
-              >
-                Sell {stock.symbol}
-              </button>
-            </div>
+            <SegmentedControl
+              value={currentSide}
+              onChange={(v) => setValue('side', v)}
+              fullWidth
+              options={[
+                {
+                  value: 'BUY',
+                  label: `Buy ${stock.symbol}`,
+                  pillClass: 'bg-[#22C55E] shadow-[0_2px_10px_rgba(34,197,94,0.35)]',
+                  activeClass: 'text-black font-bold uppercase tracking-wider'
+                },
+                {
+                  value: 'SELL',
+                  label: `Sell ${stock.symbol}`,
+                  pillClass: 'bg-[#EF4444] shadow-[0_2px_10px_rgba(239,68,68,0.35)]',
+                  activeClass: 'text-white font-bold uppercase tracking-wider'
+                }
+              ]}
+            />
 
             {/* Price & Balance Info Bar */}
             <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)]">
@@ -199,53 +196,27 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
                 </label>
                 <div className="flex items-center gap-1.5">
                   {[1, 5, 10].map((qty) => (
-                    <button
+                    <Chip
                       key={qty}
-                      type="button"
+                      active={currentQuantity === qty}
                       onClick={() => handleQuickQty(qty)}
-                      className="px-2 py-0.5 text-[0.7rem] font-mono rounded border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[rgba(255,255,255,0.08)] transition"
                     >
                       +{qty}
-                    </button>
+                    </Chip>
                   ))}
-                  <button
-                    type="button"
-                    onClick={handleMax}
-                    className="px-2 py-0.5 text-[0.7rem] font-semibold rounded border border-[#3B82F6]/30 bg-[#3B82F6]/10 text-[#3B82F6] hover:bg-[#3B82F6]/20 transition"
-                  >
+                  <Chip onClick={handleMax} tone="accent">
                     MAX
-                  </button>
+                  </Chip>
                 </div>
               </div>
 
-              <div className="flex items-center rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#09090B] px-3 py-1">
-                <button
-                  type="button"
-                  onClick={() => setValue('quantity', Math.max(1, currentQuantity - 1))}
-                  className="p-1.5 text-[#9CA3AF] hover:text-[#F5F7FA] text-lg font-mono font-bold"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  {...register('quantity', {
-                    required: 'Quantity is required',
-                    min: { value: 1, message: 'Minimum 1 share' }
-                  })}
-                  className="w-full bg-transparent text-center text-sm font-semibold font-mono text-[#F5F7FA] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setValue('quantity', currentQuantity + 1)}
-                  className="p-1.5 text-[#9CA3AF] hover:text-[#F5F7FA] text-lg font-mono font-bold"
-                >
-                  +
-                </button>
-              </div>
-              {errors.quantity && (
-                <p className="mt-1 text-xs text-[#EF4444]">{errors.quantity.message}</p>
-              )}
+              <QuantityStepper
+                value={currentQuantity}
+                onChange={(n) => setValue('quantity', n)}
+                min={1}
+                max={Math.max(1, isBuy ? maxBuyQty : maxSellQty)}
+                className="w-full"
+              />
             </div>
 
             {/* Estimated Total & Summary */}
@@ -276,21 +247,49 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 text-xs font-semibold rounded-xl border border-white/10 text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-white/5 transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl"
               >
                 Cancel
-              </button>
-              <ShimmerButton
-                type="submit"
-                disabled={submitting || (isBuy && totalCost > cashBalance) || (!isBuy && currentQuantity > sharesOwned)}
-                background={isBuy ? '#22C55E' : '#EF4444'}
-                className="flex-1 py-2.5 text-xs font-bold font-mono"
-              >
-                {submitting ? 'Executing...' : `Confirm ${currentSide}`}
-              </ShimmerButton>
+              </Button>
+              {isBuy ? (
+                <BuyButton
+                  label={`Buy ${currentQuantity} ${stock.symbol}`}
+                  disabled={submitting || totalCost > cashBalance}
+                  className="flex-1 py-2.5 text-xs font-bold"
+                  onClick={async () => {
+                    const qty = Number(currentQuantity)
+                    if (totalCost > cashBalance) {
+                      toast.error('Insufficient cash balance to execute this trade.')
+                      return { success: false }
+                    }
+                    const response = await buyStock(stock.symbol, qty)
+                    if (response.success) {
+                      toast.success(response.message || `BUY order filled for ${qty} shares of ${stock.symbol}`)
+                      if (response.balance !== undefined) {
+                        patchBalance(response.balance)
+                      }
+                      setConfirmed(true)
+                      setTimeout(() => onClose(), 1400)
+                    } else {
+                      toast.error(response.message || 'Trade execution failed')
+                    }
+                    return response
+                  }}
+                />
+              ) : (
+                <ShimmerButton
+                  type="submit"
+                  disabled={submitting || currentQuantity > sharesOwned}
+                  background="#EF4444"
+                  className="flex-1 py-2.5 text-xs font-bold font-mono"
+                >
+                  {submitting ? 'Executing...' : 'Confirm SELL'}
+                </ShimmerButton>
+              )}
             </div>
           </form>
         )}

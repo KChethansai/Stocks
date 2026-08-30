@@ -16,7 +16,6 @@ import { useTrade } from '../store/tradeStore'
 import {
   CandleChart,
   TerminalLineChart,
-  generateCandleData,
   sliceHistoryByRange
 } from './TerminalCharts'
 import {
@@ -26,6 +25,18 @@ import {
 import { ShimmerButton } from './magicui/ShimmerButton'
 import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
+import { BuyButton } from './ui/BuyButton'
+import { Button, Chip } from './ui/Button'
+import { SegmentedControl } from './ui/SegmentedControl'
+import { QuantityStepper } from './ui/QuantityStepper'
+import { PredictionPanel, PredictionBadge } from './ml/PredictionWidgets'
+import {
+  fetchAccuracy,
+  fetchPrediction,
+  fetchAutomationRules,
+  saveAutomationRule,
+  patchAutomationRule
+} from './ml/predictionApi'
 
 export default function Market() {
   const location = useLocation()
@@ -50,10 +61,16 @@ export default function Market() {
   const [range, setRange] = useState('1M')
   const [chartMode, setChartMode] = useState('line') // 'line' | 'candle'
   const [stockHistory, setStockHistory] = useState([])
+  const [intradayHistory, setIntradayHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [submittingTrade, setSubmittingTrade] = useState(false)
   const [orderSide, setOrderSide] = useState('BUY') // 'BUY' | 'SELL'
   const [orderQuantity, setOrderQuantity] = useState(1)
+  const [prediction, setPrediction] = useState(null)
+  const [predictionLoading, setPredictionLoading] = useState(false)
+  const [automationRule, setAutomationRule] = useState(null)
+  const [predictionHorizon, setPredictionHorizon] = useState(1)
+  const [predictionAccuracy, setPredictionAccuracy] = useState(null)
 
   // Check URL query parameters for ?stock=SYMBOL
   useEffect(() => {
@@ -104,36 +121,92 @@ export default function Market() {
     return filteredStocks[0] || stocks[0] || null
   }, [selectedStockSymbol, filteredStocks, stocks])
 
-  // Fetch real OHLC history when selected stock changes
+  // Fetch real OHLC history when selected stock changes.
+  // Daily series always (26-range + 52W metric); intraday series for the 1D view.
   useEffect(() => {
     if (!selectedStock?.symbol) return
     let cancelled = false
     setHistoryLoading(true)
-    fetchHistory(selectedStock.symbol).then((result) => {
-      if (!cancelled) {
-        setStockHistory(result.data || [])
-        setHistoryLoading(false)
-      }
+    const isIntraday = range === '1D'
+    Promise.all([
+      fetchHistory(selectedStock.symbol, 'ALL'),
+      isIntraday ? fetchHistory(selectedStock.symbol, '1D') : Promise.resolve(null)
+    ]).then(([daily, intraday]) => {
+      if (cancelled) return
+      setStockHistory(daily.data || [])
+      setIntradayHistory(isIntraday && intraday ? (intraday.data || []) : [])
+      setHistoryLoading(false)
     })
     return () => {
       cancelled = true
     }
-  }, [selectedStock?.symbol, fetchHistory])
+  }, [selectedStock?.symbol, range, fetchHistory])
 
-  // Slice history by range
+  // Slice history by range. No synthetic fallback: empty data renders "no chart" state.
   const chartData = useMemo(() => {
-    if (stockHistory.length > 0) {
-      return sliceHistoryByRange(stockHistory, range)
-    }
-    // Fallback simulated candle history
-    return generateCandleData(selectedStock || 150, range)
-  }, [stockHistory, range, selectedStock])
+    const source = range === '1D' ? intradayHistory : stockHistory
+    return sliceHistoryByRange(source, range)
+  }, [stockHistory, intradayHistory, range])
+
+  // Real 52-week high/low from the daily series (last 252 trading days).
+  const week52 = useMemo(() => {
+    const closes = stockHistory
+      .filter(d => Number(d.close) > 0)
+      .slice(-252)
+      .map(d => Number(d.close))
+    if (!closes.length) return null
+    return { low: Math.min(...closes), high: Math.max(...closes) }
+  }, [stockHistory])
 
   // Holding info for selected stock
   const currentHolding = useMemo(() => {
     if (!portfolio?.holdings || !selectedStock) return null
     return portfolio.holdings.find((h) => h.symbol === selectedStock.symbol)
   }, [portfolio, selectedStock])
+
+  // ML prediction + automation rule for selected symbol
+  useEffect(() => {
+    if (!selectedStock?.symbol) return
+    let cancelled = false
+    setPredictionLoading(true)
+    setPrediction(null)
+
+    Promise.all([
+      fetchPrediction(selectedStock.symbol, predictionHorizon).catch(() => null),
+      fetchAutomationRules().catch(() => []),
+      fetchAccuracy(selectedStock.symbol).catch(() => null)
+    ]).then(([pred, rules, accuracy]) => {
+      if (cancelled) return
+      setPrediction(pred)
+      setAutomationRule((rules || []).find((r) => r.symbol === selectedStock.symbol) || null)
+      setPredictionAccuracy(accuracy)
+      setPredictionLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedStock?.symbol, predictionHorizon])
+
+  const handleSaveAutomation = async (payload) => {
+    try {
+      const rule = await saveAutomationRule(payload)
+      setAutomationRule(rule)
+      toast.success(`Automation enabled for ${payload.symbol}`)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save automation')
+    }
+  }
+
+  const handleToggleAutomation = async (symbol, enabled) => {
+    try {
+      const rule = await patchAutomationRule(symbol, { enabled })
+      setAutomationRule(rule)
+      toast.success(enabled ? 'Automation enabled' : 'Automation disabled')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update automation')
+    }
+  }
 
   const userBalance = currentUser?.balance ?? 100000
   const stockPrice = selectedStock?.price || 0
@@ -270,17 +343,14 @@ export default function Market() {
           {/* Sector Filter Chips */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
             {sectors.slice(0, 5).map((sec) => (
-              <button
+              <Chip
                 key={sec}
+                active={selectedSector === sec}
                 onClick={() => setSelectedSector(sec)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono whitespace-nowrap transition cursor-pointer ${
-                  selectedSector === sec
-                    ? 'bg-[#3B82F6] text-white font-medium shadow-sm'
-                    : 'bg-[#111318] text-[#9CA3AF] hover:text-[#F5F7FA] border border-[rgba(255,255,255,0.06)]'
-                }`}
+                className="whitespace-nowrap px-2.5 py-1 text-[11px]"
               >
                 {sec}
-              </button>
+              </Chip>
             ))}
           </div>
 
@@ -360,6 +430,9 @@ export default function Market() {
                           }`}
                         />
                       </button>
+                      {!predictionLoading && prediction?.ok && (
+                        <PredictionBadge prediction={prediction} compact />
+                      )}
                     </div>
                     <p className="text-xs text-[#9CA3AF] mt-1.5 flex items-center gap-2">
                       <span className="truncate">{selectedStock.name}</span>
@@ -397,47 +470,24 @@ export default function Market() {
                 <BorderBeam size={200} duration={10} colorFrom="#3B82F6" colorTo="#22C55E" />
                 <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
                   {/* Candlestick vs Line Toggle */}
-                  <div className="flex bg-[#151820] rounded-lg p-0.5 border border-[rgba(255,255,255,0.08)]">
-                    <button
-                      onClick={() => setChartMode('line')}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono transition ${
-                        chartMode === 'line'
-                          ? 'bg-[#353437] text-[#F5F7FA] font-medium shadow-sm'
-                          : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                      }`}
-                    >
-                      <LineIcon className="w-3.5 h-3.5" />
-                      Line
-                    </button>
-                    <button
-                      onClick={() => setChartMode('candle')}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono transition ${
-                        chartMode === 'candle'
-                          ? 'bg-[#353437] text-[#F5F7FA] font-medium shadow-sm'
-                          : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                      }`}
-                    >
-                      <CandleIcon className="w-3.5 h-3.5" />
-                      Candles
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    value={chartMode}
+                    onChange={setChartMode}
+                    ariaLabel="Chart type"
+                    options={[
+                      { value: 'line', label: 'Line', icon: LineIcon },
+                      { value: 'candle', label: 'Candles', icon: CandleIcon }
+                    ]}
+                  />
 
                   {/* Range Selectors */}
-                  <div className="flex bg-[#151820] rounded-lg p-0.5 border border-[rgba(255,255,255,0.08)]">
-                    {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => setRange(r)}
-                        className={`px-3 py-1 rounded text-xs font-mono transition ${
-                          range === r
-                            ? 'bg-[#353437] text-[#F5F7FA] font-medium shadow-sm'
-                            : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                        }`}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControl
+                    value={range}
+                    onChange={setRange}
+                    ariaLabel="Chart range"
+                    size="sm"
+                    options={['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((r) => ({ value: r, label: r }))}
+                  />
                 </div>
 
                 {/* Chart Area */}
@@ -465,21 +515,25 @@ export default function Market() {
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-mono uppercase text-[#667085]">Volume</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
-                    {formatCompact(selectedStock.volume || 45200000)}
+                    {selectedStock.volume ? formatCompact(selectedStock.volume) : '—'}
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-mono uppercase text-[#667085]">Market Cap</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
-                    ${formatCompact(selectedStock.marketCap || 2800000000000)}
+                    {selectedStock.marketCap
+                      ? formatCompact(selectedStock.marketCap)
+                      : '—'}
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-mono uppercase text-[#667085]">52W Range</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
-                    ${(selectedStock.price * 0.75).toFixed(2)} - ${(selectedStock.price * 1.25).toFixed(2)}
+                    {week52
+                      ? `$${week52.low.toFixed(2)} - $${week52.high.toFixed(2)}`
+                      : '—'}
                   </span>
                 </div>
 
@@ -503,37 +557,49 @@ export default function Market() {
           )}
         </section>
 
-        {/* Right Column: Trade Ticket (Stitch Execution) */}
-        <aside className="w-full lg:w-80 shrink-0 bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col h-fit">
+        {/* Right Column: AI + Trade Ticket */}
+        <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
+          {selectedStock && (
+            <PredictionPanel
+              symbol={selectedStock.symbol}
+              prediction={prediction}
+              loading={predictionLoading}
+              automationRule={automationRule}
+              onSaveAutomation={handleSaveAutomation}
+              onToggleAutomation={handleToggleAutomation}
+              horizon={predictionHorizon}
+              onHorizonChange={setPredictionHorizon}
+              accuracy={predictionAccuracy}
+            />
+          )}
+
+          <div className="bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col">
           <h3 className="text-sm font-semibold text-[#F5F7FA] mb-5">
             Trade {selectedStock?.symbol || 'Stock'}
           </h3>
 
           {/* Buy / Sell Segmented Toggle */}
-          <div className="flex rounded-lg bg-[#151820] p-1 mb-5 border border-[rgba(255,255,255,0.08)]">
-            <button
-              type="button"
-              onClick={() => setOrderSide('BUY')}
-              className={`flex-1 py-2 text-center rounded-md text-xs font-semibold font-mono transition cursor-pointer ${
-                orderSide === 'BUY'
-                  ? 'bg-[#22C55E] text-black shadow-sm'
-                  : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-              }`}
-            >
-              Buy
-            </button>
-            <button
-              type="button"
-              onClick={() => setOrderSide('SELL')}
-              className={`flex-1 py-2 text-center rounded-md text-xs font-semibold font-mono transition cursor-pointer ${
-                orderSide === 'SELL'
-                  ? 'bg-[#EF4444] text-white shadow-sm'
-                  : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-              }`}
-            >
-              Sell
-            </button>
-          </div>
+          <SegmentedControl
+            value={orderSide}
+            onChange={setOrderSide}
+            ariaLabel="Order side"
+            fullWidth
+            className="mb-5"
+            options={[
+              {
+                value: 'BUY',
+                label: 'Buy',
+                pillClass: 'bg-[#22C55E] shadow-[0_2px_10px_rgba(34,197,94,0.35)]',
+                activeClass: 'text-black font-bold'
+              },
+              {
+                value: 'SELL',
+                label: 'Sell',
+                pillClass: 'bg-[#EF4444] shadow-[0_2px_10px_rgba(239,68,68,0.35)]',
+                activeClass: 'text-white font-bold'
+              }
+            ]}
+          />
 
           <form onSubmit={handleInitiateOrder} className="space-y-4">
             {/* Quantity Input with Controls */}
@@ -547,40 +613,26 @@ export default function Market() {
                 </span>
               </div>
 
-              <div className="terminal-quantity-control">
-                <button
-                  type="button"
-                  onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
-                  disabled={orderQuantity <= 1}
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={orderQuantity}
-                  onChange={(e) => setOrderQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                />
-                <button
-                  type="button"
-                  onClick={() => setOrderQuantity(orderQuantity + 1)}
-                >
-                  +
-                </button>
-              </div>
+              <QuantityStepper
+                value={orderQuantity}
+                onChange={(n) => setOrderQuantity(n)}
+                min={1}
+                max={orderSide === 'BUY'
+                  ? Math.max(1, Math.floor((userBalance || 0) / (stockPrice || 1)))
+                  : Math.max(1, currentHolding?.quantity || 0)}
+                className="w-full"
+              />
 
               {/* Quick Percent Buttons */}
               <div className="grid grid-cols-4 gap-1.5 mt-2">
                 {[0.25, 0.5, 0.75, 1.0].map((pct) => (
-                  <button
+                  <Chip
                     key={pct}
-                    type="button"
                     onClick={() => handleQuickPercent(pct)}
-                    className="py-1 rounded bg-[#151820] hover:bg-[#1c1b1d] border border-[rgba(255,255,255,0.06)] text-[10px] font-mono text-[#9CA3AF] hover:text-[#F5F7FA] transition cursor-pointer"
+                    className="w-full py-1 text-[10px] text-center"
                   >
                     {pct === 1.0 ? 'MAX' : `${pct * 100}%`}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -603,19 +655,47 @@ export default function Market() {
               </div>
             </div>
 
-            {/* Submit Order Button */}
-            <ShimmerButton
-              type="submit"
-              disabled={submittingTrade}
-              background={orderSide === 'BUY' ? '#22C55E' : '#EF4444'}
-              className="w-full py-3 text-xs font-bold font-mono text-black"
-            >
-              <Zap className="w-4 h-4" />
-              <span>
-                {orderSide === 'BUY' ? `Buy ${orderQuantity} ${selectedStock?.symbol}` : `Sell ${orderQuantity} ${selectedStock?.symbol}`}
-              </span>
-            </ShimmerButton>
+            {orderSide === 'BUY' ? (
+              <BuyButton
+                label={`Buy ${orderQuantity} ${selectedStock?.symbol || ''}`}
+                disabled={submittingTrade || estimatedTotal > userBalance || !selectedStock}
+                className="w-full py-3 text-xs font-bold"
+                onClick={async () => {
+                  if (!selectedStock) return { success: false }
+                  if (orderQuantity <= 0 || !Number.isInteger(Number(orderQuantity))) {
+                    toast.error('Please enter a valid quantity of whole shares.')
+                    return { success: false }
+                  }
+                  if (estimatedTotal > userBalance) {
+                    toast.error(`Insufficient funds. Need ${formatCurrency(estimatedTotal)}, you have ${formatCurrency(userBalance)}.`)
+                    return { success: false }
+                  }
+                  setPendingOrder({
+                    symbol: selectedStock.symbol,
+                    name: selectedStock.name,
+                    side: 'BUY',
+                    quantity: Number(orderQuantity),
+                    price: stockPrice,
+                    total: estimatedTotal
+                  })
+                  return { success: true }
+                }}
+              />
+            ) : (
+              <ShimmerButton
+                type="submit"
+                disabled={submittingTrade}
+                background="#EF4444"
+                className="w-full py-3 text-xs font-bold font-mono text-black"
+              >
+                <Zap className="w-4 h-4" />
+                <span>
+                  {`Sell ${orderQuantity} ${selectedStock?.symbol}`}
+                </span>
+              </ShimmerButton>
+            )}
           </form>
+          </div>
         </aside>
       </div>
 
@@ -668,22 +748,22 @@ export default function Market() {
             </div>
 
             <div className="flex gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setPendingOrder(null)}
                 disabled={submittingTrade}
-                className="flex-1 py-2.5 rounded-lg border border-[rgba(255,255,255,0.12)] text-xs font-semibold text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#111318] transition cursor-pointer"
+                className="flex-1 py-2.5"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={pendingOrder.side === 'BUY' ? 'success' : 'danger'}
                 onClick={handleConfirmOrder}
                 disabled={submittingTrade}
-                className="flex-1 py-2.5 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-semibold transition cursor-pointer shadow-md disabled:opacity-50"
+                className="flex-1 py-2.5"
               >
                 {submittingTrade ? 'Executing...' : 'Confirm Execution'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

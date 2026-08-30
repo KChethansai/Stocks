@@ -40,8 +40,7 @@ export const env = {
 
 export const isProduction = env.nodeEnv === 'production'
 
-// Demo accuracy presentation is dev-only (never in production builds)
-export const mlDemoMode = parseBoolean(process.env.ML_DEMO_MODE) && !isProduction
+
 
 export const getCookieOptions = () => ({
   httpOnly: true,

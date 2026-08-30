@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router'
+import axios from 'axios'
+import { motion, AnimatePresence } from 'motion/react'
 import {
   Search,
   PlusCircle,
@@ -15,6 +17,18 @@ import { useAuth } from '../../store/authStore'
 import { useTrade } from '../../store/tradeStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
 import toast from 'react-hot-toast'
+import { Button } from '../ui/Button'
+
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/+$/, '')
+
+const formatAlertTime = (date) => {
+  const timestamp = new Date(date).getTime()
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`
+  return `${Math.floor(minutes / 1440)}d ago`
+}
 
 export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }) {
   const { currentUser, logout } = useAuth()
@@ -24,6 +38,9 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [alerts, setAlerts] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [alertsLoading, setAlertsLoading] = useState(false)
   const dropdownRef = useRef(null)
   const notifRef = useRef(null)
 
@@ -46,6 +63,52 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   }, [])
 
   const isMarketOpen = clock.getHours() >= 9 && clock.getHours() < 16
+
+  useEffect(() => {
+    if (!currentUser) {
+      setAlerts([])
+      setUnreadCount(0)
+      return undefined
+    }
+
+    let cancelled = false
+    const loadAlerts = async () => {
+      setAlertsLoading(true)
+      try {
+        const { data } = await axios.get(`${API_BASE}/ml-api/alerts?includeRead=true`, { withCredentials: true })
+        if (!cancelled) {
+          setAlerts(data.alerts || [])
+          setUnreadCount(data.unreadCount || 0)
+        }
+      } catch {
+        if (!cancelled) setAlerts([])
+      } finally {
+        if (!cancelled) setAlertsLoading(false)
+      }
+    }
+
+    loadAlerts()
+    const timer = setInterval(loadAlerts, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [currentUser])
+
+  const handleNotificationOpen = () => {
+    setNotificationsOpen((open) => !open)
+  }
+
+  const handleMarkAlertRead = async (alert) => {
+    if (alert.read) return
+    try {
+      await axios.patch(`${API_BASE}/ml-api/alerts/${alert._id}/read`, {}, { withCredentials: true })
+      setAlerts((items) => items.map((item) => item._id === alert._id ? { ...item, read: true } : item))
+      setUnreadCount((count) => Math.max(0, count - 1))
+    } catch {
+      toast.error('Unable to update notification')
+    }
+  }
 
   const handleManualRefresh = async () => {
     setRefreshing(true)
@@ -140,47 +203,58 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
           </div>
 
           {/* Trade CTA Button */}
-          <button
+          <Button
             onClick={onOpenTrade}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-[#3B82F6] hover:bg-[#2563EB] text-white shadow-sm transition active:scale-95 cursor-pointer"
+            variant="primary"
+            size="sm"
+            className="rounded-lg"
           >
             <PlusCircle className="w-3.5 h-3.5" />
             <span>Trade</span>
-          </button>
+          </Button>
 
           {/* Notifications Trigger */}
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              onClick={handleNotificationOpen}
               className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition relative"
               aria-label="Notifications"
+              aria-expanded={notificationsOpen}
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#3B82F6] rounded-full ring-2 ring-[#09090B]"></span>
+              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full bg-[#3B82F6] text-[9px] leading-4 text-[#09090B] font-bold font-mono ring-2 ring-[#09090B]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
             </button>
 
-            {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-3 shadow-xl z-50 animate-fade-in">
+            <AnimatePresence>
+              {notificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
+                  className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-3 shadow-xl z-50"
+                >
                 <div className="flex items-center justify-between pb-2 border-b border-[rgba(255,255,255,0.08)]">
                   <span className="text-xs font-semibold text-[#F5F7FA]">Market Alerts</span>
-                  <span className="text-[10px] text-[#22C55E] font-mono">Live Feeds</span>
+                  <span className="text-[10px] text-[#22C55E] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
                 </div>
-                <div className="py-2 space-y-2 text-xs">
-                  <div className="p-2 rounded-lg bg-[#111318] border border-[rgba(255,255,255,0.04)]">
-                    <p className="font-medium text-[#F5F7FA]">Paper Trading Active</p>
-                    <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                      Starting capital $100,000 ready to deploy.
-                    </p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[#111318] border border-[rgba(255,255,255,0.04)]">
-                    <p className="font-medium text-[#F5F7FA]">Market Volatility</p>
-                    <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                      NVDA &amp; TSLA leading tech sector volume today.
-                    </p>
-                  </div>
+                <div className="max-h-80 overflow-y-auto py-2 space-y-1 text-xs">
+                  {alertsLoading && <p className="px-2 py-5 text-center text-[11px] text-[#9CA3AF]">Loading alerts…</p>}
+                  {!alertsLoading && alerts.length === 0 && <p className="px-2 py-5 text-center text-[11px] text-[#9CA3AF]">No market alerts yet.</p>}
+                  {!alertsLoading && alerts.map((alert) => (
+                    <button key={alert._id} type="button" onClick={() => handleMarkAlertRead(alert)} className={`w-full rounded-lg border p-2.5 text-left transition ${alert.read ? 'border-white/[0.04] bg-[#111318]/60' : 'border-[#3B82F6]/20 bg-[#111318]'}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`font-mono font-semibold ${alert.direction === 'UP' ? 'text-[#22C55E]' : alert.direction === 'DOWN' ? 'text-[#EF4444]' : 'text-[#60A5FA]'}`}>{alert.symbol} · {alert.direction}</span>
+                        <span className="shrink-0 text-[10px] text-[#667085]">{formatAlertTime(alert.createdAt)}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">{alert.message}</p>
+                      <p className="mt-1 text-[10px] font-mono text-[#667085]">Confidence {Math.round((alert.confidence || 0) * 100)}%{!alert.read && ' · Click to mark read'}</p>
+                    </button>
+                  ))}
                 </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* User Profile Avatar & Dropdown */}
@@ -194,8 +268,15 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
               </div>
             </button>
 
-            {userDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-1.5 shadow-2xl z-50 animate-fade-in">
+            <AnimatePresence>
+              {userDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
+                  className="absolute right-0 mt-2 w-56 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-1.5 shadow-2xl z-50"
+                >
                 <div className="px-3 py-2 border-b border-[rgba(255,255,255,0.08)] mb-1">
                   <p className="text-xs font-semibold text-[#F5F7FA]">
                     {currentUser?.username || 'Trader'}
@@ -231,8 +312,9 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sign out</span>
                 </button>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

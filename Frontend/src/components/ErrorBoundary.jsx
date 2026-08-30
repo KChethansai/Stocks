@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import Logo3D from './Logo3D'
+import { Button } from './ui/Button'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -40,14 +41,15 @@ export default class ErrorBoundary extends Component {
               </p>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="primary"
               onClick={this.handleReset}
-              className="w-full py-3 px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-xl text-xs font-bold font-mono transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#3B82F6]/25"
+              className="w-full py-3 rounded-xl shadow-lg shadow-[#3B82F6]/25"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Reload MarketForge</span>
-            </button>
+            </Button>
           </div>
         </div>
       )

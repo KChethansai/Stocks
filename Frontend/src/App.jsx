@@ -20,6 +20,7 @@ const Portfolio = lazy(() => import('./components/Portfolio'))
 const Transactions = lazy(() => import('./components/Transactions'))
 const Analytics = lazy(() => import('./components/Analytics'))
 const Profile = lazy(() => import('./components/Profile'))
+const Accuracy = lazy(() => import('./components/ml/AccuracyPanel'))
 
 // Role protection guard
 const protect = (element) => (
@@ -43,6 +44,7 @@ const routerObj = createBrowserRouter([
       { path: 'portfolio', element: protect(<Portfolio />) },
       { path: 'activity', element: protect(<Transactions />) },
       { path: 'analytics', element: protect(<Analytics />) },
+      { path: 'accuracy', element: protect(<Accuracy />) },
       { path: 'profile', element: protect(<Profile />) },
       { path: '*', element: <Navigate to="/" replace /> }
     ]

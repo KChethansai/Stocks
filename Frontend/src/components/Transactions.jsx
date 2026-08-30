@@ -8,6 +8,8 @@ import { formatCurrency } from '../utils/marketAnalytics'
 import { exportToCSV } from '../utils/csvExport'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
+import { Button } from './ui/Button'
+import { SegmentedControl } from './ui/SegmentedControl'
 
 export default function Transactions() {
   const { transactions, fetchTransactions, fetchOrders } = useTrade()
@@ -136,30 +138,23 @@ export default function Transactions() {
             />
           </div>
 
-          <div className="flex bg-[#111318] rounded-lg p-1 border border-[rgba(255,255,255,0.08)]">
-            {['ALL', 'BUY', 'SELL'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3 py-1 rounded text-xs font-mono transition cursor-pointer ${
-                  filterType === type
-                    ? 'bg-[#353437] text-[#F5F7FA] font-semibold shadow-sm'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={filterType}
+            onChange={setFilterType}
+            ariaLabel="Transaction filter"
+            options={['ALL', 'BUY', 'SELL'].map((t) => ({ value: t, label: t }))}
+          />
 
-          <button
+          <Button
+            variant="secondary"
+            size="md"
             onClick={handleExportCSV}
             disabled={transactions.length === 0}
-            className="px-4 py-2 bg-[#111318] border border-[rgba(255,255,255,0.08)] hover:bg-[#151820] text-[#F5F7FA] rounded-lg text-xs font-mono font-medium transition flex items-center gap-2 cursor-pointer disabled:opacity-40"
+            className="rounded-lg"
           >
             <Download className="w-3.5 h-3.5 text-[#9CA3AF]" />
             <span>Export CSV</span>
-          </button>
+          </Button>
         </div>
       </div>
 

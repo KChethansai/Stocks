@@ -9,13 +9,14 @@ import {
 import { useTrade } from '../store/tradeStore'
 import { useAuth } from '../store/authStore'
 import { Sparkline } from './TerminalCharts'
-import { createSparkline } from '../utils/marketAnalytics'
 import { ShimmerButton } from './magicui/ShimmerButton'
 import { ShinyText } from './reactbits/ShinyText'
+import { Button } from './ui/Button'
+import { SegmentedControl } from './ui/SegmentedControl'
 import toast from 'react-hot-toast'
 
 export default function Watchlist() {
-  const { stocks, fetchStocks, startPolling, stopPolling } = useTrade()
+  const { stocks, fetchStocks, fetchSparkline, startPolling, stopPolling } = useTrade()
   const { currentUser, removeFromWatchlist } = useAuth()
   const navigate = useNavigate()
 
@@ -23,12 +24,40 @@ export default function Watchlist() {
   const [selectedFilter, setSelectedFilter] = useState('ALL') // 'ALL' | 'TECH' | 'FINANCE'
   const [sortKey, setSortKey] = useState('symbol')
   const [sortOrder, setSortOrder] = useState('asc') // 'asc' | 'desc'
+  const [sparks, setSparks] = useState({})
 
   useEffect(() => {
     fetchStocks()
     startPolling()
     return () => stopPolling()
   }, [fetchStocks, startPolling, stopPolling])
+
+  // Real last-30d close sparklines for each visible symbol (cached in store)
+  const sparkSymbols = useMemo(() => {
+    const symbols = currentUser?.watchlist || []
+    return (symbols.length ? symbols : stocks.slice(0, 6)).filter(Boolean)
+  }, [currentUser?.watchlist, stocks])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(
+      sparkSymbols.map((s) =>
+        fetchSparkline(typeof s === 'string' ? s : s.symbol)
+          .then((res) => [s, res.data || []])
+          .catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return
+      const next = {}
+      results.filter(Boolean).forEach(([s, data]) => {
+        next[typeof s === 'string' ? s : s.symbol] = data
+      })
+      setSparks(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [sparkSymbols, fetchSparkline])
 
   // Get user watchlist items or default stocks if empty
   const watchlistStocks = useMemo(() => {
@@ -149,21 +178,16 @@ export default function Watchlist() {
             />
           </div>
 
-          <div className="flex bg-[#111318] rounded-lg p-1 border border-[rgba(255,255,255,0.08)]">
-            {['ALL', 'TECHNOLOGY', 'FINANCIAL SERVICES'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setSelectedFilter(f)}
-                className={`px-3 py-1 rounded text-xs font-mono transition cursor-pointer ${
-                  selectedFilter === f
-                    ? 'bg-[#353437] text-[#F5F7FA] font-semibold shadow-sm'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                }`}
-              >
-                {f === 'TECHNOLOGY' ? 'Tech' : f === 'FINANCIAL SERVICES' ? 'Finance' : 'All'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={selectedFilter}
+            onChange={setSelectedFilter}
+            ariaLabel="Watchlist filter"
+            options={[
+              { value: 'ALL', label: 'All' },
+              { value: 'TECHNOLOGY', label: 'Tech' },
+              { value: 'FINANCIAL SERVICES', label: 'Finance' }
+            ]}
+          />
 
           <ShimmerButton
             onClick={() => navigate('/markets')}
@@ -211,7 +235,7 @@ export default function Watchlist() {
               ) : (
                 filteredWatchlist.map((stock) => {
                   const isPos = (stock.changePercent || 0) >= 0
-                  const spark = createSparkline(stock.price, stock.changePercent)
+                  const spark = sparks[stock.symbol] || []
                   return (
                     <tr
                       key={stock.symbol}
@@ -271,12 +295,13 @@ export default function Watchlist() {
                       </td>
 
                       <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
+                        <Button
+                          variant="cell"
+                          size="xs"
                           onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                          className="px-3 py-1 bg-[#3B82F6]/10 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded text-[11px] font-semibold transition cursor-pointer"
                         >
                           Trade
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   )

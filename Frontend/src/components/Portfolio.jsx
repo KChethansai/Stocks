@@ -18,7 +18,6 @@ import { useAuth } from '../store/authStore'
 import { TerminalLineChart } from './TerminalCharts'
 import { exportToCSV } from '../utils/csvExport'
 import {
-  createPortfolioHistory,
   formatCurrency,
   summarizePortfolio
 } from '../utils/marketAnalytics'
@@ -29,6 +28,8 @@ import { BorderBeam } from './magicui/BorderBeam'
 import { ShimmerButton } from './magicui/ShimmerButton'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShinyText } from './reactbits/ShinyText'
+import { Button } from './ui/Button'
+import { QuantityStepper } from './ui/QuantityStepper'
 
 class PortfolioErrorBoundary extends Component {
   constructor(props) {
@@ -74,6 +75,7 @@ function PortfolioContent() {
     fetchPortfolio,
     fetchTransactions,
     fetchStocks,
+    fetchPortfolioPerformance,
     sellStock,
     startPolling,
     stopPolling
@@ -85,6 +87,7 @@ function PortfolioContent() {
   const [sellModalHolding, setSellModalHolding] = useState(null)
   const [sellQty, setSellQty] = useState(1)
   const [selling, setSelling] = useState(false)
+  const [history, setHistory] = useState([])
 
   useEffect(() => {
     fetchPortfolio()
@@ -113,11 +116,16 @@ function PortfolioContent() {
     [portfolio, transactions, stocks]
   )
 
-  // History curve
-  const history = useMemo(
-    () => createPortfolioHistory(portfolio, transactions, range),
-    [portfolio, transactions, range]
-  )
+  // Real portfolio equity curve for the selected range (server-computed)
+  useEffect(() => {
+    let cancelled = false
+    fetchPortfolioPerformance(range).then((res) => {
+      if (!cancelled) setHistory(res.data || [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [range, fetchPortfolioPerformance])
 
   const isTotalPos = analytics.totalPnL >= 0
   const isTodayPos = analytics.todayPnL >= 0
@@ -505,12 +513,13 @@ function PortfolioContent() {
                       </td>
 
                       <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
+                        <Button
+                          variant="cell-danger"
+                          size="xs"
                           onClick={(e) => handleOpenSell(e, holding)}
-                          className="px-3 py-1 bg-[#EF4444]/10 hover:bg-[#EF4444] text-[#EF4444] hover:text-white rounded text-[11px] font-semibold transition cursor-pointer"
                         >
                           Sell
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   )
@@ -552,38 +561,13 @@ function PortfolioContent() {
                 <label className="text-[11px] text-[#9CA3AF] block mb-1">
                   Quantity to Sell
                 </label>
-                <div className="terminal-quantity-control">
-                  <button
-                    type="button"
-                    onClick={() => setSellQty(Math.max(1, sellQty - 1))}
-                    disabled={sellQty <= 1}
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max={sellModalHolding.quantity}
-                    value={sellQty}
-                    onChange={(e) =>
-                      setSellQty(
-                        Math.min(
-                          sellModalHolding.quantity,
-                          Math.max(1, parseInt(e.target.value) || 1)
-                        )
-                      )
-                    }
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSellQty(Math.min(sellModalHolding.quantity, sellQty + 1))
-                    }
-                    disabled={sellQty >= sellModalHolding.quantity}
-                  >
-                    +
-                  </button>
-                </div>
+                <QuantityStepper
+                  value={sellQty}
+                  onChange={(n) => setSellQty(n)}
+                  min={1}
+                  max={sellModalHolding.quantity}
+                  className="w-full"
+                />
               </div>
 
               <div className="p-3 bg-[#111318] rounded-lg border border-white/8 flex justify-between font-bold text-sm">
@@ -595,13 +579,14 @@ function PortfolioContent() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setSellModalHolding(null)}
-                className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs text-[#9CA3AF] hover:text-[#F5F7FA] transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl"
               >
                 Cancel
-              </button>
+              </Button>
               <ShimmerButton
                 type="button"
                 onClick={handleExecuteSell}

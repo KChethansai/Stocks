@@ -173,7 +173,7 @@ export const useTrade = create((set) => ({
         const updatedTransactions = transaction
           ? [transaction, ...state.transactions]
           : state.transactions
-        return { loading: false, portfolio: updatedPortfolio, transactions: updatedTransactions }
+        return { loading: false, portfolio: updatedPortfolio, transactions: updatedTransactions, performanceCache: {} }
       })
       return {
         success: true,
@@ -218,7 +218,7 @@ export const useTrade = create((set) => ({
         const updatedTransactions = transaction
           ? [transaction, ...state.transactions]
           : state.transactions
-        return { loading: false, portfolio: updatedPortfolio, transactions: updatedTransactions }
+        return { loading: false, portfolio: updatedPortfolio, transactions: updatedTransactions, performanceCache: {} }
       })
       return {
         success: true,
@@ -235,45 +235,49 @@ export const useTrade = create((set) => ({
   },
 
   // ── Historical OHLC cache ──────────────────────────────────────────────────
-  // Stores { [symbol]: { data: [], fetchedAt: Date } }
+  // Stores { [key]: { data: [], fetchedAt: Date } }; key = `${symbol}|${range}`
+  // 'ALL' = daily rows (backend refreshes once/day -> long TTL), '1D' = intraday.
   historyCache: {},
   historyLoading: {},
+  sparklineCache: {},
+  performanceCache: {},
 
-  // Cache TTL: 1 hour (backend refreshes once/day; we can safely re-use in-session)
-  fetchHistory: async (symbol) => {
+  fetchHistory: async (symbol, range = 'ALL') => {
     if (!symbol) return { success: false, data: [] }
 
-    const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+    const key = `${symbol}|${range}`
+    const CACHE_TTL = range === '1D' ? 15 * 60 * 1000 : 60 * 60 * 1000
 
     // Return cached copy if fresh
-    const cached = useTrade.getState().historyCache[symbol]
+    const cached = useTrade.getState().historyCache[key]
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
       return { success: true, data: cached.data }
     }
 
     // Mark loading
     set((state) => ({
-      historyLoading: { ...state.historyLoading, [symbol]: true }
+      historyLoading: { ...state.historyLoading, [key]: true }
     }))
 
     try {
-      const response = await axios.get(`${API_BASE}/stock-api/history/${symbol}`, {
-        withCredentials: true
-      })
+      const url = range === '1D'
+        ? `${API_BASE}/stock-api/history/${symbol}?interval=60m`
+        : `${API_BASE}/stock-api/history/${symbol}`
+      const response = await axios.get(url, { withCredentials: true })
       const data = response.data.data || []
 
       set((state) => ({
         historyCache: {
           ...state.historyCache,
-          [symbol]: { data, fetchedAt: Date.now() }
+          [key]: { data, fetchedAt: Date.now() }
         },
-        historyLoading: { ...state.historyLoading, [symbol]: false }
+        historyLoading: { ...state.historyLoading, [key]: false }
       }))
 
       return { success: true, data }
     } catch (err) {
       set((state) => ({
-        historyLoading: { ...state.historyLoading, [symbol]: false }
+        historyLoading: { ...state.historyLoading, [key]: false }
       }))
       return {
         success: false,
@@ -282,6 +286,65 @@ export const useTrade = create((set) => ({
       }
     }
   },
+
+  // Last 30 daily closes for sparklines (small payload via ?limit=)
+  fetchSparkline: async (symbol) => {
+    if (!symbol) return { success: true, data: [] }
+    const cached = useTrade.getState().sparklineCache[symbol]
+    if (cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) {
+      return { success: true, data: cached.data }
+    }
+    try {
+      const response = await axios.get(
+        `${API_BASE}/stock-api/history/${symbol}?limit=30`,
+        { withCredentials: true }
+      )
+      const data = (response.data.data || []).map((d) => ({
+        label: new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: Number(d.close)
+      }))
+      set((state) => ({
+        sparklineCache: { ...state.sparklineCache, [symbol]: { data, fetchedAt: Date.now() } }
+      }))
+      return { success: true, data }
+    } catch {
+      return { success: true, data: [] }
+    }
+  },
+
+  // Real portfolio equity curve for a range (computed server-side).
+  // Fresh enough: invalidated on every trade.
+  fetchPortfolioPerformance: async (range = '1M') => {
+    const key = String(range || '1M').toUpperCase()
+    const cached = useTrade.getState().performanceCache[key]
+    if (cached && Date.now() - cached.fetchedAt < 30 * 1000) {
+      return { success: true, data: cached.data, meta: cached.meta }
+    }
+    try {
+      const response = await axios.get(
+        `${API_BASE}/trade-api/performance?range=${key}`,
+        { withCredentials: true }
+      )
+      const data = response.data.data || []
+      const meta = response.data.meta || {}
+      set((state) => ({
+        performanceCache: {
+          ...state.performanceCache,
+          [key]: { data, meta, fetchedAt: Date.now() }
+        }
+      }))
+      return { success: true, data, meta }
+    } catch (err) {
+      return {
+        success: false,
+        data: [],
+        meta: {},
+        message: err.response?.data?.message || 'Failed to fetch performance'
+      }
+    }
+  },
+
+  invalidatePerformanceCache: () => set({ performanceCache: {} }),
 
   // ── Centralized polling ────────────────────────────────────────────────────
   // A single shared interval that refreshes stocks every 30 seconds.

@@ -18,6 +18,7 @@ import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShimmerButton } from './magicui/ShimmerButton'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
+import { Button } from './ui/Button'
 
 export default function Profile() {
   const fileInputRef = useRef(null)
@@ -206,24 +207,26 @@ export default function Profile() {
             )}
 
             <div className="flex gap-2 mt-5">
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
-                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white transition cursor-pointer"
+                className="flex-1 py-2 rounded-xl"
               >
                 Upload Photo
-              </button>
+              </Button>
               {profileImageUrl && (
-                <button
+                <Button
                   type="button"
+                  variant="outline-danger"
                   onClick={handleRemoveProfileImage}
                   disabled={loading}
-                  className="p-2 text-xs font-semibold rounded-xl border border-white/10 text-[#EF4444] hover:bg-[#EF4444]/10 transition cursor-pointer"
+                  className="p-2 rounded-xl"
                   title="Remove photo"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               )}
             </div>
 

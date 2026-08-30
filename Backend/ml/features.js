@@ -204,5 +204,3 @@ export async function loadFeatures(symbol, options = {}) {
   }
   return computeFeatures(candles, options)
 }
-
-export const __internals = { mean, stdDev, sma, linearRegression }

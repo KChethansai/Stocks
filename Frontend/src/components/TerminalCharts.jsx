@@ -1,6 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useId, useMemo, useState, useRef, useEffect } from 'react'
-import { formatCurrency } from '../utils/marketAnalytics'
+import { useId, useMemo, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 
 const CHART_WIDTH = 720
 const CHART_PADDING = {
@@ -17,17 +16,6 @@ const FINANCIAL_COLORS = {
   neutral: 'var(--text-muted)'
 }
 
-const ALLOCATION_COLORS = [
-  '#38bdf8',
-  '#22c55e',
-  '#f59e0b',
-  '#a78bfa',
-  '#f43f5e',
-  '#14b8a6',
-  '#eab308',
-  '#fb7185'
-]
-
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 
 const getChartBounds = (width, height) => ({
@@ -36,6 +24,49 @@ const getChartBounds = (width, height) => ({
   y1: CHART_PADDING.top,
   y2: height - CHART_PADDING.bottom
 })
+
+const getZoomAnchor = (event, target, dataLength, zoom, panOffset) => {
+  if (!dataLength) return null
+
+  const rect = target.getBoundingClientRect()
+  const vbWidth = Number(target.getAttribute('width')) || CHART_WIDTH
+  const plotLeft = rect.width * (CHART_PADDING.left / vbWidth)
+  const plotWidth = rect.width * ((vbWidth - CHART_PADDING.left - CHART_PADDING.right) / vbWidth)
+  const ratio = clamp((event.clientX - rect.left - plotLeft) / plotWidth, 0, 1)
+  const currentCount = Math.min(dataLength, Math.max(4, Math.round(dataLength / zoom)))
+  const currentMaxStart = Math.max(0, dataLength - currentCount)
+  const currentStart = clamp(dataLength - currentCount - panOffset, 0, currentMaxStart)
+  const dataIndex = currentStart + ratio * Math.max(0, currentCount - 1)
+
+  return { ratio, dataIndex }
+}
+
+const getPanOffsetForZoom = (dataLength, nextZoom, anchor) => {
+  const nextCount = Math.min(dataLength, Math.max(4, Math.round(dataLength / nextZoom)))
+  const nextMaxStart = Math.max(0, dataLength - nextCount)
+  const nextStart = clamp(anchor.dataIndex - anchor.ratio * Math.max(0, nextCount - 1), 0, nextMaxStart)
+  return dataLength - nextCount - nextStart
+}
+
+const useElementSize = (ref, fallbackWidth, fallbackHeight) => {
+  const [size, setSize] = useState({ width: fallbackWidth, height: fallbackHeight })
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return undefined
+    const update = () => {
+      if (el.clientWidth > 0 && el.clientHeight > 0) {
+        setSize({ width: el.clientWidth, height: el.clientHeight })
+      }
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+
+  return size
+}
 
 const formatAxisValue = (value, prefix = '$') => {
   const number = Number(value || 0)
@@ -74,7 +105,7 @@ const formatLabel = (label, index, total) => {
 
 const getScale = (data, key, width, height) => {
   const bounds = getChartBounds(width, height)
-  const values = data.map((item) => Number(item[key] || 0))
+  const values = data.map((item) => Number(item[key] ?? item.close ?? 0))
   const rawMin = Math.min(...values)
   const rawMax = Math.max(...values)
   const rawRange = rawMax - rawMin
@@ -158,102 +189,11 @@ const getCandleScale = (data, width, height) => {
   }
 }
 
-export function TimeRangeSelector({ activeRange, onRangeChange }) {
-  const ranges = ['1D', '1W', '1M', '3M', '6M', '1Y', 'ALL']
-
-  return (
-    <div className="terminal-range" aria-label="Chart time range">
-      {ranges.map((range) => (
-        <button
-          key={range}
-          className={activeRange === range ? 'is-active' : ''}
-          onClick={() => onRangeChange(range)}
-          type="button"
-        >
-          {range}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ─── Generate deterministic OHLC candle data from a stock object ──────────────
-// Used as fallback when real backend history is loading or unavailable.
-// Anchored to the real current price so the final candle matches reality.
-export function generateCandleData(stockOrPrice, range = '1M') {
-  let price = 150
-  let changePercent = 0
-  let symbol = 'SIM'
-
-  if (typeof stockOrPrice === 'number' || typeof stockOrPrice === 'string') {
-    price = Number(stockOrPrice) || 150
-  } else if (stockOrPrice && typeof stockOrPrice === 'object') {
-    price = Number(stockOrPrice.price || stockOrPrice.currentPrice || 150)
-    changePercent = Number(stockOrPrice.changePercent || 0)
-    symbol = stockOrPrice.symbol || 'SIM'
-  }
-
-  const seed = symbol
-    ? symbol.charCodeAt(0) * 31 + (symbol.charCodeAt(1) || 7)
-    : 42
-
-  const rangeMap = {
-    '1D':  { candles: 24,  vol: 0.004, drift: changePercent / 100 / 24  },
-    '1W':  { candles: 7,   vol: 0.010, drift: changePercent / 100 / 7   },
-    '1M':  { candles: 30,  vol: 0.015, drift: changePercent / 100 / 30  },
-    '3M':  { candles: 60,  vol: 0.012, drift: changePercent / 100 / 60  },
-    '6M':  { candles: 90,  vol: 0.010, drift: changePercent / 100 / 90  },
-    '1Y':  { candles: 120, vol: 0.008, drift: changePercent / 100 / 120 },
-    'ALL': { candles: 150, vol: 0.007, drift: changePercent / 100 / 150 },
-  }
-
-  const cfg = rangeMap[range] || rangeMap['1M']
-
-  let rng = seed
-  const pseudoRandom = () => {
-    rng = (rng * 1664525 + 1013904223) & 0xffffffff
-    return ((rng >>> 0) / 0xffffffff)
-  }
-
-  const candles = []
-  // Work backwards from current price so the last candle always matches reality
-  let currentClose = price
-
-  for (let i = cfg.candles - 1; i >= 0; i--) {
-    const open = currentClose
-    const bodyPct = (pseudoRandom() - 0.5) * cfg.vol * 2
-    const close = open * (1 + bodyPct + cfg.drift)
-    const wickUp = pseudoRandom() * cfg.vol * open
-    const wickDown = pseudoRandom() * cfg.vol * open
-    const high = Math.max(open, close) + wickUp
-    const low = Math.min(open, close) - wickDown
-
-    const date = new Date()
-    if (range === '1D') date.setHours(date.getHours() - i)
-    else date.setDate(date.getDate() - i)
-
-    candles.push({
-      open:    Number(open.toFixed(2)),
-      close:   Number(close.toFixed(2)),
-      high:    Number(high.toFixed(2)),
-      low:     Number(low.toFixed(2)),
-      label:   range === '1D'
-        ? `${date.getHours()}:00`
-        : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      bullish: close >= open
-    })
-
-    currentClose = close
-  }
-
-  return candles
-}
 
 // ─── Slice raw backend OHLC history by range ─────────────────────────────────
 export function sliceHistoryByRange(rawData = [], range = '1M') {
   if (!rawData.length) return []
 
-  const now = new Date()
   const cutoffs = {
     '1D':  1,
     '1W':  7,
@@ -265,7 +205,10 @@ export function sliceHistoryByRange(rawData = [], range = '1M') {
   }
 
   const days = cutoffs[range] ?? 30
-  const cutoff = days === Infinity ? new Date(0) : new Date(now - days * 24 * 60 * 60 * 1000)
+  // Anchor the window to the latest available bar (not wall-clock now) so
+  // weekends/before-open don't silently drop the most recent data.
+  const lastTs = Math.max(...rawData.map(d => new Date(d.timestamp).getTime()))
+  const cutoff = days === Infinity ? new Date(0) : new Date(lastTs - days * 24 * 60 * 60 * 1000)
 
   return rawData
     .filter(d => new Date(d.timestamp) >= cutoff)
@@ -274,7 +217,9 @@ export function sliceHistoryByRange(rawData = [], range = '1M') {
       close:   Number(d.close),
       high:    Number(d.high),
       low:     Number(d.low),
-      label:   new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      label:   range === '1D'
+        ? new Date(d.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+        : new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       bullish: d.close >= d.open
     }))
 }
@@ -293,19 +238,26 @@ export function CandleChart({
   const isDragging = useRef(false)
   const lastMouseX = useRef(0)
 
-  useEffect(() => {
-    const handleWheel = (event) => {
-      event.preventDefault()
-      const zoomStep = 0.15
-      if (event.deltaY < 0) setZoom(v => Math.min(4, v + zoomStep))
-      else if (event.deltaY > 0) setZoom(v => Math.max(1, v - zoomStep))
-    }
-    const svg = svgRef.current
-    if (svg) svg.addEventListener('wheel', handleWheel, { passive: false })
-    return () => { if (svg) svg.removeEventListener('wheel', handleWheel) }
-  }, [])
+  const handleWheel = useCallback((e) => {
+    // Regular wheel events intentionally bubble to the page for natural scrolling.
+    if (!e.ctrlKey && !e.metaKey) return
+    e.preventDefault()
+    e.stopPropagation()
+    const nextZoom = clamp(zoom + (e.deltaY < 0 ? 0.2 : -0.2), 1, 4)
+    const anchor = getZoomAnchor(e, e.currentTarget, data.length, zoom, panOffset)
+    if (!anchor) return
+    setPanOffset(getPanOffsetForZoom(data.length, nextZoom, anchor))
+    setZoom(nextZoom)
+  }, [data.length, panOffset, zoom])
 
-  const width = CHART_WIDTH
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return undefined
+    svg.addEventListener('wheel', handleWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
+  const { width, height: renderHeight } = useElementSize(svgRef, CHART_WIDTH, height)
 
   const visibleData = useMemo(() => {
     const safeZoom = Math.max(1, zoom)
@@ -317,11 +269,11 @@ export function CandleChart({
 
   const chartModel = useMemo(() => {
     if (!visibleData.length) return null
-    const scale = getCandleScale(visibleData, width, height)
+    const scale = getCandleScale(visibleData, width, renderHeight)
     const yTicks = getTicks(scale.min, scale.max)
     const xTickIndices = getXTicks(visibleData)
     return { scale, yTicks, xTickIndices }
-  }, [visibleData, width, height])
+  }, [visibleData, width, renderHeight])
 
   const hovered = hoverIndex !== null ? visibleData[hoverIndex] : null
 
@@ -359,17 +311,7 @@ export function CandleChart({
   return (
     <div className="terminal-chart-shell">
       <div className="terminal-chart-tools">
-        <span>{label}</span>
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
-          <button type="button" aria-label="Zoom in" onClick={() => setZoom(v => Math.min(4, v + 0.5))}
-            style={{ fontSize: '0.65rem', padding: '0.2rem 0.55rem', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>
-            Zoom +
-          </button>
-          <button type="button" aria-label="Zoom out" onClick={() => setZoom(v => Math.max(1, v - 0.5))}
-            style={{ fontSize: '0.65rem', padding: '0.2rem 0.55rem', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer' }}>
-            Zoom -
-          </button>
-        </div>
+        <span>{label}</span><span className="terminal-chart-hint">Ctrl/⌘ + scroll to zoom</span>
       </div>
 
       {/* OHLC hover bar */}
@@ -396,7 +338,9 @@ export function CandleChart({
       <svg
         ref={svgRef}
         className="terminal-chart"
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${width} ${renderHeight}`}
+        width={width}
+        height={renderHeight}
         role="img"
         aria-label={`${label} candlestick chart`}
         onPointerDown={handlePointerDown}
@@ -404,7 +348,7 @@ export function CandleChart({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onPointerLeave={() => { isDragging.current = false; setHoverIndex(null) }}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'pan-y' }}
       >
         <defs>
           <filter id={`glow-c-${generatedId}`}>
@@ -440,7 +384,7 @@ export function CandleChart({
               if (!visibleData[index]) return null
               const x = chartModel.scale.x(index)
               return (
-                <text key={index} x={x} y={height - 12} className="terminal-axis-label terminal-axis-label-x" textAnchor="middle">
+                <text key={index} x={x} y={renderHeight - 12} className="terminal-axis-label terminal-axis-label-x" textAnchor="middle">
                   {visibleData[index].label}
                 </text>
               )
@@ -503,10 +447,10 @@ export function CandleChart({
           <g>
             <rect x={CHART_PADDING.left} y={CHART_PADDING.top}
               width={width - CHART_PADDING.left - CHART_PADDING.right}
-              height={height - CHART_PADDING.top - CHART_PADDING.bottom}
+              height={renderHeight - CHART_PADDING.top - CHART_PADDING.bottom}
               className="terminal-plot-area"
             />
-            <text x={width / 2} y={height / 2} className="terminal-empty-chart" textAnchor="middle">
+            <text x={width / 2} y={renderHeight / 2} className="terminal-empty-chart" textAnchor="middle">
               No chart data available
             </text>
           </g>
@@ -535,30 +479,25 @@ export function TerminalLineChart({
   const isDragging = useRef(false)
   const lastMouseX = useRef(0)
 
+  const handleWheel = useCallback((event) => {
+    if (!event.ctrlKey && !event.metaKey) return
+    event.preventDefault()
+    event.stopPropagation()
+    const nextZoom = clamp(zoom + (event.deltaY < 0 ? 0.2 : -0.2), 1, 4)
+    const anchor = getZoomAnchor(event, event.currentTarget, data.length, zoom, panOffset)
+    if (!anchor) return
+    setPanOffset(getPanOffsetForZoom(data.length, nextZoom, anchor))
+    setZoom(nextZoom)
+  }, [data.length, panOffset, zoom])
+
   useEffect(() => {
-    const handleWheel = (event) => {
-      event.preventDefault()
-      
-      const zoomStep = 0.15
-      if (event.deltaY < 0) {
-        setZoom((value) => Math.min(4, value + zoomStep))
-      } else if (event.deltaY > 0) {
-        setZoom((value) => Math.max(1, value - zoomStep))
-      }
-    }
-
     const svg = svgRef.current
-    if (svg) {
-      svg.addEventListener('wheel', handleWheel, { passive: false })
-    }
-    return () => {
-      if (svg) {
-        svg.removeEventListener('wheel', handleWheel)
-      }
-    }
-  }, [])
+    if (!svg) return undefined
+    svg.addEventListener('wheel', handleWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
-  const width = CHART_WIDTH
+  const { width, height: renderHeight } = useElementSize(svgRef, CHART_WIDTH, height)
   const visibleData = useMemo(() => {
     const safeZoom = Math.max(1, zoom)
     const count = Math.max(4, Math.round(data.length / safeZoom))
@@ -571,11 +510,11 @@ export function TerminalLineChart({
 
   const chartModel = useMemo(() => {
     if (!visibleData.length) return null
-    const scale = getScale(visibleData, dataKey, width, height)
+    const scale = getScale(visibleData, dataKey, width, renderHeight)
     const points = visibleData.map((item, index) => ({
       x: scale.x(index),
-      y: scale.y(item[dataKey]),
-      value: Number(item[dataKey] || 0),
+      y: scale.y(item[dataKey] ?? item.close),
+      value: Number(item[dataKey] ?? item.close ?? 0),
       item
     }))
     const path = buildSmoothPath(points)
@@ -590,7 +529,7 @@ export function TerminalLineChart({
       yTicks,
       xTicks
     }
-  }, [dataKey, height, visibleData, width])
+  }, [dataKey, renderHeight, visibleData, width])
 
   const color = propColor || FINANCIAL_COLORS[tone] || FINANCIAL_COLORS.positive
   const hoverPoint = hoverIndex === null ? null : visibleData[hoverIndex]
@@ -601,7 +540,7 @@ export function TerminalLineChart({
     ? clamp(hoverCoordinates.x + 14, CHART_PADDING.left, width - tooltipWidth - 10)
     : 0
   const tooltipY = hoverCoordinates
-    ? clamp(hoverCoordinates.y - tooltipHeight - 10, 8, height - tooltipHeight - 8)
+    ? clamp(hoverCoordinates.y - tooltipHeight - 10, 8, renderHeight - tooltipHeight - 8)
     : 0
 
   const updateHover = (clientX, target) => {
@@ -645,28 +584,14 @@ export function TerminalLineChart({
   return (
     <div className="terminal-chart-shell">
       <div className="terminal-chart-tools">
-        <span>{label}</span>
-        <div>
-          <button
-            aria-label="Zoom in chart"
-            type="button"
-            onClick={() => setZoom((value) => Math.min(4, value + 0.5))}
-          >
-            Zoom +
-          </button>
-          <button
-            aria-label="Zoom out chart"
-            type="button"
-            onClick={() => setZoom((value) => Math.max(1, value - 0.5))}
-          >
-            Zoom -
-          </button>
-        </div>
+        <span>{label}</span><span className="terminal-chart-hint">Ctrl/⌘ + scroll to zoom</span>
       </div>
       <svg
         ref={svgRef}
         className="terminal-chart"
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${width} ${renderHeight}`}
+        width={width}
+        height={renderHeight}
         role="img"
         aria-label={`${label} chart`}
         onPointerDown={handlePointerDown}
@@ -677,7 +602,7 @@ export function TerminalLineChart({
           isDragging.current = false
           setHoverIndex(null)
         }}
-        style={{ touchAction: 'none' }} // Disable browser panning on touch
+        style={{ touchAction: 'pan-y' }}
       >
         <defs>
           <linearGradient id={`area-${generatedId}`} x1="0" x2="0" y1="0" y2="1">
@@ -732,7 +657,7 @@ export function TerminalLineChart({
                   />
                   <text
                     x={x}
-                    y={height - 12}
+                    y={renderHeight - 12}
                     className="terminal-axis-label terminal-axis-label-x"
                     textAnchor={index === 0 ? 'start' : index === visibleData.length - 1 ? 'end' : 'middle'}
                   >
@@ -780,7 +705,7 @@ export function TerminalLineChart({
                 <foreignObject x={tooltipX} y={tooltipY} width={tooltipWidth} height={tooltipHeight}>
                   <div className="terminal-tooltip">
                     <strong>{formatLabel(hoverPoint.label, hoverIndex, visibleData.length)}</strong>
-                    <span>{formatPointValue(hoverPoint[dataKey], valuePrefix)}</span>
+                    <span>{formatPointValue(hoverPoint[dataKey] ?? hoverPoint.close, valuePrefix)}</span>
                   </div>
                 </foreignObject>
               </>
@@ -792,10 +717,10 @@ export function TerminalLineChart({
               x={CHART_PADDING.left}
               y={CHART_PADDING.top}
               width={width - CHART_PADDING.left - CHART_PADDING.right}
-              height={height - CHART_PADDING.top - CHART_PADDING.bottom}
+              height={renderHeight - CHART_PADDING.top - CHART_PADDING.bottom}
               className="terminal-plot-area"
             />
-            <text x={width / 2} y={height / 2} className="terminal-empty-chart" textAnchor="middle">
+            <text x={width / 2} y={renderHeight / 2} className="terminal-empty-chart" textAnchor="middle">
               No chart data available
             </text>
           </g>
@@ -841,33 +766,4 @@ export function Sparkline({ data = [], positive = true, color: propColor }) {
   )
 }
 
-export function AllocationBars({ data = [] }) {
-  if (!data.length) return <p className="terminal-muted">No allocation data.</p>
 
-  return (
-    <div className="allocation-bars">
-      {[...data]
-        .sort((a, b) => b.percent - a.percent)
-        .map((item, index) => {
-          const color = ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]
-          const percent = clamp(Number(item.percent || 0), 0, 100)
-
-          return (
-            <div key={item.label} className="allocation-row" style={{ '--allocation-color': color }}>
-              <div>
-                <strong>
-                  <i aria-hidden="true" />
-                  {item.label}
-                </strong>
-                <span>{formatCurrency(item.value)}</span>
-              </div>
-              <div className="allocation-track">
-                <span style={{ width: `${percent}%` }} />
-              </div>
-              <em>{Number(item.percent || 0).toFixed(1)}%</em>
-            </div>
-          )
-        })}
-    </div>
-  )
-}

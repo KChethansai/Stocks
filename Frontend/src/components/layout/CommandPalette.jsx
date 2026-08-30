@@ -17,6 +17,7 @@ import {
 import { useTrade } from '../../store/tradeStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
 import { BorderBeam } from '../magicui/BorderBeam'
+import { Button } from '../ui/Button'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, category: 'Navigation' },
@@ -183,12 +184,14 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
                         </p>
                       </div>
 
-                      <button
+                      <Button
+                        variant="cell"
+                        size="xs"
                         onClick={(e) => handleQuickTrade(e, stock)}
-                        className="hidden sm:inline-flex items-center gap-1 rounded bg-[#3B82F6]/15 hover:bg-[#3B82F6]/25 border border-[#3B82F6]/30 text-[#3B82F6] px-2.5 py-1 text-xs font-medium transition"
+                        className="hidden sm:inline-flex"
                       >
                         <PlusCircle className="w-3 h-3" /> Trade
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )

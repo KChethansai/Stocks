@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 
 import { env, isProduction } from './config/env.js'
-import { securityMiddleware, rejectUnsafePayload, authLimiter } from './config/security.js'
+import { securityMiddleware, rejectUnsafePayload, authLimiter, stateChangingOriginGuard } from './config/security.js'
 import { userApp } from './APIs/UserAPI.js'
 import { stockApp } from './APIs/StockAPI.js'
 import { tradeApp } from './APIs/TradeAPI.js'
@@ -26,7 +26,9 @@ app.use(securityMiddleware)
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || env.clientUrls.includes(origin)) {
+      const isLocalDev = env.nodeEnv !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '')
+      if (!origin || env.clientUrls.includes(origin) || isLocalDev) {
         callback(null, true)
       } else {
         callback(new Error('Not allowed by CORS'))
@@ -39,6 +41,7 @@ app.use(
 // Parse cookies & JSON bodies with sanitization
 app.use(cookieParser())
 app.use(exp.json({ limit: '20kb' }))
+app.use(stateChangingOriginGuard)
 app.use(rejectUnsafePayload)
 
 // API Routes
@@ -66,8 +69,11 @@ app.use((err, req, res, next) => {
   if (err.name === 'MulterError') {
     return res.status(400).json({ message: 'Invalid image upload' })
   }
-  if (err.status) {
-    return res.status(err.status).json({ message: err.message })
+  const status = err.statusCode || err.status
+  if (status) {
+    // Only expose the inner message for client-side (4xx) errors — never for 5xx.
+    const expose = status < 500 ? err.message : 'Internal server error'
+    return res.status(status).json({ message: expose })
   }
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ message: 'Origin not allowed' })

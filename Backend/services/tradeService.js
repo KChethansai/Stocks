@@ -20,16 +20,16 @@ const MAX_QUANTITY = 100000
 
 const httpError = (message, statusCode) => Object.assign(new Error(message), { statusCode })
 
-export const isValidSymbol = (symbol) => SYMBOL_PATTERN.test(symbol || '')
+const isValidSymbol = (symbol) => SYMBOL_PATTERN.test(symbol || '')
 
-export const isValidQuantity = (quantity) =>
+const isValidQuantity = (quantity) =>
   Number.isInteger(quantity) && quantity >= 1 && quantity <= MAX_QUANTITY
 
 /**
  * Run `workFn` inside a MongoDB transaction, falling back to a non-transactional
  * retry on standalone servers that cannot start sessions.
  */
-export const executeWithTransactionFallback = async (workFn) => {
+const executeWithTransactionFallback = async (workFn) => {
   let session = null
   try {
     session = await startSession()
@@ -55,9 +55,29 @@ export const executeWithTransactionFallback = async (workFn) => {
   }
 }
 
+// ── Per-user trade serialization ────────────────────────────────────────────
+// Concurrent BUY/SELL for the SAME user are queued so the funds check and the
+// balance write cannot interleave. On Atlas/replica-set the Mongo transactions
+// below are the real guarantee; this lock additionally avoids same-user
+// contention aborts and covers standalone MongoDB (dev) where transactions
+// cannot start. # ponytail: single-process lock only — multi-instance deploys
+// must rely on the transactional path (Atlas gives it by default).
+const tradeQueues = new Map()
+
+const enqueueTrade = (userId, task) => {
+  const prev = tradeQueues.get(userId) || Promise.resolve()
+  const run = prev.catch(() => {}).then(task)
+  tradeQueues.set(userId, run)
+  run
+    .finally(() => {
+      if (tradeQueues.get(userId) === run) tradeQueues.delete(userId)
+    })
+    .catch(() => {})
+  return run
+}
+
 /**
  * Execute a paper buy or sell.
- *
  * @param {object} params
  * @param {string} params.userId            owning user (`req.user.id` or ObjectId)
  * @param {string} params.symbol            uppercase ticker
@@ -68,7 +88,11 @@ export const executeWithTransactionFallback = async (workFn) => {
  * @returns {Promise<{balance: number, holdings: Array, transaction: object, price: number, total: number, quantity: number}>}
  * @throws {Error & {statusCode: number}} on validation / funds / holdings failures
  */
-export async function executePaperTrade({ userId, symbol, quantity, side, source = 'MANUAL', stock = null }) {
+export function executePaperTrade(params) {
+  return enqueueTrade(String(params.userId), () => executePaperTradeUnlocked(params))
+}
+
+async function executePaperTradeUnlocked({ userId, symbol, quantity, side, source = 'MANUAL', stock = null }) {
   const ticker = typeof symbol === 'string' ? symbol.toUpperCase().trim() : ''
   const shares = Number.parseInt(quantity, 10)
   const tradeSide = side === 'SELL' ? 'SELL' : 'BUY'
@@ -183,6 +207,4 @@ export async function executePaperTrade({ userId, symbol, quantity, side, source
   })
 }
 
-/** Convenience wrappers. */
-export const executePaperBuy = (params) => executePaperTrade({ ...params, side: 'BUY' })
-export const executePaperSell = (params) => executePaperTrade({ ...params, side: 'SELL' })
+

@@ -10,8 +10,8 @@ import {
 import { useAuth } from '../store/authStore'
 import { useTrade } from '../store/tradeStore'
 import { TerminalLineChart } from './TerminalCharts'
+import { AiInsightWidget } from './ml/PredictionWidgets'
 import {
-  createPortfolioHistory,
   formatCurrency,
   summarizePortfolio
 } from '../utils/marketAnalytics'
@@ -19,6 +19,7 @@ import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
+import { SegmentedControl } from './ui/SegmentedControl'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -30,12 +31,14 @@ export default function Dashboard() {
     fetchStocks,
     fetchPortfolio,
     fetchTransactions,
+    fetchPortfolioPerformance,
     startPolling,
     stopPolling
   } = useTrade()
 
   const [range, setRange] = useState('1M')
   const [moverTab, setMoverTab] = useState('gainers') // 'gainers' | 'losers' | 'active'
+  const [portfolioHistory, setPortfolioHistory] = useState([])
 
   useEffect(() => {
     fetchStocks()
@@ -59,11 +62,16 @@ export default function Dashboard() {
     [portfolio, transactions, stocks]
   )
 
-  // Calculate portfolio history curve
-  const portfolioHistory = useMemo(
-    () => createPortfolioHistory(portfolio, transactions, range),
-    [portfolio, transactions, range]
-  )
+  // Real portfolio equity curve for the selected range (server-computed)
+  useEffect(() => {
+    let cancelled = false
+    fetchPortfolioPerformance(range).then((res) => {
+      if (!cancelled) setPortfolioHistory(res.data || [])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [range, fetchPortfolioPerformance])
 
   // Watchlist items
   const watchlistStocks = useMemo(() => {
@@ -85,6 +93,13 @@ export default function Dashboard() {
       active: [...stocks].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 3)
     }
   }, [stocks])
+
+  // Symbols for the AI insight widget: watchlist first, then top gainers
+  const insightSymbols = useMemo(() => {
+    const fromWatch = (currentUser?.watchlist || []).slice(0, 3)
+    const fromMovers = movers.gainers.slice(0, 2).map((s) => s.symbol)
+    return [...new Set([...fromWatch, ...fromMovers])].slice(0, 5)
+  }, [currentUser?.watchlist, movers.gainers])
 
   const totalPnL = analytics.totalPnL
   const totalPnLPercent = analytics.totalPnLPercent
@@ -180,29 +195,17 @@ export default function Dashboard() {
                     <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
                     Portfolio
                   </span>
-                  <span className="flex items-center gap-1.5 text-[#667085]">
-                    <span className="w-2 h-2 rounded-full bg-[#424754]"></span>
-                    S&amp;P 500
-                  </span>
                 </div>
               </div>
 
               {/* Time Range Selectors */}
-              <div className="flex bg-[#151820] rounded-lg p-1 border border-white/8">
-                {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={`px-3 py-1 rounded text-xs font-mono transition cursor-pointer ${
-                      range === r
-                        ? 'bg-[#353437] text-[#F5F7FA] font-semibold shadow-sm'
-                        : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                value={range}
+                onChange={setRange}
+                ariaLabel="Dashboard range"
+                size="sm"
+                options={['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((r) => ({ value: r, label: r }))}
+              />
             </div>
 
             {/* Interactive Performance Chart */}
@@ -288,6 +291,11 @@ export default function Dashboard() {
 
         {/* Right Column (4 cols): Watchlist & Quick Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* AI Insights */}
+          <div className="min-h-[348px]">
+            <AiInsightWidget symbols={insightSymbols} />
+          </div>
+
           {/* Watchlist Module */}
           <SpotlightCard
             spotlightColor="rgba(245, 158, 11, 0.12)"
