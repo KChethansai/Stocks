@@ -24,6 +24,7 @@
   "registries": {
     "@kokonutui": "https://kokonutui.com/r/{name}.json",
     "@magicui": "https://magicui.design/r/{name}.json",
-    "@react-bits": "https://registry.reactbits.dev/r/{name}.json"
+    "@react-bits": "https://registry.reactbits.dev/r/{name}.json",
+    "@motion": "https://reusableui.com/r/{name}.json"
   }
 }

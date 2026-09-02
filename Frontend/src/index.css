@@ -3,8 +3,38 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource/instrument-serif";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Tailwind v4 theme tokens: utilities (bg-surface, text-accent, border-border,
+   font-display, font-mono) resolve through these. Inline = reference the runtime
+   CSS vars from :root (single source of truth). */
+@theme inline {
+  --color-bg-primary: var(--bg-primary);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-border-focus: var(--border-focus);
+  --color-chart-profit: var(--chart-profit);
+  --color-chart-loss: var(--chart-loss);
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-secondary: var(--chart-secondary);
+}
+
+@theme {
+  --font-display: 'Instrument Serif', serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -12,38 +42,33 @@
 
 :root {
   /* MarketForge Design System Tokens (Stitch Source of Truth) */
-  --bg-primary: #09090B;
-  --bg-surface: #111318;
-  --bg-elevated: #151820;
-  
-  --surface-container-low: #1c1b1d;
-  --surface-container-lowest: #0e0e10;
-  --surface-container-high: #2a2a2c;
-  --surface-container-highest: #353437;
+  --bg-primary: #07090D;
+  --surface: #0F1115;
+  --surface-elevated: #171A1F;
 
-  --text-primary: #F5F7FA;
-  --text-secondary: #9CA3AF;
-  --text-muted: #667085;
+  --text-primary: #EDF1F5;
+  --text-secondary: #8A94A3;
+  --text-muted: #5C6878;
 
-  --primary: #3B82F6;
-  --primary-hover: #2563EB;
-  --primary-container: #4d8eff;
-  --primary-subtle: rgba(59, 130, 246, 0.12);
+  --accent: #C7F464;
+  --accent-hover: #B4E14F;
+  --accent-subtle: rgba(199, 244, 100, 0.12);
+  --accent-glow: rgba(199, 244, 100, 0.25);
 
-  --positive: #22C55E;
-  --positive-subtle: rgba(34, 197, 94, 0.12);
-  --positive-glow: rgba(34, 197, 94, 0.25);
+  --positive: #2ECF8E;
+  --positive-subtle: rgba(46, 207, 142, 0.12);
+  --positive-glow: rgba(46, 207, 142, 0.25);
 
-  --negative: #EF4444;
-  --negative-subtle: rgba(239, 68, 68, 0.12);
-  --negative-glow: rgba(239, 68, 68, 0.25);
+  --negative: #F0656E;
+  --negative-subtle: rgba(240, 101, 110, 0.12);
+  --negative-glow: rgba(240, 101, 110, 0.25);
 
   --warning: #F59E0B;
   --warning-subtle: rgba(245, 158, 11, 0.12);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --border-focus: rgba(59, 130, 246, 0.5);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(199, 244, 100, 0.5);
 
   --surface-hover: rgba(255, 255, 255, 0.04);
   --surface-active: rgba(255, 255, 255, 0.08);
@@ -53,24 +78,33 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
 
   /* Chart & Financial Tokens */
-  --chart-profit: #22C55E;
-  --chart-loss: #EF4444;
-  --chart-primary: #3B82F6;
+  --chart-profit: #2ECF8E;
+  --chart-loss: #F0656E;
+  --chart-primary: #C7F464;
+  --chart-secondary: var(--text-muted);
 
-  /* Compatibility variables */
-  --background: #09090B;
-  --foreground: #F5F7FA;
-  --card: #111318;
-  --card-foreground: #F5F7FA;
-  --popover: #151820;
-  --popover-foreground: #F5F7FA;
-  --muted: #151820;
-  --muted-foreground: #9CA3AF;
-  --accent: rgba(255, 255, 255, 0.05);
-  --accent-foreground: #F5F7FA;
-  --destructive: #EF4444;
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #3B82F6;
+  /* Deprecated aliases (old token names -> new values); removable in M4 sweep */
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-elevated);
+  --border-subtle: var(--border);
+  --primary: var(--accent);
+  --primary-hover: var(--accent-hover);
+  --primary-container: var(--accent-hover);
+  --primary-subtle: var(--accent-subtle);
+
+  /* Compatibility variables (shadcn) */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--text-primary);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-secondary);
+  --accent-foreground: var(--bg-primary);
+  --destructive: var(--negative);
+  --input: var(--border);
+  --ring: var(--accent);
   --radius: 0.5rem;
 }
 
@@ -100,7 +134,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(199, 244, 100, 0.3);
   color: #FFFFFF;
 }
 
@@ -140,7 +174,7 @@ textarea {
 }
 
 .hero-glow {
-  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 50%, rgba(199, 244, 100, 0.08) 0%, transparent 60%);
 }
 
 .elevated-panel {
@@ -314,13 +348,13 @@ textarea {
 }
 
 .terminal-axis-label {
-  fill: #667085;
+  fill: var(--text-muted);
   font-size: 10px;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
 }
 
 .terminal-axis-label-x {
-  fill: #9CA3AF;
+  fill: var(--text-secondary);
   font-size: 10px;
 }
 
@@ -331,7 +365,7 @@ textarea {
 }
 
 .terminal-line-path {
-  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.3));
+  filter: drop-shadow(0 2px 8px rgba(199, 244, 100, 0.25));
 }
 
 .terminal-hover-line {
@@ -343,12 +377,12 @@ textarea {
 .terminal-hover-dot {
   stroke: #ffffff;
   stroke-width: 2;
-  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
+  filter: drop-shadow(0 0 6px rgba(199, 244, 100, 0.5));
 }
 
 .terminal-tooltip {
-  background: #151820;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-hover);
   border-radius: 8px;
   padding: 6px 10px;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
@@ -361,19 +395,19 @@ textarea {
 }
 
 .terminal-tooltip strong {
-  color: #F5F7FA;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 11px;
 }
 
 .terminal-tooltip span {
-  color: #3B82F6;
+  color: var(--accent);
   font-weight: 700;
   font-size: 13px;
 }
 
 .terminal-empty-chart {
-  fill: #667085;
+  fill: var(--text-muted);
   font-size: 12px;
   font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
 }
@@ -420,10 +454,10 @@ textarea {
 }
 /* ML prediction widgets (ported from CandleCraft) */
 .cc-panel {
-  background: rgba(12, 18, 27, 0.75);
+  background: rgba(15, 17, 21, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 16px;
 }
 
@@ -438,6 +472,6 @@ textarea {
 }
 
 .cc-pred-neutral {
-  color: #8B97A8;
-  border-color: rgba(139, 151, 168, 0.35);
+  color: var(--text-secondary);
+  border-color: rgba(138, 148, 163, 0.35);
 }
