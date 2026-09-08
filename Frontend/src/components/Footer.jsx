@@ -10,7 +10,7 @@ export default function Footer() {
             <Logo3D size="xs" showText={true} textClassName="text-sm" />
           </Link>
           <p className="text-[0.7rem] text-[#667085] text-center md:text-left">
-            Institutional-grade paper trading platform. 100% simulated market data & risk-free execution.
+            Paper trading with real market data, simulated execution, and zero real risk.
           </p>
         </div>
 

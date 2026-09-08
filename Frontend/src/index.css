@@ -41,34 +41,34 @@
 }
 
 :root {
-  /* MarketForge Design System Tokens (Stitch Source of Truth) */
-  --bg-primary: #07090D;
-  --surface: #0F1115;
-  --surface-elevated: #171A1F;
+  /* MarketForge Design System Tokens — matches Dashboard / Market / Header (#3B82F6 system) */
+  --bg-primary: #09090B;
+  --surface: #111318;
+  --surface-elevated: #151820;
 
-  --text-primary: #EDF1F5;
-  --text-secondary: #8A94A3;
-  --text-muted: #5C6878;
+  --text-primary: #F5F7FA;
+  --text-secondary: #9CA3AF;
+  --text-muted: #667085;
 
-  --accent: #C7F464;
-  --accent-hover: #B4E14F;
-  --accent-subtle: rgba(199, 244, 100, 0.12);
-  --accent-glow: rgba(199, 244, 100, 0.25);
+  --accent: #3B82F6;
+  --accent-hover: #2563EB;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-glow: rgba(59, 130, 246, 0.25);
 
-  --positive: #2ECF8E;
-  --positive-subtle: rgba(46, 207, 142, 0.12);
-  --positive-glow: rgba(46, 207, 142, 0.25);
+  --positive: #22C55E;
+  --positive-subtle: rgba(34, 197, 94, 0.12);
+  --positive-glow: rgba(34, 197, 94, 0.25);
 
-  --negative: #F0656E;
-  --negative-subtle: rgba(240, 101, 110, 0.12);
-  --negative-glow: rgba(240, 101, 110, 0.25);
+  --negative: #EF4444;
+  --negative-subtle: rgba(239, 68, 68, 0.12);
+  --negative-glow: rgba(239, 68, 68, 0.25);
 
   --warning: #F59E0B;
   --warning-subtle: rgba(245, 158, 11, 0.12);
 
-  --border: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.14);
-  --border-focus: rgba(199, 244, 100, 0.5);
+  --border-focus: rgba(59, 130, 246, 0.5);
 
   --surface-hover: rgba(255, 255, 255, 0.04);
   --surface-active: rgba(255, 255, 255, 0.08);
@@ -78,9 +78,9 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
 
   /* Chart & Financial Tokens */
-  --chart-profit: #2ECF8E;
-  --chart-loss: #F0656E;
-  --chart-primary: #C7F464;
+  --chart-profit: #22C55E;
+  --chart-loss: #EF4444;
+  --chart-primary: #3B82F6;
   --chart-secondary: var(--text-muted);
 
   /* Deprecated aliases (old token names -> new values); removable in M4 sweep */
@@ -134,7 +134,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(199, 244, 100, 0.3);
+  background: rgba(59, 130, 246, 0.35);
   color: #FFFFFF;
 }
 
@@ -174,7 +174,7 @@ textarea {
 }
 
 .hero-glow {
-  background: radial-gradient(circle at 50% 50%, rgba(199, 244, 100, 0.08) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
 }
 
 .elevated-panel {
@@ -365,7 +365,7 @@ textarea {
 }
 
 .terminal-line-path {
-  filter: drop-shadow(0 2px 8px rgba(199, 244, 100, 0.25));
+  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.25));
 }
 
 .terminal-hover-line {
@@ -377,7 +377,7 @@ textarea {
 .terminal-hover-dot {
   stroke: #ffffff;
   stroke-width: 2;
-  filter: drop-shadow(0 0 6px rgba(199, 244, 100, 0.5));
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.5));
 }
 
 .terminal-tooltip {
@@ -474,4 +474,88 @@ textarea {
 .cc-pred-neutral {
   color: var(--text-secondary);
   border-color: rgba(138, 148, 163, 0.35);
+}
+
+/* ── Motion / Scene System ─────────────────────────────────────── */
+
+/* Fluid typography scale (CryptOwl-inspired, adapted for MarketForge) */
+:root {
+  --mf-font-display-xl: clamp(3.375rem, calc(2.875rem + 3vw), 8rem);
+  --mf-font-display-lg: clamp(2.5rem, calc(2rem + 2.7vw), 5.25rem);
+  --mf-font-h1: clamp(2.5rem, 4vw, 4rem);
+  --mf-font-h2: clamp(1.875rem, 3vw, 2.75rem);
+  --mf-font-h3: clamp(1.375rem, 2vw, 1.875rem);
+  --mf-font-body-lg: 1.125rem;
+  --mf-font-body-md: 1rem;
+  --mf-font-body-sm: 0.9375rem;
+  --mf-font-caption: 0.75rem;
+
+  /* Line heights */
+  --mf-lh-display: 0.94;
+  --mf-lh-heading: 1.04;
+  --mf-lh-body: 1.62;
+  --mf-lh-caption: 1.4;
+
+  /* Letter spacing */
+  --mf-tracking-display: -0.045em;
+  --mf-tracking-heading: -0.03em;
+  --mf-tracking-body: 0;
+
+  /* Scene spacing */
+  --mf-scene-padding-x: clamp(1.5rem, 3vw, 2rem);
+  --mf-scene-frame-max: 80rem;
+  --mf-scene-gap: clamp(2rem, 5vw, 4rem);
+
+  /* Motion preference CSS coupling */
+  --mf-duration-fast: 0.22s;
+  --mf-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --mf-ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --mf-scene-padding-x: clamp(1.5rem, 4vw, 3rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --mf-scene-padding-x: clamp(1.5rem, 4vw, 4.5rem);
+  }
+}
+
+/* Scene layout */
+.mf-scene {
+  position: relative;
+  width: 100%;
+  padding-inline: var(--mf-scene-padding-x);
+}
+
+.mf-scene-frame {
+  width: min(100%, var(--mf-scene-frame-max));
+  margin-inline: auto;
+}
+
+/* Eyebrow pattern */
+.mf-eyebrow {
+  font-size: var(--mf-font-caption);
+  font-weight: 700;
+  line-height: var(--mf-lh-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+/* Comfort mode: disable transforms, reduce to opacity-only */
+html[data-motion="comfort"] .mf-scene * {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
+/* Horizontal grid background */
+.mf-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 6rem 6rem;
 }

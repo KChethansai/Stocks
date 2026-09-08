@@ -16,6 +16,11 @@ export default function RootLayout() {
     window.scrollTo(0, 0)
   }, [pathname])
 
+  // Couple motion preference to CSS (index.css comfort rules read this attr)
+  useEffect(() => {
+    document.documentElement.dataset.motion = motionMode
+  }, [motionMode])
+
   const textPath = pathname.toLowerCase()
   const isAuthPage = ['/login', '/register'].includes(textPath)
   const isPublicMarketingPage = ['/', '/about', '/features'].includes(textPath)
