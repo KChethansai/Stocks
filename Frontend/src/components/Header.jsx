@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { Menu, X, ArrowRight } from 'lucide-react'
 import { useAuth } from '../store/authStore'
@@ -9,10 +9,24 @@ export default function Header() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  // Transparent over hero -> solid surface on scroll (cryptowl header behavior)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/8 bg-[#09090B]/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? 'border-b border-[rgba(150,205,222,0.12)] bg-[#07090d]/85 backdrop-blur-md'
+          : 'border-b border-transparent bg-transparent'
+      }`}
+    >      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
         {/* Brand */}
         <div className="flex items-center gap-8">
           <NavLink to="/" className="flex items-center group">
@@ -25,8 +39,8 @@ export default function Header() {
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                   isActive
-                    ? 'bg-[rgba(255,255,255,0.08)] text-[#F5F7FA]'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[rgba(255,255,255,0.04)]'
+                    ? 'bg-[rgba(255,255,255,0.08)] text-[#f8fdff]'
+                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-[rgba(255,255,255,0.04)]'
                 }`
               }
             >
@@ -37,8 +51,8 @@ export default function Header() {
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                   isActive
-                    ? 'bg-[rgba(255,255,255,0.08)] text-[#F5F7FA]'
-                    : 'text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[rgba(255,255,255,0.04)]'
+                    ? 'bg-[rgba(255,255,255,0.08)] text-[#f8fdff]'
+                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-[rgba(255,255,255,0.04)]'
                 }`
               }
             >
@@ -61,13 +75,13 @@ export default function Header() {
             <>
               <NavLink
                 to="/login"
-                className="px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#111318] hover:bg-[#151820] text-xs font-semibold text-[#F5F7FA] transition"
+                className="px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0c121b] hover:bg-[#151820] text-xs font-semibold text-[#f8fdff] transition"
               >
                 Log In
               </NavLink>
               <NavLink
                 to="/register"
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-xs font-semibold text-white shadow-sm transition"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#1c83d8] hover:bg-[#2eafff] text-xs font-semibold text-white shadow-sm transition"
               >
                 <span>Get $100k Practice</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -79,7 +93,7 @@ export default function Header() {
         {/* Mobile menu trigger */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-[#9CA3AF] hover:text-[#F5F7FA]"
+          className="md:hidden p-2 text-[#b7c6cf] hover:text-[#f8fdff]"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -87,19 +101,19 @@ export default function Header() {
 
       {/* Mobile menu modal */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[rgba(255,255,255,0.08)] bg-[#09090B] p-4 space-y-3">
+        <div className="md:hidden border-t border-[rgba(150,205,222,0.12)] bg-[#07090d] p-4 space-y-3">
           <div className="flex flex-col gap-1 text-sm font-medium">
             <NavLink
               to="/about"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg text-[#9CA3AF] hover:text-white"
+              className="px-3 py-2 rounded-lg text-[#b7c6cf] hover:text-white"
             >
               About
             </NavLink>
             <NavLink
               to="/features"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-lg text-[#9CA3AF] hover:text-white"
+              className="px-3 py-2 rounded-lg text-[#b7c6cf] hover:text-white"
             >
               Features
             </NavLink>
@@ -121,14 +135,14 @@ export default function Header() {
                 <NavLink
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-xl border border-[rgba(255,255,255,0.12)] text-center text-xs font-semibold text-[#F5F7FA]"
+                  className="w-full py-2 rounded-xl border border-[rgba(255,255,255,0.12)] text-center text-xs font-semibold text-[#f8fdff]"
                 >
                   Log In
                 </NavLink>
                 <NavLink
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-xl bg-[#3B82F6] text-center text-xs font-bold text-white"
+                  className="w-full py-2 rounded-full bg-[#1c83d8] text-center text-xs font-bold text-white"
                 >
                   Get $100,000 Practice Account
                 </NavLink>

@@ -6,11 +6,17 @@
  * patterns adapted for MarketForge's visual identity.
  *
  * All timing values derived from CryptOwl reference:
- *   Eyebrow:  0.42s
- *   Title:    0.78s
- *   Body:     0.54s
- *   Content:  0.34s
- *   Word stagger: 0.048s
+ *   Eyebrow:  0.42s (power2.out)
+ *   Title:    0.78s (power3.out)
+ *   Body:     0.54s (power2.out)
+ *   Content:  0.34s (power2.out)
+ *   Word stagger: 0.048s / 0.016s
+ *   Trigger: top 78%
+ *
+ * Easing mapped from GSAP to cubic-bezier (Motion has no power* easings):
+ *   power3.out (quart.out) -> [0.165, 0.84, 0.44, 1]
+ *   power2.out (cubic.out) -> [0.215, 0.61, 0.355, 1]
+ *   power1.out (quad.out)   -> [0.25, 0.46, 0.45, 0.94]
  */
 
 // ── Durations (seconds) ──────────────────────────────────────────
@@ -46,11 +52,13 @@ export const DELAYS = {
 
 // ── Easing curves ────────────────────────────────────────────────
 // Motion/Framer Motion accepts cubic-bezier arrays [x1, y1, x2, y2]
+// Exact GSAP equivalents from the CryptOwl reference (see header).
 export const EASING = {
-  textReveal: [0.33, 1, 0.68, 1],
-  contentReveal: [0.33, 1, 0.68, 1],
-  decelerate: [0.16, 1, 0.3, 1],
-  standard: [0.22, 0.61, 0.36, 1],
+  textReveal: [0.165, 0.84, 0.44, 1], // power3.out
+  contentReveal: [0.215, 0.61, 0.355, 1], // power2.out
+  decelerate: [0.16, 1, 0.3, 1], // --ease-decelerate (exact)
+  standard: [0.22, 0.61, 0.36, 1], // --ease-standard (exact)
+  wall: [0.25, 0.46, 0.45, 0.94], // power1.out (structural)
   spring: { type: 'spring', stiffness: 300, damping: 30 },
 }
 

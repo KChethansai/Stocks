@@ -52,7 +52,7 @@ export default function MarketCanvas({ className = '' }) {
       void main() {
         vec2 uv = v_texCoord;
         float noise = sin(uv.x * 10.0 + u_time) * cos(uv.y * 10.0 + u_time * 0.5);
-        vec3 color = mix(vec3(0.035, 0.039, 0.047), vec3(0.231, 0.509, 0.964), noise * 0.08 + 0.04);
+        vec3 color = mix(vec3(0.027, 0.035, 0.051), vec3(0.486, 0.902, 1.0), noise * 0.08 + 0.04);
         
         // Add subtle grid effect
         float grid = step(0.985, fract(uv.x * 24.0)) + step(0.985, fract(uv.y * 24.0));

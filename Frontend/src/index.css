@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@300;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -106,6 +106,78 @@
   --input: var(--border);
   --ring: var(--accent);
   --radius: 0.5rem;
+}
+
+/* ── Landing token scope (cryptowl.io palette, extracted from
+   BaseDocument.B94nfTuC.css :root) ─────────────────────────────
+   Applied via data-landing on public shells in RootLayout.
+   Authenticated app keeps the :root values above — never add
+   landing overrides outside this block. */
+[data-landing] {
+  --bg-primary: #07090d;
+  --surface: #0c121b;
+  --surface-elevated: #0c121b;
+
+  --text-primary: #f8fdff;
+  --text-secondary: #b7c6cf;
+  --text-muted: #84949e;
+
+  --accent: #7ce6ff;
+  --accent-hover: #2eafff;
+  --accent-subtle: rgba(124, 230, 255, 0.12);
+  --accent-glow: rgba(124, 230, 255, 0.25);
+
+  --positive: #7ed6a3;
+  --positive-subtle: rgba(126, 214, 163, 0.12);
+  --positive-glow: rgba(126, 214, 163, 0.25);
+
+  --negative: #e87684;
+  --negative-subtle: rgba(232, 118, 132, 0.12);
+  --negative-glow: rgba(232, 118, 132, 0.25);
+
+  --border: rgba(150, 205, 222, 0.12);
+  --border-hover: rgba(150, 205, 222, 0.22);
+  --border-focus: rgba(124, 230, 255, 0.5);
+
+  --chart-profit: #7ed6a3;
+  --chart-loss: #e87684;
+  --chart-primary: #7ee2f4;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--text-primary);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-secondary);
+  --accent-foreground: #03060b;
+  --destructive: var(--negative);
+  --input: var(--border);
+  --ring: var(--accent);
+}
+
+/* Landing display type: Inter Tight 900 (Gilroy fallback — Gilroy is
+   commercial and unavailable; geometry-checked closest free match) */
+[data-landing] .font-landing-display {
+  font-family: 'Inter Tight', 'Gilroy', Inter, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+}
+
+[data-landing]::selection,
+[data-landing] ::selection {
+  background: rgba(124, 230, 255, 0.35);
+  color: #03060b;
+}
+
+/* Landing grid lines tinted with accent-muted (reference:
+   --site-grid-line-color: rgb(accent-muted / .045)) */
+[data-landing] .mf-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(150, 205, 222, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(150, 205, 222, 0.045) 1px, transparent 1px);
 }
 
 body {

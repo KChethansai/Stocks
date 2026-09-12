@@ -11,8 +11,8 @@ import {
   staggerContainer,
 } from '../../lib/motion'
 import { useAuth } from '../../store/authStore'
-import { ShimmerButton } from '../magicui/ShimmerButton'
 import { LiquidGlassButton } from '../kokonutui/LiquidGlassButton'
+import { BasketButton } from '../landing/BasketButton'
 import { Aurora } from '../reactbits/Aurora'
 import Logo3D from '../Logo3D'
 import { ArrowRight } from 'lucide-react'
@@ -27,7 +27,7 @@ export default function ExitScene() {
       <Aurora className="opacity-10" />
       <div className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at center, rgba(59,130,246,0.07) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse at center, rgba(124,230,255,0.07) 0%, transparent 60%)',
         }} />
 
       <div className="mf-scene relative z-10">
@@ -48,7 +48,7 @@ export default function ExitScene() {
 
             {/* Heading */}
             <motion.h2
-              className="font-sans tracking-tight text-text-primary leading-[1.1] mb-6"
+              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-6"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >
@@ -79,10 +79,10 @@ export default function ExitScene() {
               variants={fadeUp(isComfort ? 0 : DURATIONS.content, 0, EASING.decelerate)}
             >
               <Link to={isAuthenticated ? '/dashboard' : '/register'}>
-                <ShimmerButton background="#3B82F6" className="px-8 py-3.5 text-xs font-mono font-bold">
-                  <span className="text-white">{isAuthenticated ? 'Open Dashboard' : 'Create Free Account'}</span>
-                  <ArrowRight className="w-4 h-4 text-white" />
-                </ShimmerButton>
+                <BasketButton>
+                  {isAuthenticated ? 'Open Dashboard' : 'Create Free Account'}
+                  <ArrowRight className="w-4 h-4" />
+                </BasketButton>
               </Link>
               <Link to={isAuthenticated ? '/markets' : '/login'}>
                 <LiquidGlassButton variant="primary" className="px-6 py-3 text-xs font-bold font-mono">

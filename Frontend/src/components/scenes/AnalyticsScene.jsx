@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { TextReveal } from '../../hooks/useTextReveal'
@@ -12,6 +13,7 @@ import {
 } from '../../lib/motion'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { ShinyText } from '../reactbits/ShinyText'
+import { gsap, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
 
 const metrics = [
   { label: 'Total Return', value: '+23.4%', sub: 'vs S&P 500 +12.1%', positive: true },
@@ -26,8 +28,8 @@ function PerformanceChart() {
     <svg className="w-full h-full" viewBox="0 0 500 160" fill="none" preserveAspectRatio="none" role="img" aria-label="Portfolio cumulative return versus S and P 500 over 12 months">
       <defs>
         <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+          <stop offset="0%" stopColor="#7ce6ff" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#7ce6ff" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="benchGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#6B7280" stopOpacity="0.15" />
@@ -49,7 +51,7 @@ function PerformanceChart() {
       {/* Portfolio */}
       <path
         d="M0,130 L30,122 L60,125 L90,105 L120,110 L150,90 L180,95 L210,75 L240,80 L270,55 L300,60 L330,42 L360,48 L390,30 L420,35 L450,22 L480,28 L500,15"
-        stroke="#3B82F6"
+        stroke="#7ce6ff"
         strokeWidth="2"
         strokeLinejoin="round"
       />
@@ -58,8 +60,8 @@ function PerformanceChart() {
         fill="url(#perfGrad)"
       />
       {/* Legend */}
-      <line x1="12" y1="12" x2="28" y2="12" stroke="#3B82F6" strokeWidth="2" />
-      <text x="32" y="15" fill="#3B82F6" fontSize="9" fontFamily="monospace">Portfolio +23.4%</text>
+      <line x1="12" y1="12" x2="28" y2="12" stroke="#7ce6ff" strokeWidth="2" />
+      <text x="32" y="15" fill="#7ce6ff" fontSize="9" fontFamily="monospace">Portfolio +23.4%</text>
       <line x1="160" y1="12" x2="176" y2="12" stroke="#6B7280" strokeWidth="1.5" strokeDasharray="4 3" />
       <text x="180" y="15" fill="#6B7280" fontSize="9" fontFamily="monospace">S&P 500 +12.1%</text>
     </svg>
@@ -69,11 +71,11 @@ function PerformanceChart() {
 // Sector allocation donut — simple SVG
 function SectorDonut() {
   const sectors = [
-    { pct: 35, color: '#3B82F6', label: 'Tech' },
-    { pct: 22, color: '#22C55E', label: 'Health' },
-    { pct: 18, color: '#60A5FA', label: 'Finance' },
-    { pct: 15, color: '#F59E0B', label: 'Energy' },
-    { pct: 10, color: '#9CA3AF', label: 'Consumer' },
+    { pct: 35, color: '#2eafff', label: 'Tech' },
+    { pct: 22, color: '#7ed6a3', label: 'Health' },
+    { pct: 18, color: '#7ce6ff', label: 'Finance' },
+    { pct: 15, color: '#96cdde', label: 'Energy' },
+    { pct: 10, color: '#84949e', label: 'Consumer' },
   ]
   let cum = 0
   const r = 38, cx = 50, cy = 50, stroke = 12
@@ -114,11 +116,37 @@ function SectorDonut() {
 
 export default function AnalyticsScene() {
   const isComfort = useReducedMotion()
+  const sectionRef = useRef(null)
+  const canvasRef = useRef(null)
+
+  // Scrubbed chart fade-in (reference analyticsScene: "top 92%" -> "top 62%")
+  useEffect(() => {
+    if (!canScrub() || !canvasRef.current || !sectionRef.current) return
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        canvasRef.current,
+        { opacity: 0, y: 24 },
+        {
+          opacity: 1,
+          y: 0,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top 92%',
+            end: 'top 62%',
+            scrub: true,
+          },
+        }
+      )
+    }, sectionRef)
+    refreshLandingTriggers()
+    return () => ctx.revert()
+  }, [])
 
   return (
-    <section className="relative py-24 sm:py-32 overflow-hidden">
+    <section ref={sectionRef} className="relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute top-1/2 right-0 w-[600px] h-[600px] rounded-full pointer-events-none -translate-y-1/2"
-        style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.04) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse, rgba(124,230,255,0.04) 0%, transparent 70%)' }} />
 
       <div className="mf-scene">
         <div className="mf-scene-frame">
@@ -135,14 +163,14 @@ export default function AnalyticsScene() {
                          bg-[var(--surface)]/90 border border-[var(--border)] backdrop-blur-md mb-6"
               variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
             >
-              <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#7ce6ff] animate-pulse" />
               <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
                 Analytics
               </ShinyText>
             </motion.div>
 
             <motion.h2
-              className="font-sans tracking-tight text-text-primary leading-[1.1] mb-4"
+              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-4"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >
@@ -188,8 +216,9 @@ export default function AnalyticsScene() {
             ))}
           </motion.div>
 
-          {/* Chart + Donut */}
+          {/* Chart + Donut (GSAP scrub target) */}
           <motion.div
+            ref={canvasRef}
             className="grid lg:grid-cols-5 gap-6"
             variants={staggerContainer(STAGGER.featureCards, isComfort ? 0 : 0.3)}
             initial="hidden"
@@ -202,7 +231,7 @@ export default function AnalyticsScene() {
               variants={fadeUp(isComfort ? 0 : DURATIONS.body, 0, EASING.contentReveal)}
             >
               <SpotlightCard
-                spotlightColor="rgba(59, 130, 246, 0.1)"
+                spotlightColor="rgba(124, 230, 255, 0.1)"
                 tiltIntensity={3}
                 className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 h-full"
               >
@@ -221,7 +250,7 @@ export default function AnalyticsScene() {
               variants={fadeUp(isComfort ? 0 : DURATIONS.body, 0, EASING.contentReveal)}
             >
               <SpotlightCard
-                spotlightColor="rgba(59, 130, 246, 0.1)"
+                spotlightColor="rgba(124, 230, 255, 0.1)"
                 tiltIntensity={3}
                 className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 h-full"
               >

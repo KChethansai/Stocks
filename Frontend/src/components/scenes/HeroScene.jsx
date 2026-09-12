@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { motion, useScroll, useTransform } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
@@ -13,8 +13,8 @@ import {
   fadeUp,
   staggerContainer,
 } from '../../lib/motion'
+import { gsap, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
 import MarketCanvas from '../3d/MarketCanvas'
-import { ShimmerButton } from '../magicui/ShimmerButton'
 import { BorderBeam } from '../magicui/BorderBeam'
 import { AnimatedGradientText } from '../magicui/AnimatedGradientText'
 import { FlickeringGrid } from '../magicui/FlickeringGrid'
@@ -22,6 +22,7 @@ import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { LiquidGlassButton } from '../kokonutui/LiquidGlassButton'
 import { ShinyText } from '../reactbits/ShinyText'
 import { Aurora } from '../reactbits/Aurora'
+import { BasketButton } from '../landing/BasketButton'
 
 const sampleTickers = [
   { symbol: 'AAPL', name: 'Apple Inc.', price: 227.14, change: +1.42, sector: 'Technology' },
@@ -40,43 +41,68 @@ export default function HeroScene() {
   const { isAuthenticated } = useAuth()
   const isComfort = useReducedMotion()
   const sceneRef = useRef(null)
+  const glowRef = useRef(null)
   const [activeTicker, setActiveTicker] = useState(sampleTickers[1])
 
-  // Scroll-linked fade out for the hero content
+  // Scroll Zoom Hero: content scales down + fades while background layers
+  // parallax at different rates (Motion owns these nodes; GSAP owns glow).
   const { scrollYProgress } = useScroll({
     target: sceneRef,
     offset: ['start start', 'end start'],
   })
 
-  const contentOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
-  const contentY = useTransform(scrollYProgress, [0, 0.6], [0, -40])
-  const contentScale = useTransform(scrollYProgress, [0, 0.6], [1, 0.97])
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
+  const contentY = useTransform(scrollYProgress, [0, 0.7], [0, -60])
+  const contentScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.94])
+  const gridY = useTransform(scrollYProgress, [0, 1], [0, 100])
+  const canvasY = useTransform(scrollYProgress, [0, 1], [0, 140])
 
   // Comfort mode: no scroll-linked transforms
   const scrollStyles = isComfort
     ? {}
     : { opacity: contentOpacity, y: contentY, scale: contentScale }
 
+  // GSAP-scrubbed glow (separate node from Motion-owned layers — no conflicts)
+  useEffect(() => {
+    if (!canScrub() || !glowRef.current || !sceneRef.current) return
+    const ctx = gsap.context(() => {
+      gsap.to(glowRef.current, {
+        opacity: 0,
+        scale: 1.4,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: sceneRef.current,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+      })
+    }, sceneRef)
+    refreshLandingTriggers()
+    return () => ctx.revert()
+  }, [])
+
   return (
     <section
       ref={sceneRef}
       className="relative min-h-screen flex flex-col justify-center overflow-hidden"
     >
-      {/* ── Background layers ── */}
-      <div className="absolute inset-0 z-0 mf-grid-bg opacity-30" />
-      <div className="absolute inset-0 z-0 opacity-40">
-        <FlickeringGrid color="#3B82F6" squareSize={3} gridGap={8} flickerChance={0.12} maxOpacity={0.18} />
-      </div>
+      {/* ── Background layers (parallax rates diverge on scroll) ── */}
+      <motion.div className="absolute inset-0 z-0 mf-grid-bg opacity-30" style={isComfort ? {} : { y: gridY }} />
+      <motion.div className="absolute inset-0 z-0 opacity-40" style={isComfort ? {} : { y: gridY }}>
+        <FlickeringGrid color="#7ce6ff" squareSize={3} gridGap={8} flickerChance={0.12} maxOpacity={0.18} />
+      </motion.div>
       <Aurora className="opacity-12" />
-      <div className="absolute inset-0 z-0 opacity-15">
+      <motion.div className="absolute inset-0 z-0 opacity-15" style={isComfort ? {} : { y: canvasY }}>
         <MarketCanvas />
-      </div>
+      </motion.div>
 
-      {/* ── Hero glow ── */}
+      {/* ── Hero glow (GSAP-scrubbed) ── */}
       <div
+        ref={glowRef}
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none z-0"
         style={{
-          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(124, 230, 255, 0.08) 0%, transparent 70%)',
         }}
       />
 
@@ -108,7 +134,7 @@ export default function HeroScene() {
             </motion.div>
 
             {/* Title */}
-            <h1 className="font-sans tracking-tight text-text-primary leading-[1.1]"
+            <h1 className="font-landing-display tracking-tight text-text-primary leading-[1.1]"
                 style={{ fontSize: 'var(--mf-font-display-xl)' }}>
               <TextReveal
                 text="Practice trading."
@@ -143,7 +169,7 @@ export default function HeroScene() {
                   ease: EASING.textReveal,
                 }}
               >
-                <AnimatedGradientText>
+                <AnimatedGradientText from="#bdf7ff" via="#7ce6ff" to="#2eafff">
                   Build conviction.
                 </AnimatedGradientText>
               </motion.span>
@@ -180,10 +206,10 @@ export default function HeroScene() {
               }}
             >
               <Link to={isAuthenticated ? '/dashboard' : '/register'}>
-                <ShimmerButton background="#3B82F6" className="px-7 py-3.5 text-xs font-mono font-bold">
-                  <span className="text-white">{isAuthenticated ? 'Open Dashboard' : 'Start Trading'}</span>
-                  <ArrowRight className="w-4 h-4 text-white" />
-                </ShimmerButton>
+                <BasketButton>
+                  {isAuthenticated ? 'Open Dashboard' : 'Start Trading'}
+                  <ArrowRight className="w-4 h-4" />
+                </BasketButton>
               </Link>
               <Link to={isAuthenticated ? '/markets' : '/login'}>
                 <LiquidGlassButton variant="primary" className="px-6 py-3 text-xs font-bold font-mono">
@@ -230,11 +256,11 @@ export default function HeroScene() {
             }}
           >
             <SpotlightCard
-              spotlightColor="rgba(59, 130, 246, 0.15)"
+              spotlightColor="rgba(124, 230, 255, 0.15)"
               tiltIntensity={6}
               className="absolute inset-0 rounded-2xl border border-[var(--border)] shadow-2xl p-0 overflow-hidden flex flex-col bg-[var(--surface)]/95"
             >
-              <BorderBeam size={200} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
+              <BorderBeam size={200} duration={8} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
               {/* Top bar */}
               <div className="h-11 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">
@@ -345,5 +371,3 @@ export default function HeroScene() {
     </section>
   )
 }
-
-

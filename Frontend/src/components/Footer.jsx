@@ -3,33 +3,33 @@ import Logo3D from './Logo3D'
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/8 bg-[#09090B] py-12 text-[#9CA3AF] text-xs">
+    <footer className="border-t border-[rgba(150,205,222,0.12)] bg-[#07090d] py-12 text-[#b7c6cf] text-xs">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center md:items-start gap-2">
           <Link to="/" className="flex items-center group">
             <Logo3D size="xs" showText={true} textClassName="text-sm" />
           </Link>
-          <p className="text-[0.7rem] text-[#667085] text-center md:text-left">
+          <p className="text-[0.7rem] text-[#84949e] text-center md:text-left">
             Paper trading with real market data, simulated execution, and zero real risk.
           </p>
         </div>
 
         <div className="flex items-center gap-6 text-xs">
-          <Link to="/about" className="hover:text-[#F5F7FA] transition">
+          <Link to="/about" className="hover:text-[#f8fdff] transition">
             About
           </Link>
-          <Link to="/features" className="hover:text-[#F5F7FA] transition">
+          <Link to="/features" className="hover:text-[#f8fdff] transition">
             Features
           </Link>
-          <Link to="/login" className="hover:text-[#F5F7FA] transition">
+          <Link to="/login" className="hover:text-[#f8fdff] transition">
             Sign In
           </Link>
-          <Link to="/register" className="hover:text-[#F5F7FA] transition">
+          <Link to="/register" className="hover:text-[#f8fdff] transition">
             Create Account
           </Link>
         </div>
 
-        <p className="text-[0.68rem] text-[#667085]">
+        <p className="text-[0.68rem] text-[#84949e]">
           © {new Date().getFullYear()} MarketForge. All rights reserved.
         </p>
       </div>

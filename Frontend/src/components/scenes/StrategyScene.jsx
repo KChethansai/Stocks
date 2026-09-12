@@ -22,7 +22,7 @@ const strategies = [
     signal: 'BULLISH',
     winRate: '72%',
     trades: 24,
-    color: '#3B82F6',
+    color: '#2eafff',
   },
   {
     icon: Shield,
@@ -31,7 +31,7 @@ const strategies = [
     signal: 'NEUTRAL',
     winRate: '64%',
     trades: 18,
-    color: '#60A5FA',
+    color: '#7ce6ff',
   },
   {
     icon: Target,
@@ -40,7 +40,7 @@ const strategies = [
     signal: 'BULLISH',
     winRate: '68%',
     trades: 12,
-    color: '#22C55E',
+    color: '#7ed6a3',
   },
   {
     icon: Zap,
@@ -49,7 +49,7 @@ const strategies = [
     signal: 'BEARISH',
     winRate: '58%',
     trades: 47,
-    color: '#F59E0B',
+    color: '#96cdde',
   },
 ]
 
@@ -77,7 +77,7 @@ export default function StrategyScene() {
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.05) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse, rgba(124,230,255,0.05) 0%, transparent 70%)' }} />
 
       <div className="mf-scene">
         <div className="mf-scene-frame">
@@ -93,14 +93,14 @@ export default function StrategyScene() {
                          bg-[var(--surface)]/90 border border-[var(--border)] backdrop-blur-md mb-6"
               variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
             >
-              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#7ed6a3] animate-pulse" />
               <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
                 Strategy
               </ShinyText>
             </motion.div>
 
             <motion.h2
-              className="font-sans tracking-tight text-text-primary leading-[1.1] mb-4"
+              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-4"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >

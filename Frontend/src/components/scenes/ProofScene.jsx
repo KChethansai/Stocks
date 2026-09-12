@@ -36,7 +36,7 @@ export default function ProofScene() {
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute top-1/2 left-0 w-[500px] h-[500px] rounded-full pointer-events-none -translate-y-1/2"
-        style={{ background: 'radial-gradient(ellipse, rgba(245,158,11,0.04) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse, rgba(124,230,255,0.04) 0%, transparent 70%)' }} />
 
       <div className="mf-scene">
         <div className="mf-scene-frame">
@@ -52,14 +52,14 @@ export default function ProofScene() {
                          bg-[var(--surface)]/90 border border-[var(--border)] backdrop-blur-md mb-6"
               variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
             >
-              <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#7ce6ff] animate-pulse" />
               <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
                 Proof
               </ShinyText>
             </motion.div>
 
             <motion.h2
-              className="font-sans tracking-tight text-text-primary leading-[1.1] mb-4"
+              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-4"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >
@@ -100,7 +100,7 @@ export default function ProofScene() {
                   variants={scaleIn(isComfort ? 0 : DURATIONS.content, 0)}
                 >
                   <SpotlightCard
-                    spotlightColor="rgba(59, 130, 246, 0.08)"
+                    spotlightColor="rgba(124, 230, 255, 0.08)"
                     tiltIntensity={3}
                     className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-5 text-center h-full"
                   >
@@ -125,7 +125,7 @@ export default function ProofScene() {
             viewport={{ once: true, amount: 0.15 }}
           >
             <SpotlightCard
-              spotlightColor="rgba(59, 130, 246, 0.08)"
+              spotlightColor="rgba(124, 230, 255, 0.08)"
               tiltIntensity={2}
               className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-6"
             >

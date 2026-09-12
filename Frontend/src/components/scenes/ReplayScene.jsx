@@ -38,16 +38,16 @@ function BeforeAfterChart({ phase }) {
     <svg className="w-full h-full" viewBox="0 0 100 100" fill="none" preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id={`replayGrad-${phase}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={phase === 'before' ? '#6B7280' : '#3B82F6'} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={phase === 'before' ? '#6B7280' : '#3B82F6'} stopOpacity="0" />
+          <stop offset="0%" stopColor={phase === 'before' ? '#6B7280' : '#7ce6ff'} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={phase === 'before' ? '#6B7280' : '#7ce6ff'} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={pathD} stroke={phase === 'before' ? '#6B7280' : '#3B82F6'} strokeWidth="2" strokeLinejoin="round" />
+      <path d={pathD} stroke={phase === 'before' ? '#6B7280' : '#7ce6ff'} strokeWidth="2" strokeLinejoin="round" />
       <path d={`${pathD} L${visible[visible.length - 1][0]},100 L0,100 Z`}
         fill={`url(#replayGrad-${phase})`} />
       {visible.length > 0 && (
         <circle cx={visible[visible.length - 1][0]} cy={visible[visible.length - 1][1]}
-          r="3" fill={phase === 'before' ? '#6B7280' : '#3B82F6'} />
+          r="3" fill={phase === 'before' ? '#6B7280' : '#7ce6ff'} />
       )}
     </svg>
   )
@@ -60,7 +60,7 @@ export default function ReplayScene() {
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.05) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse, rgba(124,230,255,0.05) 0%, transparent 70%)' }} />
 
       <div className="mf-scene">
         <div className="mf-scene-frame">
@@ -76,14 +76,14 @@ export default function ReplayScene() {
                          bg-[var(--surface)]/90 border border-[var(--border)] backdrop-blur-md mb-6"
               variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
             >
-              <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#7ce6ff] animate-pulse" />
               <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
                 Trade history
               </ShinyText>
             </motion.div>
 
             <motion.h2
-              className="font-sans tracking-tight text-text-primary leading-[1.1] mb-4"
+              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-4"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >
@@ -116,11 +116,11 @@ export default function ReplayScene() {
             transition={{ duration: isComfort ? 0 : DURATIONS.card, ease: EASING.contentReveal }}
           >
             <SpotlightCard
-              spotlightColor="rgba(59, 130, 246, 0.12)"
+              spotlightColor="rgba(124, 230, 255, 0.12)"
               tiltIntensity={3}
               className="rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden bg-[var(--surface)]/95"
             >
-              <BorderBeam size={120} duration={12} colorFrom="#3B82F6" colorTo="#22C55E" />
+              <BorderBeam size={120} duration={12} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
               {/* Title bar */}
               <div className="h-10 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">

@@ -35,16 +35,16 @@ export default function RootLayout() {
       </AppShell>
     )
   } else if (isAuthPage) {
-    // Auth pages (Login/Register full screen)
+    // Auth pages (Login/Register full screen) — landing token scope
     shell = (
-      <div className="min-h-screen bg-bg-primary text-text-primary">
+      <div data-landing className="min-h-screen bg-bg-primary text-text-primary">
         <Outlet />
       </div>
     )
   } else {
-    // Public marketing pages (Home, About, Features)
+    // Public marketing pages (Home, About, Features) — landing token scope
     shell = (
-      <div className="flex min-h-screen flex-col bg-bg-primary text-text-primary">
+      <div data-landing className="flex min-h-screen flex-col bg-bg-primary text-text-primary">
         <Header />
         <main className="w-full grow">
           <Outlet />

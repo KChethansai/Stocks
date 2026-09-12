@@ -1,8 +1,8 @@
 export function Aurora({
   className = '',
-  color1 = '#1E3A8A',
-  color2 = '#0F172A',
-  color3 = '#064E3B'
+  color1 = '#1c83d8',
+  color2 = '#0c121b',
+  color3 = '#03060b'
 }) {
   return (
     <div

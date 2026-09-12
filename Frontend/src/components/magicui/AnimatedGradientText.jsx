@@ -1,9 +1,9 @@
 export function AnimatedGradientText({
   children,
   className = '',
-  from = '#60A5FA',
-  via = '#3B82F6',
-  to = '#10B981'
+  from = '#bdf7ff',
+  via = '#7ce6ff',
+  to = '#2eafff'
 }) {
   return (
     <span

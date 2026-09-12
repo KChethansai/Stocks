@@ -8,8 +8,8 @@ export function LiquidGlassButton({
   ...props
 }) {
   const variantStyles = {
-    primary: 'border-white/15 bg-white/5 hover:bg-white/10 text-[#F5F7FA] hover:border-white/25 hover:shadow-[#3B82F6]/20',
-    neon: 'border-[#3B82F6]/30 bg-[#3B82F6]/10 hover:bg-[#3B82F6]/20 text-[#3B82F6] hover:border-[#3B82F6]/60 hover:shadow-[#3B82F6]/30',
+    primary: 'border-white/15 bg-white/5 hover:bg-white/10 text-[#f8fdff] hover:border-white/25 hover:shadow-[#7ce6ff]/20',
+    neon: 'border-[#7ce6ff]/30 bg-[#7ce6ff]/10 hover:bg-[#7ce6ff]/20 text-[#7ce6ff] hover:border-[#7ce6ff]/60 hover:shadow-[#7ce6ff]/30',
     danger: 'border-[#EF4444]/30 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] hover:border-[#EF4444]/60 hover:shadow-[#EF4444]/30'
   }
 
