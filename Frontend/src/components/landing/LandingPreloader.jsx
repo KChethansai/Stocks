@@ -44,6 +44,7 @@ export default function LandingPreloader({ onDone }) {
     const start = performance.now()
     let raf = 0
     let finished = false
+    let handoffTimer = 0
 
     const finish = () => {
       if (finished) return
@@ -51,7 +52,7 @@ export default function LandingPreloader({ onDone }) {
       cancelAnimationFrame(raf)
       setProgress(100)
       // Let the counter hit 100 for one beat, then hand off to the exit.
-      setTimeout(() => {
+      handoffTimer = setTimeout(() => {
         if (!doneRef.current) {
           doneRef.current = true
           onDone?.()
@@ -81,6 +82,7 @@ export default function LandingPreloader({ onDone }) {
       finished = true
       cancelAnimationFrame(raf)
       clearTimeout(cap)
+      clearTimeout(handoffTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotion])

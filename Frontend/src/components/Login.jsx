@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import GoogleAuthButton from './GoogleAuthButton'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { BorderBeam } from './magicui/BorderBeam'
 import { ShinyText } from './reactbits/ShinyText'
@@ -111,15 +111,15 @@ export default function Login() {
               )}
             </div>
 
-            <ShimmerButton
+            <ParticleButton
               type="submit"
               disabled={loading}
-              background="#1c83d8"
+              tone="blue"
               className="w-full py-3 text-xs font-bold font-mono mt-2"
             >
               <span>{loading ? 'Signing in...' : 'Sign In to Workspace'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </ShimmerButton>
+            </ParticleButton>
           </form>
 
           {/* Divider */}

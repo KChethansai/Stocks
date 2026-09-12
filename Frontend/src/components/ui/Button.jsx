@@ -54,14 +54,9 @@ export function Button({
       disabled={disabled}
       whileTap={disabled || prefersReducedMotion() ? {} : { scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      className={cn('group', buttonVariants({ variant, size }), className)}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     >
-      {['primary', 'success', 'danger'].includes(variant) && (
-        <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg">
-          <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/15 blur-sm transition-transform duration-500 ease-out group-hover:translate-x-[400%]" />
-        </span>
-      )}
       <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
     </motion.button>
   )

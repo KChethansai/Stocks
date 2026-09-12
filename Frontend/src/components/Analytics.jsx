@@ -8,11 +8,12 @@ import {
   summarizePortfolio
 } from '../utils/marketAnalytics'
 import { NumberTicker } from './magicui/NumberTicker'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { BorderBeam } from './magicui/BorderBeam'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShinyText } from './reactbits/ShinyText'
 import { SegmentedControl } from './ui/SegmentedControl'
+import Reveal from './ui/Reveal'
 
 export default function Analytics() {
   const [range, setRange] = useState('3M')
@@ -118,7 +119,7 @@ export default function Analytics() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
+      <Reveal className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA]">
             <ShinyText>Portfolio Analytics</ShinyText>
@@ -136,20 +137,20 @@ export default function Analytics() {
             options={['1M', '3M', '6M', 'YTD', '1Y'].map((r) => ({ value: r, label: r }))}
           />
 
-          <ShimmerButton
+          <ParticleButton
             onClick={handleGenerateReport}
-            background="#3B82F6"
+            tone="blue"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             Generate Report
-          </ShimmerButton>
+          </ParticleButton>
         </div>
-      </div>
+      </Reveal>
 
       {/* Main Grid: 8 Cols Chart + 4 Cols Secondary Modules */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Main Visualization Area (8 cols) */}
-        <div className="xl:col-span-8 flex flex-col gap-6">
+        <Reveal delay={0.05} className="xl:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
           <div className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
             <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
@@ -205,7 +206,7 @@ export default function Analytics() {
           </div>
 
           {/* Standardized Metrics Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[rgba(255,255,255,0.06)] rounded-xl overflow-hidden border border-[rgba(255,255,255,0.08)]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-xl">
             <div className="bg-[#111318] p-5">
               <div className="text-[10px] font-mono text-[#667085] uppercase tracking-wider mb-1">
                 Day Return
@@ -254,10 +255,10 @@ export default function Analytics() {
               </div>
             </div>
           </div>
-        </div>
+        </Reveal>
 
         {/* Secondary Modules (4 cols) */}
-        <div className="xl:col-span-4 flex flex-col gap-6">
+        <Reveal delay={0.1} className="xl:col-span-4 flex flex-col gap-6">
           {/* Sector Exposure Module */}
           <SpotlightCard
             spotlightColor="rgba(59, 130, 246, 0.15)"
@@ -364,7 +365,7 @@ export default function Analytics() {
               )}
             </div>
           </SpotlightCard>
-        </div>
+        </Reveal>
       </div>
     </div>
   )

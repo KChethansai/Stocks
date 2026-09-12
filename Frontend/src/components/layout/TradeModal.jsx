@@ -6,7 +6,7 @@ import { useTrade } from '../../store/tradeStore'
 import { useAuth } from '../../store/authStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
 import { BorderBeam } from '../magicui/BorderBeam'
-import { ShimmerButton } from '../magicui/ShimmerButton'
+import { ParticleButton } from '../kokonutui/ParticleButton'
 import { BuyButton } from '../ui/BuyButton'
 import { Button, Chip } from '../ui/Button'
 import { SegmentedControl } from '../ui/SegmentedControl'
@@ -141,7 +141,7 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
 
         {confirmed ? (
           <div className="py-10 text-center space-y-3">
-            <CheckCircle2 className="w-12 h-12 text-[#22C55E] mx-auto animate-bounce" />
+            <CheckCircle2 className="w-12 h-12 text-[#22C55E] mx-auto" />
             <h4 className="text-lg font-bold text-[#F5F7FA]">Order Executed Successfully!</h4>
             <p className="text-xs text-[#9CA3AF]">
               {currentSide} {currentQuantity} shares of {stock.symbol} at {formatCurrency(stock.price)}
@@ -281,14 +281,14 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
                   }}
                 />
               ) : (
-                <ShimmerButton
+                <ParticleButton
                   type="submit"
                   disabled={submitting || currentQuantity > sharesOwned}
-                  background="#EF4444"
+                  tone="red"
                   className="flex-1 py-2.5 text-xs font-bold font-mono"
                 >
                   {submitting ? 'Executing...' : 'Confirm SELL'}
-                </ShimmerButton>
+                </ParticleButton>
               )}
             </div>
           </form>

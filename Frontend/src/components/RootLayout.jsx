@@ -8,6 +8,12 @@ import LandingPreloader from './landing/LandingPreloader'
 import { useAuth } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
 
+// One-time-per-page-load guard: RootLayout remounts whenever Suspense
+// swaps in a route fallback (lazy chunks), which would otherwise reset
+// landingReady and replay the preloader. Module scope resets naturally
+// on full page load, so every COLD load of / still plays it.
+let landingSplashShown = false
+
 export default function RootLayout() {
   const { pathname } = useLocation()
   const { isAuthenticated } = useAuth()
@@ -32,7 +38,13 @@ export default function RootLayout() {
   // measurements in scenes run against the final layout (never while the
   // overlay covers the viewport). Landing scope only — auth pages and the
   // authenticated AppShell are untouched.
-  const [landingReady, setLandingReady] = useState(!isPublicMarketingPage)
+  const [landingReady, setLandingReady] = useState(
+    !isPublicMarketingPage || landingSplashShown
+  )
+  const handleSplashDone = () => {
+    landingSplashShown = true
+    setLandingReady(true)
+  }
 
   let shell
   // Authenticated experience inside AppShell
@@ -55,9 +67,11 @@ export default function RootLayout() {
     // exit-before-enter), so scene ScrollTriggers measure the final layout.
     shell = (
       <div data-landing className="flex min-h-screen flex-col bg-bg-primary text-text-primary">
-        <AnimatePresence mode="wait">
+        {/* No mode="wait": there is never an entering sibling here, so wait
+            only risks hanging the exit. Content below mounts independently. */}
+        <AnimatePresence>
           {!landingReady && (
-            <LandingPreloader key="landing-preloader" onDone={() => setLandingReady(true)} />
+            <LandingPreloader key="landing-preloader" onDone={handleSplashDone} />
           )}
         </AnimatePresence>
         {landingReady && (

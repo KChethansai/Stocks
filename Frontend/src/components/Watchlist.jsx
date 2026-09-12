@@ -9,10 +9,11 @@ import {
 import { useTrade } from '../store/tradeStore'
 import { useAuth } from '../store/authStore'
 import { Sparkline } from './TerminalCharts'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
+import Reveal from './ui/Reveal'
 import toast from 'react-hot-toast'
 
 export default function Watchlist() {
@@ -129,9 +130,9 @@ export default function Watchlist() {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header Summary (Stitch Layout) */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+      <Reveal className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA] mb-3">
             <ShinyText>My Watchlist</ShinyText>
@@ -189,23 +190,23 @@ export default function Watchlist() {
             ]}
           />
 
-          <ShimmerButton
+          <ParticleButton
             onClick={() => navigate('/markets')}
-            background="#3B82F6"
+            tone="blue"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             <PlusCircle className="w-3.5 h-3.5" />
             <span>Discover Stocks</span>
-          </ShimmerButton>
+          </ParticleButton>
         </div>
-      </div>
+      </Reveal>
 
       {/* High Density Stock Table */}
-      <div className="bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] overflow-hidden">
+      <Reveal delay={0.05} className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-[#667085] tracking-wider bg-[#0e0e10]/50">
+              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-[#667085] tracking-wider bg-[#09090B]/50">
                 <th className="py-3 px-5 cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('symbol')}>
                   <span className="flex items-center gap-1">
                     Ticker <ArrowUp className="w-3 h-3" />
@@ -310,7 +311,7 @@ export default function Watchlist() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Reveal>
     </div>
   )
 }

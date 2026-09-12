@@ -25,10 +25,11 @@ import { useShell } from './layout/ShellContext'
 import PortfolioAllocation3D from './3d/PortfolioAllocation3D'
 import { NumberTicker } from './magicui/NumberTicker'
 import { BorderBeam } from './magicui/BorderBeam'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
+import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 
 class PortfolioErrorBoundary extends Component {
@@ -211,9 +212,9 @@ function PortfolioContent() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header Section: Total Value & CTAs */}
-      <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
+      <Reveal as="section" className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-[11px] font-mono text-[#667085] uppercase tracking-widest mb-1.5">
+          <h1 className="mf-eyebrow mb-1.5">
             <ShinyText>Total Portfolio Value</ShinyText>
           </h1>
           <div className="flex flex-wrap items-baseline gap-3">
@@ -250,21 +251,21 @@ function PortfolioContent() {
             <Download className="w-3.5 h-3.5 text-[#9CA3AF]" />
             <span>Export CSV</span>
           </button>
-          <ShimmerButton
+          <ParticleButton
             onClick={() => openTradeModal()}
-            background="#3B82F6"
+            tone="blue"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             <PlusCircle className="w-3.5 h-3.5" />
             <span>Trade</span>
-          </ShimmerButton>
+          </ParticleButton>
         </div>
-      </section>
+      </Reveal>
 
       {/* Bento Grid: 8 Cols Chart + 4 Cols Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Performance Chart */}
-        <div className="lg:col-span-8 bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
+        <Reveal delay={0.05} className="lg:col-span-8 bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
           <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -278,7 +279,7 @@ function PortfolioContent() {
                   Portfolio
                 </span>
                 <span className="flex items-center gap-1.5 text-[#667085]">
-                  <span className="w-2 h-2 rounded-full bg-[#424754]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[#667085]"></span>
                   S&amp;P 500
                 </span>
               </div>
@@ -291,7 +292,7 @@ function PortfolioContent() {
                   onClick={() => setRange(r)}
                   className={`px-3 py-1 rounded text-xs font-mono transition cursor-pointer ${
                     range === r
-                      ? 'bg-[#353437] text-[#F5F7FA] font-medium shadow-sm'
+                      ? 'bg-white/10 text-[#F5F7FA] font-medium shadow-sm'
                       : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
                   }`}
                 >
@@ -310,10 +311,10 @@ function PortfolioContent() {
               showGrid={true}
             />
           </div>
-        </div>
+        </Reveal>
 
         {/* Right Column (4 cols): Insights Modules */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
+        <Reveal delay={0.1} className="lg:col-span-4 flex flex-col gap-4">
           {/* Insight 1: Best Performer */}
           <SpotlightCard
             spotlightColor="rgba(34, 197, 94, 0.15)"
@@ -363,7 +364,7 @@ function PortfolioContent() {
             </div>
 
             {/* Stacked Allocation Bar */}
-            <div className="w-full h-2 bg-[#1c1b1d] rounded-full mb-3 overflow-hidden flex">
+            <div className="w-full h-2 bg-white/[0.08] rounded-full mb-3 overflow-hidden flex">
               {sectorAllocation.slice(0, 3).map((sec, i) => (
                 <div
                   key={sec.name}
@@ -386,7 +387,7 @@ function PortfolioContent() {
           </SpotlightCard>
 
           {/* Insight 3: 3D Asset Structure Preview */}
-          <div className="bg-gradient-to-br from-[#111318] to-[#151820] rounded-xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#111318] to-[#151820] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col relative overflow-hidden shadow-xl">
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
@@ -400,11 +401,11 @@ function PortfolioContent() {
               <PortfolioAllocation3D className="w-full h-full" />
             </div>
           </div>
-        </div>
+        </Reveal>
       </div>
 
       {/* Holdings Section & Table */}
-      <section className="bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] overflow-hidden">
+      <Reveal delay={0.15} as="section" className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         <div className="p-5 border-b border-[rgba(255,255,255,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold text-[#F5F7FA]">
@@ -466,7 +467,7 @@ function PortfolioContent() {
                     >
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-[#1c1b1d] border border-[rgba(255,255,255,0.08)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
+                          <div className="w-7 h-7 rounded-lg bg-white/[0.08] border border-[rgba(255,255,255,0.08)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
                             {holding.symbol[0]}
                           </div>
                           <div>
@@ -528,7 +529,7 @@ function PortfolioContent() {
             </table>
           </div>
         )}
-      </section>
+      </Reveal>
 
       {/* Position Liquidation Sell Modal */}
       {sellModalHolding && (
@@ -587,15 +588,15 @@ function PortfolioContent() {
               >
                 Cancel
               </Button>
-              <ShimmerButton
+              <ParticleButton
                 type="button"
                 onClick={handleExecuteSell}
                 disabled={selling}
-                background="#EF4444"
+                tone="red"
                 className="flex-1 py-2.5 text-xs font-bold font-mono"
               >
                 {selling ? 'Selling...' : 'Confirm Sell'}
-              </ShimmerButton>
+              </ParticleButton>
             </div>
           </div>
         </div>

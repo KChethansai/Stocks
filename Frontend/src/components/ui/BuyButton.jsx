@@ -128,26 +128,7 @@ export function BuyButton({
             transition={{ duration: 0.18 }}
             className="inline-flex items-center gap-2"
           >
-            {/* Basket launch motion for icon */}
-            <motion.span
-              animate={
-                prefersReducedMotion
-                  ? {}
-                  : {
-                      y: [-2, -14, 0],
-                      x: [0, 4, 0],
-                      rotate: [0, 15, 0],
-                      scale: [1, 1.2, 1]
-                    }
-              }
-              transition={{
-                duration: 0.8,
-                repeat: Infinity,
-                ease: 'easeInOut'
-              }}
-            >
-              <Loader2 className="animate-spin shrink-0" size={currentIconSize} />
-            </motion.span>
+            <Loader2 className="animate-spin shrink-0" size={currentIconSize} />
             <span>Filling Order...</span>
           </motion.span>
         )}
@@ -155,19 +136,13 @@ export function BuyButton({
         {status === 'success' && (
           <motion.span
             key="success"
-            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.6, opacity: 0 }}
-            animate={prefersReducedMotion ? { opacity: 1 } : { scale: [0.6, 1.12, 1], opacity: 1 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
-            transition={{ type: 'spring', damping: 12, stiffness: 220 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="inline-flex items-center gap-2"
           >
-            <motion.span
-              initial={prefersReducedMotion ? {} : { rotate: -45, scale: 0 }}
-              animate={prefersReducedMotion ? {} : { rotate: 0, scale: 1 }}
-              transition={{ type: 'spring', damping: 10, stiffness: 300, delay: 0.05 }}
-            >
-              <Check size={currentIconSize} className="shrink-0 stroke-[3]" />
-            </motion.span>
+            <Check size={currentIconSize} className="shrink-0 stroke-[3]" />
             <span>Order Filled!</span>
           </motion.span>
         )}

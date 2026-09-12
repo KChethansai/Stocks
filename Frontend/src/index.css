@@ -305,6 +305,54 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
+/* ── Shared structural language (workspace + marketing) ──────────
+   Token-driven: these classes resolve through var() so they render in
+   the :root blue system inside the app and the [data-landing] cyan
+   system on marketing pages. Accent stays scope-local by design. */
+.mf-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+@media (min-width: 640px) {
+  .mf-page { padding-inline: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .mf-page { padding-inline: 2rem; }
+}
+.mf-card {
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-md);
+}
+@media (min-width: 640px) {
+  .mf-card { padding: 1.5rem; }
+}
+.mf-eyebrow {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--text-secondary);
+}
+.mf-h1 {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+@media (min-width: 640px) {
+  .mf-h1 { font-size: 1.875rem; }
+}
+
 /* Ticker Ribbon */
 .terminal-ticker {
   display: flex;
@@ -336,35 +384,6 @@ textarea {
 
 .animate-fade-in {
   animation: fadeIn 0.25s ease-out forwards;
-}
-
-@keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
-  }
-}
-
-.animate-shimmer-slide {
-  animation: shimmer-slide var(--speed) ease-in-out infinite alternate;
-}
-
-@keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
-  }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
-  }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
-  }
-  100% {
-    transform: translateZ(0) rotate(360deg);
-  }
-}
-
-.animate-spin-around {
-  animation: spin-around calc(var(--speed) * 2) infinite linear;
 }
 
 @keyframes border-beam {

@@ -15,10 +15,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
+import Reveal from './ui/Reveal'
 
 export default function Profile() {
   const fileInputRef = useRef(null)
@@ -140,23 +141,23 @@ export default function Profile() {
   }, [newPwValue])
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* Header */}
-      <div className="pb-2">
+      <Reveal className="pb-2">
         <div className="flex items-center gap-2">
           <User className="w-5 h-5 text-[#3B82F6]" />
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F5F7FA]">
+          <h1 className="mf-h1">
             <ShinyText>Account & Security Settings</ShinyText>
           </h1>
         </div>
         <p className="text-xs sm:text-sm text-[#9CA3AF] mt-1">
           Manage your identity, personal details, security credentials, and virtual account balance.
         </p>
-      </div>
+      </Reveal>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Identity Card & Virtual Account (4 cols) */}
-        <div className="lg:col-span-4 space-y-6">
+        <Reveal delay={0.05} className="lg:col-span-4 space-y-6">
           {/* Identity & Avatar Card */}
           <SpotlightCard
             spotlightColor="rgba(59, 130, 246, 0.15)"
@@ -256,10 +257,10 @@ export default function Profile() {
               Your practice trading balance is refreshed automatically on executed buy and sell orders.
             </p>
           </SpotlightCard>
-        </div>
+        </Reveal>
 
         {/* Right Column: Account Details Form & Password Change (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        <Reveal delay={0.1} className="lg:col-span-8 space-y-6">
           {/* Personal Details Form */}
           <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-6 shadow-xl">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
@@ -299,14 +300,14 @@ export default function Profile() {
               </div>
 
               <div className="flex justify-end pt-2">
-                <ShimmerButton
+                <ParticleButton
                   type="submit"
                   disabled={loading || !isDetailsDirty}
-                  background="#3B82F6"
+                  tone="blue"
                   className="px-5 py-2 text-xs font-semibold font-mono"
                 >
                   Save Profile Changes
-                </ShimmerButton>
+                </ParticleButton>
               </div>
             </form>
           </div>
@@ -400,18 +401,18 @@ export default function Profile() {
               </div>
 
               <div className="flex justify-end pt-2">
-                <ShimmerButton
+                <ParticleButton
                   type="submit"
                   disabled={loading}
-                  background="#F59E0B"
+                  tone="amber"
                   className="px-5 py-2 text-xs font-semibold font-mono"
                 >
                   Update Password
-                </ShimmerButton>
+                </ParticleButton>
               </div>
             </form>
           </div>
-        </div>
+        </Reveal>
       </div>
     </div>
   )

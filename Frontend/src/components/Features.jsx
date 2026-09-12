@@ -11,7 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { ShinyText } from './reactbits/ShinyText'
 import { BlurText } from './reactbits/BlurText'
 import { Aurora } from './reactbits/Aurora'
@@ -103,10 +103,10 @@ export default function Features() {
 
         <div className="flex justify-center pt-8">
           <Link to="/register">
-            <ShimmerButton background="#1c83d8" className="px-8 py-3.5 text-xs sm:text-sm font-bold font-mono">
+            <ParticleButton tone="cyan" className="rounded-full px-8 py-3.5 text-xs sm:text-sm font-bold font-mono">
               <span>Get Started with $100k Virtual Balance</span>
               <ArrowRight className="w-4 h-4" />
-            </ShimmerButton>
+            </ParticleButton>
           </Link>
         </div>
       </div>

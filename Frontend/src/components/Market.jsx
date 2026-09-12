@@ -22,12 +22,13 @@ import {
   formatCompact,
   formatCurrency
 } from '../utils/marketAnalytics'
-import { ShimmerButton } from './magicui/ShimmerButton'
+import { ParticleButton } from './kokonutui/ParticleButton'
 import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
 import { BuyButton } from './ui/BuyButton'
 import { Button, Chip } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
+import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 import { PredictionPanel, PredictionBadge } from './ml/PredictionWidgets'
 import {
@@ -322,7 +323,7 @@ export default function Market() {
       {/* Workspace 3-Column Layout (3-col only at xl: rails don't fit at 1024) */}
       <div className="flex-1 flex flex-col xl:flex-row p-4 sm:p-6 gap-6 overflow-visible xl:overflow-hidden">
         {/* Left Column: Stock Discovery & Watchlist */}
-        <aside className="w-full xl:w-72 flex flex-col gap-4 shrink-0 bg-[#09090B] border-r border-[rgba(255,255,255,0.08)] pr-4 xl:pr-2 pb-4 xl:pb-0 overflow-y-auto">
+        <Reveal as="aside" className="w-full xl:w-72 flex flex-col gap-4 shrink-0 bg-[#09090B] border-r border-[rgba(255,255,255,0.08)] pr-4 xl:pr-2 pb-4 xl:pb-0 overflow-y-auto">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#F5F7FA]">
               Markets
@@ -375,7 +376,7 @@ export default function Market() {
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#1c1b1d] border border-[rgba(255,255,255,0.1)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
+                      <div className="w-8 h-8 rounded-full bg-white/[0.08] border border-[rgba(255,255,255,0.1)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
                         {stock.symbol[0]}
                       </div>
                       <div className="min-w-0">
@@ -406,10 +407,10 @@ export default function Market() {
               )
             })}
           </div>
-        </aside>
+        </Reveal>
 
         {/* Center Column: Stock Detail & Chart */}
-        <section className="flex-1 flex flex-col min-w-0 bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] overflow-hidden">
+        <Reveal as="section" delay={0.05} className="flex-1 flex flex-col min-w-0 bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
           {selectedStock ? (
             <>
               {/* Stock Header */}
@@ -495,7 +496,7 @@ export default function Market() {
                 </div>
 
                 {/* Chart Area */}
-                <div className="flex-1 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0e0e10]/80 p-3 relative overflow-hidden flex flex-col justify-center min-h-[260px]">
+                <div className="flex-1 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#09090B]/80 p-3 relative overflow-hidden flex flex-col justify-center min-h-[260px]">
                   {historyLoading ? (
                     <div className="flex items-center justify-center h-full text-xs font-mono text-[#3B82F6] animate-pulse">
                       Loading market price history...
@@ -515,7 +516,7 @@ export default function Market() {
               </div>
 
               {/* Key Metrics Bento Grid */}
-              <div className="p-5 sm:p-6 border-t border-[rgba(255,255,255,0.08)] grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#0e0e10]">
+              <div className="p-5 sm:p-6 border-t border-[rgba(255,255,255,0.08)] grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#09090B]">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-mono uppercase text-[#667085]">Volume</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
@@ -559,10 +560,10 @@ export default function Market() {
               Select a stock to view details
             </div>
           )}
-        </section>
+        </Reveal>
 
         {/* Right Column: AI + Trade Ticket */}
-        <aside className="w-full xl:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
+        <Reveal as="aside" delay={0.1} className="w-full xl:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
           {selectedStock && (
             <PredictionPanel
               symbol={selectedStock.symbol}
@@ -577,7 +578,7 @@ export default function Market() {
             />
           )}
 
-          <div className="bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col">
+          <div className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col shadow-xl">
           <h3 className="text-sm font-semibold text-[#F5F7FA] mb-5">
             Trade {selectedStock?.symbol || 'Stock'}
           </h3>
@@ -686,21 +687,21 @@ export default function Market() {
                 }}
               />
             ) : (
-              <ShimmerButton
+              <ParticleButton
                 type="submit"
                 disabled={submittingTrade}
-                background="#EF4444"
-                className="w-full py-3 text-xs font-bold font-mono text-black"
+                tone="red"
+                className="w-full py-3 text-xs font-bold font-mono"
               >
                 <Zap className="w-4 h-4" />
                 <span>
                   {`Sell ${orderQuantity} ${selectedStock?.symbol}`}
                 </span>
-              </ShimmerButton>
+              </ParticleButton>
             )}
           </form>
           </div>
-        </aside>
+        </Reveal>
       </div>
 
       {/* Order Confirmation Modal */}

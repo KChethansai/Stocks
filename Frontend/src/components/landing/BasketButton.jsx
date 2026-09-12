@@ -36,9 +36,9 @@ export function BasketButton({
       className={`group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full border border-[rgba(150,205,222,0.3)] bg-[rgba(12,18,27,0.6)] px-7 py-3 font-mono text-[0.9375rem] font-bold text-white shadow-[0_2px_18px_rgba(0,0,0,0.4)] backdrop-blur-md transition-all duration-200 hover:border-[rgba(124,230,255,0.6)] hover:shadow-[0_2px_24px_rgba(124,230,255,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(124,230,255,0.42)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090d] disabled:pointer-events-none disabled:opacity-40 ${className}`}
       {...props}
     >
-      {/* Sheen sweep on hover */}
+      {/* Sheen sweep on hover (hover-only, 200ms — no idle loop) */}
       <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
-        <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/20 blur-sm transition-transform duration-500 ease-out group-hover:translate-x-[400%]" />
+        <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/20 blur-sm transition-transform duration-200 ease-out group-hover:translate-x-[400%]" />
       </span>
       {/* Basket status dot */}
       <span className="relative z-10 flex items-center gap-2">

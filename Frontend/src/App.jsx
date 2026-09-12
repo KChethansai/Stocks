@@ -7,12 +7,16 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Logo3D from './components/Logo3D'
 import ErrorBoundary from './components/ErrorBoundary'
 
+// Marketing routes ship with the initial bundle: RootLayout's landing
+// preloader covers cold paint, and a lazy Home/About/Features would make
+// Suspense unmount the whole tree (restarting the preloader) on first load.
+import Home from './components/Home'
+import About from './components/About'
+import Features from './components/Features'
+
 // Lazy load route components
-const Home = lazy(() => import('./components/Home'))
 const Login = lazy(() => import('./components/Login'))
 const Register = lazy(() => import('./components/Register'))
-const About = lazy(() => import('./components/About'))
-const Features = lazy(() => import('./components/Features'))
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const Market = lazy(() => import('./components/Market'))
 const Watchlist = lazy(() => import('./components/Watchlist'))

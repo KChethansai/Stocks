@@ -10,6 +10,7 @@ import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
+import Reveal from './ui/Reveal'
 
 export default function Transactions() {
   const { transactions, fetchTransactions, fetchOrders } = useTrade()
@@ -88,9 +89,9 @@ export default function Transactions() {
   }, [transactions])
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header Summary */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+      <Reveal className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA] mb-4">
             <ShinyText>Activity Ledger</ShinyText>
@@ -156,7 +157,7 @@ export default function Transactions() {
             <span>Export CSV</span>
           </Button>
         </div>
-      </div>
+      </Reveal>
 
       {/* Ledger Sections by Time Group */}
       <div className="space-y-8">
@@ -165,7 +166,7 @@ export default function Transactions() {
           if (list.length === 0) return null
 
           return (
-            <section key={groupKey} className="space-y-3">
+            <Reveal as="section" key={groupKey} delay={0.05} className="space-y-3">
               <h3 className="text-xs font-mono font-semibold text-[#9CA3AF] border-b border-[rgba(255,255,255,0.08)] pb-2 flex items-center justify-between">
                 <span>{groupKey}</span>
                 <span className="text-[10px] text-[#667085]">{list.length} transactions</span>
@@ -244,7 +245,7 @@ export default function Transactions() {
                   )
                 })}
               </div>
-            </section>
+            </Reveal>
           )
         })}
 

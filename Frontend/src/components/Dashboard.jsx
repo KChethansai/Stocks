@@ -20,6 +20,7 @@ import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
 import { SegmentedControl } from './ui/SegmentedControl'
+import Reveal from './ui/Reveal'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -110,14 +111,14 @@ export default function Dashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Top Header / Hero Section */}
-      <div className="flex flex-col gap-3">
+      <Reveal className="flex flex-col gap-3">
         <p className="text-[#667085] text-sm font-medium">
           {greeting}{currentUser?.username ? `, ${currentUser.username}` : ''}
         </p>
 
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-2">
           <div>
-            <h2 className="text-[11px] font-mono uppercase tracking-widest text-[#9CA3AF] mb-1">
+            <h2 className="mf-eyebrow mb-1">
               <ShinyText>Your Portfolio</ShinyText>
             </h2>
             <div className="flex flex-wrap items-baseline gap-4">
@@ -175,15 +176,15 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </Reveal>
 
       {/* Main Grid: 8 Columns (Left) + 4 Columns (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Performance Chart & Market Movers */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
-          <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
-            <BorderBeam size={240} duration={9} colorFrom="#3B82F6" colorTo="#10B981" />
+          <Reveal delay={0.05} className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
+            <BorderBeam size={240} duration={9} colorFrom="#3B82F6" colorTo="#22C55E" />
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
@@ -218,9 +219,10 @@ export default function Dashboard() {
                 showGrid={true}
               />
             </div>
-          </div>
+          </Reveal>
 
           {/* Market Movers Module */}
+          <Reveal delay={0.1}>
           <SpotlightCard
             spotlightColor="rgba(59, 130, 246, 0.15)"
             tiltIntensity={4}
@@ -287,10 +289,11 @@ export default function Dashboard() {
               })}
             </div>
           </SpotlightCard>
+          </Reveal>
         </div>
 
         {/* Right Column (4 cols): Watchlist & Quick Actions */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        <Reveal delay={0.1} className="lg:col-span-4 flex flex-col gap-6">
           {/* AI Insights */}
           <div className="min-h-[348px]">
             <AiInsightWidget symbols={insightSymbols} />
@@ -360,7 +363,7 @@ export default function Dashboard() {
 
           {/* Quick Actions Module */}
           <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col gap-3">
-            <h3 className="text-[10px] font-mono uppercase tracking-widest text-[#667085] mb-1">
+            <h3 className="mf-eyebrow mb-1">
               Quick Actions
             </h3>
 
@@ -374,7 +377,7 @@ export default function Dashboard() {
 
             <Link
               to="/portfolio"
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-[#1c1b1d] text-[#F5F7FA] transition text-xs font-mono group"
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-white/[0.08] text-[#F5F7FA] transition text-xs font-mono group"
             >
               <span>View Full Portfolio</span>
               <Briefcase className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition" />
@@ -382,13 +385,13 @@ export default function Dashboard() {
 
             <Link
               to="/analytics"
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-[#1c1b1d] text-[#F5F7FA] transition text-xs font-mono group"
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-white/[0.08] text-[#F5F7FA] transition text-xs font-mono group"
             >
               <span>Analyze Allocation &amp; Risk</span>
               <PieChart className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition" />
             </Link>
           </div>
-        </div>
+        </Reveal>
       </div>
     </div>
   )
