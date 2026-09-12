@@ -217,7 +217,7 @@ function PortfolioContent() {
             <ShinyText>Total Portfolio Value</ShinyText>
           </h1>
           <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-4xl sm:text-5xl font-bold font-mono text-[#F5F7FA] tracking-tight">
+            <span className="text-4xl sm:text-5xl font-bold font-mono text-[#F5F7FA] tracking-tight whitespace-nowrap">
               $<NumberTicker value={Number(analytics.portfolioValue || 0)} decimalPlaces={2} />
             </span>
             <span
@@ -266,7 +266,7 @@ function PortfolioContent() {
         {/* Left Column (8 cols): Performance Chart */}
         <div className="lg:col-span-8 bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
           <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <h2 className="text-base font-semibold text-[#F5F7FA]">
                 Performance

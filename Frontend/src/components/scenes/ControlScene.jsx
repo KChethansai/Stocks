@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { TextReveal } from '../../hooks/useTextReveal'
@@ -10,10 +10,11 @@ import {
   fadeUp,
   staggerContainer,
 } from '../../lib/motion'
-import { gsap, canPin, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
+import { gsap, canPin, refreshLandingTriggers } from '../../lib/landingGsap'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { BorderBeam } from '../magicui/BorderBeam'
 import { ShinyText } from '../reactbits/ShinyText'
+import { PriceAreaChart, ChartValueLine, useOhlcSeries } from '../charts/market-charts'
 
 const tickers = [
   { symbol: 'AAPL', price: 227.14, change: +1.42 },
@@ -24,43 +25,14 @@ const tickers = [
   { symbol: 'TSLA', price: 170.80, change: -2.95 },
 ]
 
-// SVG line chart with scrubbed path drawing (cryptowl bridge-style:
-// bezier path reveals as the scene scrolls through the pin).
-function MiniChart({ pathRef }) {
-  return (
-    <svg className="w-full h-full" viewBox="0 0 400 140" fill="none" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="ctrlGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7ce6ff" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#7ce6ff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path
-        ref={pathRef}
-        d="M0,120 L20,115 L40,118 L60,95 L80,100 L100,80 L120,85 L140,60 L160,70 L180,45 L200,55 L220,35 L240,50 L260,25 L280,40 L300,20 L320,30 L340,15 L360,22 L380,10 L400,18"
-        stroke="#7ce6ff"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M0,120 L20,115 L40,118 L60,95 L80,100 L100,80 L120,85 L140,60 L160,70 L180,45 L200,55 L220,35 L240,50 L260,25 L280,40 L300,20 L320,30 L340,15 L360,22 L380,10 L400,18 L400,140 L0,140 Z"
-        fill="url(#ctrlGrad)"
-      />
-      {/* Entry line */}
-      <line x1="0" y1="90" x2="400" y2="90" stroke="#7ce6ff" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.4" />
-      <text x="4" y="88" fill="#7ce6ff" fontSize="9" fontFamily="monospace" opacity="0.6">Entry $85.00</text>
-      {/* Current price */}
-      <circle cx="400" cy="18" r="4" fill="#7ce6ff" />
-      <text x="360" y="12" fill="#7ce6ff" fontSize="9" fontFamily="monospace">$94.28</text>
-    </svg>
-  )
-}
-
 export default function ControlScene() {
   const isComfort = useReducedMotion()
   const sectionRef = useRef(null)
   const pinRef = useRef(null)
-  const pathRef = useRef(null)
+  const [timeframe, setTimeframe] = useState('1D')
+  const { prices } = useOhlcSeries('NVDA', timeframe)
+  const entry = prices.length ? prices[0].price : null
+  const current = prices.length ? prices[prices.length - 1].price : null
 
   // Pinned showcase (reference controlScene: start "top top",
   // end "+=calculated", pin + pinSpacing + anticipatePin: 1).
@@ -80,22 +52,6 @@ export default function ControlScene() {
           anticipatePin: 1,
         },
       })
-      // Scrubbed path drawing across the pin distance
-      const path = pathRef.current
-      if (path && canScrub()) {
-        const len = path.getTotalLength()
-        gsap.set(path, { strokeDasharray: len, strokeDashoffset: len })
-        gsap.to(path, {
-          strokeDashoffset: 0,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 70%',
-            end: 'bottom 30%',
-            scrub: true,
-          },
-        })
-      }
     }, sectionRef)
     refreshLandingTriggers()
     return () => ctx.revert()
@@ -187,25 +143,41 @@ export default function ControlScene() {
                       <div>
                         <h3 className="text-lg font-bold font-mono text-text-primary">NVDA</h3>
                         <div className="text-sm font-mono text-text-primary flex items-center gap-2">
-                          $942.81
-                          <span className="text-xs font-bold text-positive">+4.24%</span>
+                          ${current != null ? current.toFixed(2) : '—'}
+                          {entry != null && current != null ? (
+                            <span className={`text-xs font-bold ${current >= entry ? 'text-positive' : 'text-negative'}`}>
+                              {current >= entry ? '+' : ''}{(((current - entry) / entry) * 100).toFixed(2)}%
+                            </span>
+                          ) : null}
                         </div>
                       </div>
-                      <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]">
-                        {['1D', '1W', '1M', '3M'].map((tf) => (
-                          <button key={tf} className={`px-2 py-0.5 rounded ${tf === '1D' ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}>
+                      <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]" role="group" aria-label="Chart timeframe">
+                        {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((tf) => (
+                          <button
+                            key={tf}
+                            onClick={() => setTimeframe(tf)}
+                            aria-pressed={timeframe === tf}
+                            className={`px-2 py-0.5 rounded ${tf === timeframe ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}
+                          >
                             {tf}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="flex-1 min-h-[160px] border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden">
-                      <MiniChart pathRef={pathRef} />
+                    <div className="flex-1 min-h-[220px] border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden p-2">
+                      <PriceAreaChart data={prices} height={220}>
+                        {entry != null ? (
+                          <ChartValueLine value={entry} label={`Entry $${entry.toFixed(2)}`} align="left" />
+                        ) : null}
+                        {current != null ? (
+                          <ChartValueLine value={current} label={`$${current.toFixed(2)}`} solid />
+                        ) : null}
+                      </PriceAreaChart>
                     </div>
 
                     {/* Position row */}
-                    <div className="grid grid-cols-4 gap-3 font-mono text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
                       {[
                         { label: 'Shares', value: '50' },
                         { label: 'Avg Cost', value: '$850.00' },

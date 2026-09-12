@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
-import { MotionConfig } from 'motion/react'
+import { AnimatePresence, MotionConfig } from 'motion/react'
 import Footer from './Footer'
 import Header from './Header'
 import AppShell from './layout/AppShell'
+import LandingPreloader from './landing/LandingPreloader'
 import { useAuth } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
 
@@ -26,6 +27,13 @@ export default function RootLayout() {
   const isPublicMarketingPage = ['/', '/about', '/features'].includes(textPath)
   const isPublicRoute = isAuthPage || isPublicMarketingPage
 
+  // Landing preloader gate: public marketing shell mounts its content only
+  // after the preloader completes + unmounts, so GSAP ScrollTrigger
+  // measurements in scenes run against the final layout (never while the
+  // overlay covers the viewport). Landing scope only — auth pages and the
+  // authenticated AppShell are untouched.
+  const [landingReady, setLandingReady] = useState(!isPublicMarketingPage)
+
   let shell
   // Authenticated experience inside AppShell
   if (isAuthenticated && !isPublicRoute) {
@@ -42,14 +50,25 @@ export default function RootLayout() {
       </div>
     )
   } else {
-    // Public marketing pages (Home, About, Features) — landing token scope
+    // Public marketing pages (Home, About, Features) — landing token scope.
+    // Content mounts only after the preloader exits (mode="wait" sequences
+    // exit-before-enter), so scene ScrollTriggers measure the final layout.
     shell = (
       <div data-landing className="flex min-h-screen flex-col bg-bg-primary text-text-primary">
-        <Header />
-        <main className="w-full grow">
-          <Outlet />
-        </main>
-        <Footer />
+        <AnimatePresence mode="wait">
+          {!landingReady && (
+            <LandingPreloader key="landing-preloader" onDone={() => setLandingReady(true)} />
+          )}
+        </AnimatePresence>
+        {landingReady && (
+          <>
+            <Header />
+            <main className="w-full grow">
+              <Outlet />
+            </main>
+            <Footer />
+          </>
+        )}
       </div>
     )
   }

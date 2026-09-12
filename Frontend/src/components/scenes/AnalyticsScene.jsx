@@ -14,6 +14,9 @@ import {
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { ShinyText } from '../reactbits/ShinyText'
 import { gsap, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
+import { PriceAreaChart, useOhlcSeries } from '../charts/market-charts'
+import { Area } from '../charts/area-chart'
+import { useMemo } from 'react'
 
 const metrics = [
   { label: 'Total Return', value: '+23.4%', sub: 'vs S&P 500 +12.1%', positive: true },
@@ -22,49 +25,54 @@ const metrics = [
   { label: 'Sharpe Ratio', value: '1.84', sub: 'Risk-adjusted', positive: true },
 ]
 
-// SVG performance chart — cumulative return over time
-function PerformanceChart() {
+// Cumulative-return comparison — two live series (NVDA vs S&P proxy),
+// each normalized to 100 at first close; legend values computed from data.
+function ComparisonChart() {
+  const { prices: pf } = useOhlcSeries('NVDA', 'ALL')
+  const { prices: sp } = useOhlcSeries('SPY', 'ALL')
+
+  const { rows, pfPct, spPct } = useMemo(() => {
+    const n = Math.min(pf.length, sp.length)
+    if (n < 4) return { rows: [], pfPct: 0, spPct: 0 }
+    const p0 = pf[pf.length - n].price
+    const s0 = sp[sp.length - n].price
+    const rows = []
+    for (let i = 0; i < n; i++) {
+      const a = pf[pf.length - n + i]
+      const b = sp[sp.length - n + i]
+      rows.push({ date: a.date, pf: (a.price / p0) * 100, sp: (b.price / s0) * 100 })
+    }
+    return {
+      rows,
+      pfPct: rows[n - 1].pf - 100,
+      spPct: rows[n - 1].sp - 100,
+    }
+  }, [pf, sp])
+
   return (
-    <svg className="w-full h-full" viewBox="0 0 500 160" fill="none" preserveAspectRatio="none" role="img" aria-label="Portfolio cumulative return versus S and P 500 over 12 months">
-      <defs>
-        <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7ce6ff" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#7ce6ff" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="benchGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6B7280" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#6B7280" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* Benchmark (S&P) */}
-      <path
-        d="M0,130 L30,125 L60,128 L90,118 L120,120 L150,110 L180,115 L210,105 L240,108 L270,98 L300,100 L330,92 L360,95 L390,88 L420,90 L450,85 L480,87 L500,82"
-        stroke="#6B7280"
-        strokeWidth="1.5"
-        strokeDasharray="4 3"
-        opacity="0.5"
-      />
-      <path
-        d="M0,130 L30,125 L60,128 L90,118 L120,120 L150,110 L180,115 L210,105 L240,108 L270,98 L300,100 L330,92 L360,95 L390,88 L420,90 L450,85 L480,87 L500,82 L500,160 L0,160 Z"
-        fill="url(#benchGrad)"
-      />
-      {/* Portfolio */}
-      <path
-        d="M0,130 L30,122 L60,125 L90,105 L120,110 L150,90 L180,95 L210,75 L240,80 L270,55 L300,60 L330,42 L360,48 L390,30 L420,35 L450,22 L480,28 L500,15"
-        stroke="#7ce6ff"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M0,130 L30,122 L60,125 L90,105 L120,110 L150,90 L180,95 L210,75 L240,80 L270,55 L300,60 L330,42 L360,48 L390,30 L420,35 L450,22 L480,28 L500,15 L500,160 L0,160 Z"
-        fill="url(#perfGrad)"
-      />
-      {/* Legend */}
-      <line x1="12" y1="12" x2="28" y2="12" stroke="#7ce6ff" strokeWidth="2" />
-      <text x="32" y="15" fill="#7ce6ff" fontSize="9" fontFamily="monospace">Portfolio +23.4%</text>
-      <line x1="160" y1="12" x2="176" y2="12" stroke="#6B7280" strokeWidth="1.5" strokeDasharray="4 3" />
-      <text x="180" y="15" fill="#6B7280" fontSize="9" fontFamily="monospace">S&P 500 +12.1%</text>
-    </svg>
+    <div>
+      <div className="flex items-center gap-5 mb-2 font-mono text-[10px]">
+        <span className="flex items-center gap-1.5 text-[#7ce6ff]">
+          <span className="inline-block w-4 h-0.5 bg-[#7ce6ff]" />
+          Portfolio {pfPct >= 0 ? '+' : ''}{pfPct.toFixed(1)}%
+        </span>
+        <span className="flex items-center gap-1.5 text-text-muted">
+          <span className="inline-block w-4 border-t border-dashed border-[#84949e]" />
+          S&P 500 {spPct >= 0 ? '+' : ''}{spPct.toFixed(1)}%
+        </span>
+      </div>
+      <PriceAreaChart data={rows} yKey="pf" height={160} showAxes={false}>
+        <Area
+          dataKey="sp"
+          stroke="#84949e"
+          strokeWidth={1.5}
+          fill="transparent"
+          fillOpacity={0}
+          dashArray="4 3"
+          showHighlight={false}
+        />
+      </PriceAreaChart>
+    </div>
   )
 }
 
@@ -193,7 +201,15 @@ export default function AnalyticsScene() {
             </motion.p>
           </motion.div>
 
-          {/* Metrics row */}
+          {/* Metrics row (static marketing copy — not live account data) */}
+          <div
+            className="mb-2 flex justify-end"
+            title="Static illustrative values, not your live account data"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+              Illustrative
+            </span>
+          </div>
           <motion.div
             className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
             variants={staggerContainer(STAGGER.stats, isComfort ? 0 : 0.2)}
@@ -236,8 +252,8 @@ export default function AnalyticsScene() {
                 <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-3">
                   Cumulative Return · 12 Months
                 </div>
-                <div className="h-[180px]">
-                  <PerformanceChart />
+                <div className="h-[200px]">
+                  <ComparisonChart />
                 </div>
               </SpotlightCard>
             </motion.div>

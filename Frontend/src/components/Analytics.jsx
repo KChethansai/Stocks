@@ -128,7 +128,7 @@ export default function Analytics() {
           </p>
         </div>
 
-<div className="flex items-center gap-3">
+<div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
             value={range}
             onChange={setRange}
@@ -158,7 +158,7 @@ export default function Analytics() {
                 <div className="text-[10px] font-mono text-[#667085] uppercase tracking-widest mb-1">
                   Total Portfolio Value
                 </div>
-                <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F5F7FA]">
+                <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F5F7FA] whitespace-nowrap">
                   $<NumberTicker value={Number(analytics.portfolioValue || 0)} decimalPlaces={2} />
                 </div>
                 <div className="flex items-center gap-2 mt-1.5 font-mono text-xs">

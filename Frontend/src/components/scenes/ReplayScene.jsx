@@ -14,6 +14,8 @@ import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { BorderBeam } from '../magicui/BorderBeam'
 import { ShinyText } from '../reactbits/ShinyText'
 import { Play, RotateCcw } from 'lucide-react'
+import { useMemo } from 'react'
+import { PriceAreaChart, CHART_THEMES, useOhlcSeries } from '../charts/market-charts'
 
 const timelinePoints = [
   { date: 'Jan 3', event: 'Entry', price: '$85.00', pnl: null },
@@ -23,39 +25,28 @@ const timelinePoints = [
   { date: 'Mar 1', event: 'Exit', price: '$94.28', pnl: '+10.9%' },
 ]
 
-// Before/after chart comparison
-function BeforeAfterChart({ phase }) {
-  const progress = phase === 'before' ? 0.4 : 1
-  const points = [
-    [0, 80], [10, 75], [20, 78], [30, 55], [40, 60],
-    [50, 42], [60, 48], [70, 30], [80, 35], [90, 20], [100, 25],
-  ]
-  const visibleCount = Math.ceil(points.length * progress)
-  const visible = points.slice(0, visibleCount)
-  const pathD = visible.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ')
-
-  return (
-    <svg className="w-full h-full" viewBox="0 0 100 100" fill="none" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id={`replayGrad-${phase}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={phase === 'before' ? '#6B7280' : '#7ce6ff'} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={phase === 'before' ? '#6B7280' : '#7ce6ff'} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={pathD} stroke={phase === 'before' ? '#6B7280' : '#7ce6ff'} strokeWidth="2" strokeLinejoin="round" />
-      <path d={`${pathD} L${visible[visible.length - 1][0]},100 L0,100 Z`}
-        fill={`url(#replayGrad-${phase})`} />
-      {visible.length > 0 && (
-        <circle cx={visible[visible.length - 1][0]} cy={visible[visible.length - 1][1]}
-          r="3" fill={phase === 'before' ? '#6B7280' : '#7ce6ff'} />
-      )}
-    </svg>
-  )
+const MUTED_THEME = {
+  stroke: '#84949e',
+  gradientFrom: 'rgba(132, 148, 158, 0.25)',
+  gradientTo: 'rgba(132, 148, 158, 0)',
+  up: '#84949e',
+  down: '#84949e',
 }
 
 export default function ReplayScene() {
   const isComfort = useReducedMotion()
   const [activeIdx, setActiveIdx] = useState(2)
+  const { prices } = useOhlcSeries('NVDA', 'ALL')
+
+  // Journey chart follows the timeline scrubber — slicing real series data.
+  const { entrySlice, journeySlice } = useMemo(() => {
+    const n = prices.length
+    if (!n) return { entrySlice: [], journeySlice: [] }
+    return {
+      entrySlice: prices.slice(0, Math.max(2, Math.ceil(n * 0.4))),
+      journeySlice: prices.slice(0, Math.max(2, Math.ceil((n * (activeIdx + 1)) / timelinePoints.length))),
+    }
+  }, [prices, activeIdx])
 
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
@@ -132,18 +123,24 @@ export default function ReplayScene() {
               </div>
 
               <div className="p-5 bg-[var(--bg-primary)]/80">
-                {/* Before / After comparison */}
+                {/* Before / After comparison (live series, scrubber-driven) */}
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  {['before', 'after'].map((phase) => (
-                    <div key={phase} className="border border-[var(--border)] rounded-xl bg-[var(--surface)]/60 p-3">
-                      <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-2">
-                        {phase === 'before' ? 'Entry Zone' : 'Full Journey'}
-                      </div>
-                      <div className="h-[100px]">
-                        <BeforeAfterChart phase={phase} />
-                      </div>
+                  <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)]/60 p-3">
+                    <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-2">
+                      Entry Zone
                     </div>
-                  ))}
+                    <div className="h-[100px]">
+                      <PriceAreaChart data={entrySlice} height={100} showTooltip={false} theme={MUTED_THEME} />
+                    </div>
+                  </div>
+                  <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)]/60 p-3">
+                    <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-2">
+                      Full Journey
+                    </div>
+                    <div className="h-[100px]">
+                      <PriceAreaChart data={journeySlice} height={100} showTooltip={false} theme={CHART_THEMES.landing} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Timeline scrubber */}

@@ -47,6 +47,7 @@ export default function Market() {
     buyStock,
     sellStock,
     fetchHistory,
+    fetchPortfolio,
     startPolling,
     stopPolling,
     portfolio
@@ -84,9 +85,12 @@ export default function Market() {
   useEffect(() => {
     fetchStocks()
     fetchMarketSummary()
+    // Holdings power the ticket's position/sell state; without this the
+    // store has no portfolio on this route and buys never refresh it.
+    fetchPortfolio()
     startPolling()
     return () => stopPolling()
-  }, [fetchStocks, fetchMarketSummary, startPolling, stopPolling])
+  }, [fetchStocks, fetchMarketSummary, fetchPortfolio, startPolling, stopPolling])
 
   // Extract unique sectors
   const sectors = useMemo(() => {
@@ -314,11 +318,11 @@ export default function Market() {
   const isPosChange = (selectedStock?.changePercent || 0) >= 0
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-[calc(100vh-56px)] bg-[#09090B] animate-fade-in">
-      {/* Workspace 3-Column Layout */}
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row p-4 sm:p-6 gap-6">
+    <div className="flex-1 flex flex-col overflow-visible xl:overflow-hidden h-auto min-h-[calc(100vh-56px)] xl:h-[calc(100vh-56px)] bg-[#09090B] animate-fade-in">
+      {/* Workspace 3-Column Layout (3-col only at xl: rails don't fit at 1024) */}
+      <div className="flex-1 flex flex-col xl:flex-row p-4 sm:p-6 gap-6 overflow-visible xl:overflow-hidden">
         {/* Left Column: Stock Discovery & Watchlist */}
-        <aside className="w-full lg:w-72 flex flex-col gap-4 shrink-0 bg-[#09090B] border-r border-[rgba(255,255,255,0.08)] pr-4 lg:pr-2 pb-4 lg:pb-0 overflow-y-auto">
+        <aside className="w-full xl:w-72 flex flex-col gap-4 shrink-0 bg-[#09090B] border-r border-[rgba(255,255,255,0.08)] pr-4 xl:pr-2 pb-4 xl:pb-0 overflow-y-auto">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#F5F7FA]">
               Markets
@@ -415,7 +419,7 @@ export default function Market() {
                     {selectedStock.symbol[0]}
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <h2 className="text-xl sm:text-2xl font-bold font-mono text-[#F5F7FA] leading-none m-0">
                         {selectedStock.symbol}
                       </h2>
@@ -442,8 +446,8 @@ export default function Market() {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#F5F7FA]">
+                <div className="text-right shrink-0">
+                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#F5F7FA] whitespace-nowrap">
                     <NumberTicker value={Number(selectedStock.price)} decimalPlaces={2} prefix="$" />
                   </div>
                   <div
@@ -558,7 +562,7 @@ export default function Market() {
         </section>
 
         {/* Right Column: AI + Trade Ticket */}
-        <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
+        <aside className="w-full xl:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
           {selectedStock && (
             <PredictionPanel
               symbol={selectedStock.symbol}

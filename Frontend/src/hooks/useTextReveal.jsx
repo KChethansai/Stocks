@@ -7,6 +7,12 @@ import { useReducedMotion } from './useReducedMotion'
  * Splits text into animated word spans with staggered reveal.
  * React-rendered (no DOM mutation), respects reduced motion.
  *
+ * Mirrors the reference headline structure: words are `inline-block`
+ * spans separated by REAL space text nodes inside a normal-flow
+ * container — no flex, no gap. Wrap behaves like ordinary paragraph
+ * text; deliberate line grouping comes only from block-level boxes
+ * in the parent markup (never one-break-per-word).
+ *
  * @param {string} text - The text to split and animate
  * @param {object} opts
  * @param {number} [opts.duration] - Animation duration per word
@@ -33,22 +39,24 @@ export function TextReveal({
   }
 
   return (
-    <Tag className={`inline-flex flex-wrap gap-[0.25em] ${className}`} aria-label={text}>
+    <Tag className={className} aria-label={text}>
       {words.map((word, i) => (
-        <motion.span
-          key={i}
-          className="inline-block"
-          initial={{ opacity: 0, y: 8, filter: blur ? 'blur(4px)' : 'blur(0px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, amount: SCROLL_THRESHOLD }}
-          transition={{
-            duration,
-            delay: initialDelay + i * stagger,
-            ease: EASING.textReveal,
-          }}
-        >
-          {word}
-        </motion.span>
+        <span key={i}>
+          <motion.span
+            className="inline-block"
+            initial={{ opacity: 0, y: 8, filter: blur ? 'blur(4px)' : 'blur(0px)' }}
+            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true, amount: SCROLL_THRESHOLD }}
+            transition={{
+              duration,
+              delay: initialDelay + i * stagger,
+              ease: EASING.textReveal,
+            }}
+          >
+            {word}
+          </motion.span>
+          {i < words.length - 1 ? ' ' : null}
+        </span>
       ))}
     </Tag>
   )

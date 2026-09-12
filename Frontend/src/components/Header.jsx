@@ -49,21 +49,29 @@ export default function Header() {
           </nav>
         </div>
 
-        {/* Right CTA Actions */}
-        <div className="pointer-events-auto hidden md:flex items-center gap-3">
+        {/* Right CTA Actions (reference grammar: pill + text-link pair) */}
+        <div className="pointer-events-auto hidden md:flex items-center gap-5">
           {isAuthenticated ? (
-            <Button
-              onClick={() => navigate('/dashboard')}
-              className="rounded-full px-4 py-2"
-            >
-              <span>Open Terminal</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
+            <>
+              <NavLink
+                to="/profile"
+                className="text-[13px] font-bold text-[#b7c6cf] underline decoration-[rgba(150,205,222,0.4)] underline-offset-8 transition hover:text-[#7ce6ff] hover:decoration-[#7ce6ff]"
+              >
+                Profile
+              </NavLink>
+              <Button
+                onClick={() => navigate('/dashboard')}
+                className="rounded-full px-4 py-2"
+              >
+                <span>Open Terminal</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </>
           ) : (
             <>
               <NavLink
                 to="/login"
-                className="px-4 py-2 rounded-full border border-[rgba(150,205,222,0.25)] bg-[rgba(12,18,27,0.55)] backdrop-blur-md hover:border-[rgba(124,230,255,0.5)] text-[13px] font-semibold text-[#f8fdff] transition"
+                className="text-[13px] font-bold text-[#b7c6cf] underline decoration-[rgba(150,205,222,0.4)] underline-offset-8 transition hover:text-[#7ce6ff] hover:decoration-[#7ce6ff]"
               >
                 Log In
               </NavLink>
@@ -111,30 +119,39 @@ export default function Header() {
 
           <div className="pt-3 border-t border-[rgba(150,205,222,0.12)] flex flex-col gap-2">
             {isAuthenticated ? (
-              <Button
-                onClick={() => {
-                  setMobileMenuOpen(false)
-                  navigate('/dashboard')
-                }}
-                className="w-full py-2.5 rounded-full text-xs font-bold"
-              >
-                Open Terminal
-              </Button>
+              <>
+                <Button
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    navigate('/dashboard')
+                  }}
+                  className="w-full py-2.5 rounded-full text-xs font-bold"
+                >
+                  Open Terminal
+                </Button>
+                <NavLink
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2 text-center text-xs font-bold text-[#b7c6cf] underline decoration-[rgba(150,205,222,0.4)] underline-offset-8"
+                >
+                  Profile
+                </NavLink>
+              </>
             ) : (
               <>
-                <NavLink
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-full border border-[rgba(150,205,222,0.25)] text-center text-xs font-semibold text-[#f8fdff]"
-                >
-                  Log In
-                </NavLink>
                 <NavLink
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full py-2 rounded-full bg-[#1c83d8] text-center text-xs font-bold text-white"
                 >
                   Get $100,000 Practice Account
+                </NavLink>
+                <NavLink
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2 text-center text-xs font-bold text-[#b7c6cf] underline decoration-[rgba(150,205,222,0.4)] underline-offset-8"
+                >
+                  Log In
                 </NavLink>
               </>
             )}

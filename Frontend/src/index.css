@@ -106,6 +106,23 @@
   --input: var(--border);
   --ring: var(--accent);
   --radius: 0.5rem;
+
+  /* Bklit chart theme (terminal defaults for the authenticated app) */
+  --chart-background: transparent;
+  --chart-foreground: #f8fdff;
+  --chart-foreground-muted: #9ca3af;
+  --chart-label: #9ca3af;
+  --chart-line-primary: #3b82f6;
+  --chart-line-secondary: #60a5fa;
+  --chart-crosshair: rgba(96, 165, 250, 0.5);
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-indicator-color: #3b82f6;
+  --chart-indicator-secondary-color: #60a5fa;
+  --chart-marker-background: #0c121b;
+  --chart-marker-border: rgba(255, 255, 255, 0.14);
+  --chart-marker-foreground: #f8fdff;
+  --chart-marker-badge-background: rgba(59, 130, 246, 0.16);
+  --chart-marker-badge-foreground: #f8fdff;
 }
 
 /* ── Landing token scope (cryptowl.io palette, extracted from
@@ -142,6 +159,22 @@
   --chart-profit: #7ed6a3;
   --chart-loss: #e87684;
   --chart-primary: #7ee2f4;
+
+  /* Bklit chart theme — landing cyan system */
+  --chart-foreground: #f8fdff;
+  --chart-foreground-muted: #84949e;
+  --chart-label: #b7c6cf;
+  --chart-line-primary: #7ce6ff;
+  --chart-line-secondary: #2eafff;
+  --chart-crosshair: rgba(124, 230, 255, 0.5);
+  --chart-grid: rgba(150, 205, 222, 0.08);
+  --chart-indicator-color: #7ce6ff;
+  --chart-indicator-secondary-color: #2eafff;
+  --chart-marker-background: #0c121b;
+  --chart-marker-border: rgba(150, 205, 222, 0.22);
+  --chart-marker-foreground: #f8fdff;
+  --chart-marker-badge-background: rgba(124, 230, 255, 0.14);
+  --chart-marker-badge-foreground: #f8fdff;
 
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
@@ -547,6 +580,10 @@ textarea {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 16px;
+  /* Never compress below content height inside capped flex rails —
+     overflow-hidden zeroes the automatic minimum size, which used to
+     clip the automation controls under the trade ticket. */
+  flex-shrink: 0;
 }
 
 .cc-pred-up {
@@ -568,7 +605,10 @@ textarea {
 
 /* Fluid typography scale (CryptOwl-inspired, adapted for MarketForge) */
 :root {
-  --mf-font-display-xl: clamp(3.375rem, calc(2.875rem + 3vw), 8rem);
+  /* Fluid display scale — hero only (scenes use display-lg).
+     Capped so the longest light line (~9.1em) and punch line (~9.35em)
+     fit the 7/12 copy column at 1440 without mid-phrase breaks. */
+  --mf-font-display-xl: clamp(2.75rem, calc(1.75rem + 3.5vw), 4rem);
   --mf-font-display-lg: clamp(2.5rem, calc(2rem + 2.7vw), 5.25rem);
   --mf-font-h1: clamp(2.5rem, 4vw, 4rem);
   --mf-font-h2: clamp(1.875rem, 3vw, 2.75rem);

@@ -147,13 +147,13 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
             className="flex items-center gap-2.5 text-[#9CA3AF] hover:text-[#F5F7FA] transition-colors group bg-[#111318] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3B82F6] cursor-pointer"
           >
             <Search className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition-colors" />
-            <span className="text-xs text-[#9CA3AF] font-normal hidden sm:inline">
+            <span className="text-xs text-[#9CA3AF] font-normal hidden sm:inline whitespace-nowrap">
               Search markets, symbols, commands...
             </span>
-            <span className="text-xs text-[#9CA3AF] font-normal sm:hidden">
+            <span className="text-xs text-[#9CA3AF] font-normal sm:hidden whitespace-nowrap">
               Search...
             </span>
-            <div className="flex items-center gap-1 ml-2 opacity-60">
+            <div className="hidden xl:flex items-center gap-1 ml-2 opacity-60">
               <kbd className="border border-[rgba(255,255,255,0.12)] bg-[#151820] rounded px-1 text-[10px] font-mono text-[#9CA3AF]">
                 ⌘
               </kbd>
@@ -165,9 +165,9 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
         </div>
 
         {/* Right Section: Market Status, Cash, Trade CTA, Notifications, Profile */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           {/* Market Status Pill */}
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#111318]">
+          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#111318] shrink-0">
             <span className="relative flex h-2 w-2">
               {isMarketOpen ? (
                 <>
@@ -178,7 +178,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
               )}
             </span>
-            <span className="text-[11px] font-medium text-[#9CA3AF]">
+            <span className="text-[11px] font-medium text-[#9CA3AF] whitespace-nowrap">
               {isMarketOpen ? 'Market Open' : 'US Markets Live'}
             </span>
           </div>
@@ -186,14 +186,14 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
           {/* Quick Refresh */}
           <button
             onClick={handleManualRefresh}
-            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition hidden sm:flex"
+            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition hidden lg:flex"
             title="Refresh market prices"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#3B82F6]' : ''}`} />
           </button>
 
-          {/* Available Cash Chip */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#111318]">
+          {/* Available Cash Chip (lg+: no room at md widths) */}
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#111318] shrink-0">
             <Wallet className="w-3.5 h-3.5 text-[#3B82F6]" />
             <div className="flex flex-col text-right">
               <span className="font-mono text-xs font-semibold text-[#F5F7FA]">

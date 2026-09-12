@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { motion, useScroll, useTransform } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
 import { useAuth } from '../../store/authStore'
+import { useTrade } from '../../store/tradeStore'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { TextReveal } from '../../hooks/useTextReveal'
 import {
@@ -22,6 +23,7 @@ import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { ShinyText } from '../reactbits/ShinyText'
 import { Aurora } from '../reactbits/Aurora'
 import { BasketButton } from '../landing/BasketButton'
+import { PriceAreaChart, useOhlcSeries } from '../charts/market-charts'
 
 const sampleTickers = [
   { symbol: 'AAPL', name: 'Apple Inc.', price: 227.14, change: +1.42, sector: 'Technology' },
@@ -42,6 +44,29 @@ export default function HeroScene() {
   const sceneRef = useRef(null)
   const glowRef = useRef(null)
   const [activeTicker, setActiveTicker] = useState(sampleTickers[1])
+  const [timeframe, setTimeframe] = useState('1D')
+  // Live quotes for the Quick Watch list (public /stock-api/stocks feed);
+  // static sampleTickers remain as the offline fallback so the hero never
+  // shows stale 2024 prices next to the live chart.
+  const stocks = useTrade((s) => s.stocks)
+  const fetchStocks = useTrade((s) => s.fetchStocks)
+  useEffect(() => {
+    if (typeof fetchStocks === 'function') fetchStocks()
+  }, [fetchStocks])
+  const tickers = sampleTickers.map((s) => {
+    const q = (stocks || []).find((r) => r.symbol === s.symbol)
+    if (!q) return s
+    return {
+      ...s,
+      price: Number(q.price ?? s.price),
+      change: Number(q.changePercent ?? s.change),
+    }
+  })
+  const active = tickers.find((t) => t.symbol === activeTicker.symbol) ?? activeTicker
+  const { prices, live } = useOhlcSeries(activeTicker.symbol, timeframe)
+  const lastPrice = prices.length ? prices[prices.length - 1].price : active.price
+  const firstPrice = prices.length ? prices[0].price : active.price
+  const liveChange = firstPrice ? ((lastPrice - firstPrice) / firstPrice) * 100 : active.change
 
   // Scroll Zoom Hero: content scales down + fades while background layers
   // parallax at different rates (Motion owns these nodes; GSAP owns glow).
@@ -110,9 +135,9 @@ export default function HeroScene() {
         className="mf-scene relative z-10 pt-20 sm:pt-28 pb-20 flex-1 flex items-center"
         style={scrollStyles}
       >
-        <div className="mf-scene-frame grid lg:grid-cols-2 gap-12 lg:gap-16 items-center w-full">
-          {/* ── Left: Copy ── */}
-          <div className="flex flex-col gap-6 max-w-2xl">
+        <div className="mf-scene-frame grid gap-12 xl:grid-cols-12 xl:gap-16 items-center w-full">
+          {/* ── Left: Copy (7/12 on xl — room for display lines to hold) ── */}
+          <div className="flex flex-col gap-6 max-w-2xl xl:max-w-none xl:col-span-7">
             {/* Eyebrow (reference: bare mono caps, no pill) */}
             <motion.div
               className="mf-eyebrow w-fit"
@@ -226,9 +251,9 @@ export default function HeroScene() {
             </motion.div>
           </div>
 
-          {/* ── Right: Preview card (desktop only) ── */}
+          {/* ── Right: Preview card (large screens only) ── */}
           <motion.div
-            className="relative w-full h-[480px] sm:h-[540px] hidden lg:block"
+            className="relative w-full h-[480px] sm:h-[540px] hidden lg:block xl:col-span-5"
             initial={isComfort ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 20 }}
             whileInView={{ opacity: 1, scale: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
@@ -266,40 +291,32 @@ export default function HeroScene() {
                         {activeTicker.symbol}
                       </h3>
                       <div className="text-sm font-mono text-text-primary flex items-center gap-2">
-                        ${activeTicker.price.toFixed(2)}
-                        <span className={`text-xs flex items-center font-bold ${activeTicker.change >= 0 ? 'text-positive' : 'text-negative'}`}>
-                          {activeTicker.change >= 0 ? '+' : ''}{activeTicker.change}%
+                        ${lastPrice.toFixed(2)}
+                        <span className={`text-xs flex items-center font-bold ${liveChange >= 0 ? 'text-positive' : 'text-negative'}`}>
+                          {liveChange >= 0 ? '+' : ''}{liveChange.toFixed(2)}%
                         </span>
+                        {!live ? (
+                          <span className="text-[10px] text-text-muted" title="Offline sample">sample</span>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]">
-                      <button className="px-2 py-0.5 rounded bg-[var(--surface-elevated)] text-text-primary font-medium">1D</button>
-                      <button className="px-2 py-0.5 rounded text-text-secondary">1W</button>
-                      <button className="px-2 py-0.5 rounded text-text-secondary">1M</button>
+                    <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]" role="group" aria-label="Chart timeframe">
+                      {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((tf) => (
+                        <button
+                          key={tf}
+                          onClick={() => setTimeframe(tf)}
+                          aria-pressed={timeframe === tf}
+                          className={`px-2 py-0.5 rounded ${timeframe === tf ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}
+                        >
+                          {tf}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Chart representation */}
-                  <div className="flex-1 border border-[var(--border)] rounded-xl bg-[var(--surface)] relative overflow-hidden p-4 flex items-end shadow-inner">
-                    <svg className="w-full h-32 text-accent opacity-75" preserveAspectRatio="none" viewBox="0 0 100 30" aria-hidden="true">
-                      <defs>
-                        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M0,28 L8,24 L16,26 L24,14 L32,18 L40,10 L48,16 L56,6 L64,12 L72,4 L80,10 L88,2 L100,8"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                      />
-                      <path
-                        d="M0,28 L8,24 L16,26 L24,14 L32,18 L40,10 L48,16 L56,6 L64,12 L72,4 L80,10 L88,2 L100,8 L100,30 L0,30 Z"
-                        fill="url(#chartGrad)"
-                      />
-                    </svg>
+                  {/* Live price chart (Bklit area, real OHLC path) */}
+                  <div className="flex-1 border border-[var(--border)] rounded-xl bg-[var(--surface)] relative overflow-hidden p-2 shadow-inner min-h-[160px]">
+                    <PriceAreaChart data={prices} height={160} />
                   </div>
 
                   {/* Position info */}
@@ -323,7 +340,7 @@ export default function HeroScene() {
                     Quick Watch
                   </span>
                   <div className="space-y-1.5 flex-1">
-                    {sampleTickers.map((s) => (
+                    {tickers.map((s) => (
                       <button
                         key={s.symbol}
                         onClick={() => setActiveTicker(s)}
@@ -340,7 +357,7 @@ export default function HeroScene() {
                           <span>${s.price.toFixed(2)}</span>
                         </div>
                         <div className={`text-[10px] text-right mt-0.5 ${s.change >= 0 ? 'text-positive' : 'text-negative'}`}>
-                          {s.change >= 0 ? '+' : ''}{s.change}%
+                          {s.change >= 0 ? '+' : ''}{Number(s.change).toFixed(2)}%
                         </div>
                       </button>
                     ))}
