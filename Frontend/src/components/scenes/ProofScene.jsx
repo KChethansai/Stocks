@@ -107,7 +107,7 @@ export default function ProofScene() {
                     </div>
                     <div className="text-2xl font-bold font-mono text-text-primary mb-1">{s.value}</div>
                     <div className="text-xs font-bold font-mono text-text-primary mb-0.5">{s.label}</div>
-                    <div className="text-[10px] text-text-muted">{s.desc}</div>
+                    <div className="mf-meta">{s.desc}</div>
                   </SpotlightCard>
                 </motion.div>
               )

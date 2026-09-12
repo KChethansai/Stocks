@@ -11,6 +11,7 @@ import { NumberTicker } from './magicui/NumberTicker'
 import { ParticleButton } from './kokonutui/ParticleButton'
 import { BorderBeam } from './magicui/BorderBeam'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
+import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
 import { ShinyText } from './reactbits/ShinyText'
 import { SegmentedControl } from './ui/SegmentedControl'
 import Reveal from './ui/Reveal'
@@ -76,14 +77,14 @@ export default function Analytics() {
     }
   }, [transactions])
 
-  // Sector Exposure breakdown
+  // Sector Exposure breakdown (live prices — consistent with summarizePortfolio)
   const sectorAllocation = useMemo(() => {
     const map = {}
     let totalInvested = 0
     holdings.forEach((h) => {
       const stock = stocks.find((s) => s.symbol === h.symbol)
       const sec = stock?.sector || 'Other'
-      const val = h.currentValue || (h.quantity * (h.currentPrice || h.avgBuyPrice)) || 0
+      const val = (h.quantity * (stock?.price ?? h.currentPrice ?? h.avgBuyPrice)) || 0
       map[sec] = (map[sec] || 0) + val
       totalInvested += val
     })
@@ -121,7 +122,7 @@ export default function Analytics() {
       {/* Header Section */}
       <Reveal className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA]">
+          <h1 className="mf-h1">
             <ShinyText>Portfolio Analytics</ShinyText>
           </h1>
           <p className="text-xs sm:text-sm text-[#9CA3AF] mt-1">
@@ -156,7 +157,7 @@ export default function Analytics() {
             <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
               <div>
-                <div className="text-[10px] font-mono text-[#667085] uppercase tracking-widest mb-1">
+                <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-1">
                   Total Portfolio Value
                 </div>
                 <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F5F7FA] whitespace-nowrap">
@@ -171,7 +172,7 @@ export default function Analytics() {
                     {isTotalPos ? '+' : ''}
                     {Number(analytics.returnPercent || 0).toFixed(2)}%
                   </span>
-                  <span className="text-[#667085]">
+                  <span className="text-text-muted">
                     vs S&amp;P 500{' '}
                     <span className="text-[#9CA3AF]">
                       {benchmarkReturn != null
@@ -187,8 +188,8 @@ export default function Analytics() {
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
                   Portfolio
                 </span>
-                <span className="flex items-center gap-1.5 text-[#667085]">
-                  <span className="w-2 h-2 rounded-full bg-[#667085]"></span>
+                <span className="flex items-center gap-1.5 text-text-muted">
+                  <span className="w-2 h-2 rounded-full bg-[#8A93A6]"></span>
                   S&amp;P 500
                 </span>
               </div>
@@ -208,7 +209,7 @@ export default function Analytics() {
           {/* Standardized Metrics Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-xl">
             <div className="bg-[#111318] p-5">
-              <div className="text-[10px] font-mono text-[#667085] uppercase tracking-wider mb-1">
+              <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Day Return
               </div>
               <div
@@ -219,14 +220,14 @@ export default function Analytics() {
                 {isTodayPos ? '+' : ''}
                 {formatCurrency(analytics.todayPnL || 0)}
               </div>
-              <div className="text-xs text-[#667085] font-mono mt-1">
+              <div className="text-xs text-text-muted font-mono mt-1">
                 {isTodayPos ? '+' : ''}
                 {Number(analytics.dailyReturn || 0).toFixed(2)}% Today
               </div>
             </div>
 
             <div className="bg-[#111318] p-5">
-              <div className="text-[10px] font-mono text-[#667085] uppercase tracking-wider mb-1">
+              <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Total Return
               </div>
               <div
@@ -237,20 +238,20 @@ export default function Analytics() {
                 {isTotalPos ? '+' : ''}
                 {formatCurrency(analytics.totalPnL || 0)}
               </div>
-              <div className="text-xs text-[#667085] font-mono mt-1">
+              <div className="text-xs text-text-muted font-mono mt-1">
                 {isTotalPos ? '+' : ''}
                 {Number(analytics.returnPercent || 0).toFixed(2)}% All Time
               </div>
             </div>
 
             <div className="bg-[#111318] p-5">
-              <div className="text-[10px] font-mono text-[#667085] uppercase tracking-wider mb-1">
+              <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Buying Power
               </div>
               <div className="text-xl font-bold font-mono text-[#F5F7FA]">
                 {formatCurrency(currentUser?.balance ?? 100000)}
               </div>
-              <div className="text-xs text-[#667085] font-mono mt-1">
+              <div className="text-xs text-text-muted font-mono mt-1">
                 Available to trade
               </div>
             </div>
@@ -266,40 +267,26 @@ export default function Analytics() {
             className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6"
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-base font-semibold text-[#F5F7FA]">
+              <h2 className="mf-h2">
                 Sector Exposure
               </h2>
-              <span className="text-[10px] font-mono text-[#667085] uppercase">
+              <span className="text-[10px] font-mono text-text-muted uppercase">
                 Weights
               </span>
             </div>
 
-            <div className="space-y-4">
-              {sectorAllocation.slice(0, 5).map((sec, i) => (
-                <div key={sec.name} className="space-y-1.5 font-mono text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[#9CA3AF]">{sec.name}</span>
-                    <span className="text-[#F5F7FA] font-bold">
-                      {sec.percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 bg-[#151820] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        i === 0
-                          ? 'bg-[#3B82F6]'
-                          : i === 1
-                          ? 'bg-[#22C55E]'
-                          : i === 2
-                          ? 'bg-[#9CA3AF]'
-                          : 'bg-[#667085]'
-                      }`}
-                      style={{ width: `${Math.min(100, sec.percentage)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <SectorAllocation
+              items={sectorAllocation.slice(0, 5).map((sec) => ({
+                label: sec.name,
+                value: sec.value,
+                display: `${sec.percentage.toFixed(1)}%`,
+              }))}
+              palette={SECTOR_THEMES.terminal}
+              size={168}
+              layout="column"
+              totalDisplay={`${sectorAllocation.length} sectors`}
+              totalLabel="Covered"
+            />
           </SpotlightCard>
 
           {/* Trading Activity (30D) Module */}
@@ -308,7 +295,7 @@ export default function Analytics() {
             tiltIntensity={4}
             className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex-1 flex flex-col"
           >
-            <div className="text-[10px] font-mono text-[#667085] uppercase tracking-widest mb-3">
+            <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-3">
               Trading Activity (Ledger)
             </div>
 
@@ -316,19 +303,19 @@ export default function Analytics() {
               <div className="text-2xl font-bold font-mono text-[#F5F7FA]">
                 {formatCurrency(tradeStats.totalVolume)}
               </div>
-              <div className="text-xs text-[#667085] font-mono mt-0.5">
+              <div className="text-xs text-text-muted font-mono mt-0.5">
                 Total Executed Volume ({tradeStats.tradesCount} trades)
               </div>
             </div>
 
-            <div className="text-[10px] font-mono text-[#667085] uppercase tracking-widest mb-2 border-t border-white/8 pt-3">
+            <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-2 border-t border-white/8 pt-3">
               Performance Movers
             </div>
 
             {/* Position Movers List */}
             <div className="flex flex-col -mx-2 divide-y divide-white/5">
               {performanceMovers.length === 0 ? (
-                <p className="text-xs text-[#667085] px-2 py-3">No active positions yet.</p>
+                <p className="text-xs text-text-muted px-2 py-3">No active positions yet.</p>
               ) : (
                 performanceMovers.map((holding) => {
                   const isPos = (holding.pnl || 0) >= 0
@@ -341,7 +328,7 @@ export default function Analytics() {
                         <span className="font-mono text-xs font-bold text-[#F5F7FA]">
                           {holding.symbol}
                         </span>
-                        <span className="text-[11px] text-[#667085] truncate max-w-[80px]">
+                        <span className="mf-meta truncate max-w-[80px]">
                           {holding.name}
                         </span>
                       </div>
@@ -354,7 +341,7 @@ export default function Analytics() {
                           {isPos ? '+' : ''}
                           {Number(holding.pnlPercent || 0).toFixed(2)}%
                         </div>
-                        <div className="text-[10px] text-[#667085]">
+                        <div className="mf-num text-xs text-[#9CA3AF]">
                           {isPos ? '+' : ''}
                           {formatCurrency(holding.pnl || 0)}
                         </div>

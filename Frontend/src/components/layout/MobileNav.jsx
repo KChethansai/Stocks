@@ -111,7 +111,7 @@ export function MobileDrawer({ isOpen, onClose }) {
                 <p className="text-xs font-semibold text-[#F5F7FA] truncate">
                   {currentUser?.username || 'Trader'}
                 </p>
-                <p className="text-[0.65rem] text-[#667085] truncate">
+                <p className="mf-meta truncate">
                   {currentUser?.email}
                 </p>
               </div>

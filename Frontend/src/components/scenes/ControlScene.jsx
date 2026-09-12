@@ -185,7 +185,7 @@ export default function ControlScene() {
                         { label: 'P&L', value: '+$4,640.50', accent: true },
                       ].map((item) => (
                         <div key={item.label} className="bg-[var(--surface)]/90 border border-[var(--border)] rounded-lg p-2.5">
-                          <div className="text-[10px] text-text-muted uppercase">{item.label}</div>
+                          <div className="mf-label">{item.label}</div>
                           <div className={`font-bold ${item.accent ? 'text-positive' : 'text-text-primary'}`}>{item.value}</div>
                         </div>
                       ))}

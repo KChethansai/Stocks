@@ -192,7 +192,7 @@ export default function Profile() {
             <h2 className="text-lg font-bold text-[#F5F7FA]">{currentUser?.username || 'Trader'}</h2>
             <p className="text-xs text-[#9CA3AF] mt-0.5">{currentUser?.email}</p>
 
-            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-4 text-xs text-[#667085]">
+            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-4 text-xs text-text-muted">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-[#3B82F6]" />
                 Joined {memberSince}
@@ -271,7 +271,7 @@ export default function Profile() {
             <form onSubmit={handleDetailsSubmit(onDetailsSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#9CA3AF] mb-1.5">
+                  <label className="mf-input-label mb-1.5">
                     Username
                   </label>
                   <input
@@ -285,7 +285,7 @@ export default function Profile() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#9CA3AF] mb-1.5">
+                  <label className="mf-input-label mb-1.5">
                     Email Address
                   </label>
                   <input
@@ -321,7 +321,7 @@ export default function Profile() {
 
             <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#9CA3AF] mb-1.5">
+                <label className="mf-input-label mb-1.5">
                   Current Password
                 </label>
                 <div className="relative">
@@ -334,7 +334,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setShowCurrentPw(!showCurrentPw)}
-                    className="absolute right-3.5 top-3 text-[#667085] hover:text-[#F5F7FA]"
+                    className="absolute right-3.5 top-3 text-text-muted hover:text-[#F5F7FA]"
                   >
                     {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -345,7 +345,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#9CA3AF] mb-1.5">
+                <label className="mf-input-label mb-1.5">
                   New Password
                 </label>
                 <div className="relative">
@@ -361,7 +361,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setShowNewPw(!showNewPw)}
-                    className="absolute right-3.5 top-3 text-[#667085] hover:text-[#F5F7FA]"
+                    className="absolute right-3.5 top-3 text-text-muted hover:text-[#F5F7FA]"
                   >
                     {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

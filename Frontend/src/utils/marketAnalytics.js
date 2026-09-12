@@ -46,10 +46,44 @@ const calculateRealizedPnL = (transactions = []) => {
 
 export const summarizePortfolio = (portfolio, transactions = [], stocks = []) => {
   const holdings = portfolio?.holdings || []
-  const currentValue = Number(portfolio?.currentValue || 0)
-  const totalInvested = Number(portfolio?.totalInvested || 0)
+  // Derive market value client-side from live prices: the backend's
+  // `currentValue` is a snapshot from the last /portfolio fetch and goes
+  // stale after trades (patch path) and price polls (stocks update). The
+  // stocks store refreshes every 30s and is already a memo dep at all call
+  // sites, so this re-derives totals for free. Fall back down the chain:
+  // live stock price → holding's own currentPrice → backend snapshot.
+  const stockMap = new Map((stocks || []).map((s) => [s.symbol, s]))
+  const liveValue = (holding) => {
+    const live = stockMap.get(holding.symbol)?.price
+    const price = Number(live ?? holding.currentPrice ?? 0)
+    return Number(holding.quantity || 0) * price
+  }
+  const derivedCurrentValue = holdings.reduce((sum, h) => sum + liveValue(h), 0)
+  const backendCurrentValue = Number(portfolio?.currentValue || 0)
+  const backendInvested = Number(portfolio?.totalInvested || 0)
+  // Same staleness applies to the cost basis: the backend snapshot predates
+  // the latest trade, so re-derive it from holdings when we have them.
+  const liveData = stocks?.length || holdings.some((h) => h.currentPrice != null)
+  const currentValue = Number(
+    (liveData ? derivedCurrentValue : backendCurrentValue).toFixed(2)
+  )
+  const derivedInvested = holdings.reduce(
+    (sum, h) => sum + Number(h.quantity || 0) * Number(h.avgBuyPrice || 0),
+    0
+  )
+  const totalInvested = Number(
+    (liveData && derivedInvested > 0 ? derivedInvested : backendInvested).toFixed(2)
+  )
   const realizedPnL = calculateRealizedPnL(transactions)
-  const unrealizedPnL = Number(portfolio?.unrealizedPnL || 0)
+  const backendUnrealized = Number(portfolio?.unrealizedPnL || 0)
+  // Unrealized PnL goes stale with the same snapshot — re-derive when we
+  // derived the market value, otherwise keep the backend figure.
+  const unrealizedPnL = Number(
+    (stocks?.length || holdings.some((h) => h.currentPrice != null)
+      ? currentValue - totalInvested
+      : backendUnrealized
+    ).toFixed(2)
+  )
   const totalPnL = Number((realizedPnL + unrealizedPnL).toFixed(2))
   const todayPnL = holdings.reduce((sum, holding) => {
     const stock = stocks.find((item) => item.symbol === holding.symbol)
@@ -60,16 +94,17 @@ export const summarizePortfolio = (portfolio, transactions = [], stocks = []) =>
   const portfolioValue = Number((currentValue + cashBalance).toFixed(2))
   const totalPnLPercent = totalInvested > 0 ? Number(((totalPnL / totalInvested) * 100).toFixed(2)) : 0
 
+  const holdingValue = (holding) => Number(liveValue(holding).toFixed(2))
   const stockAllocation = holdings.map((holding) => ({
     label: holding.symbol,
-    value: holding.currentValue || 0,
-    percent: currentValue > 0 ? ((holding.currentValue || 0) / currentValue) * 100 : 0
+    value: holdingValue(holding),
+    percent: currentValue > 0 ? (holdingValue(holding) / currentValue) * 100 : 0
   }))
 
   const sectorMap = new Map()
   holdings.forEach((holding) => {
     const sector = stocks.find((item) => item.symbol === holding.symbol)?.sector || 'Unclassified'
-    sectorMap.set(sector, (sectorMap.get(sector) || 0) + Number(holding.currentValue || 0))
+    sectorMap.set(sector, (sectorMap.get(sector) || 0) + holdingValue(holding))
   })
 
   const sectorAllocation = [...sectorMap.entries()].map(([label, value]) => ({

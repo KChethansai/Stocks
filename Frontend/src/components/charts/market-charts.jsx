@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { AreaChart, Area } from './area-chart'
 import { CandlestickChart } from './candlestick-chart'
 import { Candlestick } from './candlestick'
@@ -92,6 +92,10 @@ export function PriceAreaChart({
   children,
   animationDuration = 0,
 }) {
+  // Unique gradient id per instance — the Bklit primitives use useId() for
+  // defs; a hardcoded id collides document-wide and every chart steals the
+  // first instance's colors (e.g. ReplayScene's muted theme rendered cyan).
+  const gradientId = `mf-area-fill-${useId().replace(/:/g, '')}`
   return (
     <AreaChart
       data={data}
@@ -103,9 +107,9 @@ export function PriceAreaChart({
       loadingLabel={loadingLabel}
       margin={{ top: 12, right: showAxes ? 48 : 12, bottom: showAxes ? 28 : 8, left: showAxes ? 44 : 8 }}
     >
-      <LinearGradient id="mf-area-fill" from={theme.gradientFrom} to={theme.gradientTo} />
+      <LinearGradient id={gradientId} from={theme.gradientFrom} to={theme.gradientTo} />
       <Grid vertical={false} />
-      <Area dataKey={yKey} stroke={theme.stroke} strokeWidth={2} fill="url(#mf-area-fill)" fillOpacity={1} gradientToOpacity={0} />
+      <Area dataKey={yKey} stroke={theme.stroke} strokeWidth={2} fill={`url(#${gradientId})`} fillOpacity={1} gradientToOpacity={0} />
       {showAxes ? (
         <>
           <XAxis />

@@ -90,7 +90,7 @@ export default function ExitScene() {
 
             {/* Trust line */}
             <motion.p
-              className="text-[10px] font-mono text-text-muted mt-8"
+              className="mf-meta font-mono mt-8"
               variants={fadeUp(isComfort ? 0 : DURATIONS.content, 0, EASING.contentReveal)}
             >
               Free forever · No credit card · $100K virtual capital

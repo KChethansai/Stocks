@@ -134,12 +134,12 @@ export default function Watchlist() {
       {/* Header Summary (Stitch Layout) */}
       <Reveal className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA] mb-3">
+          <h1 className="mf-h1 mb-3">
             <ShinyText>My Watchlist</ShinyText>
           </h1>
           <div className="flex flex-wrap items-center gap-6 text-xs font-mono">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-[#667085] uppercase tracking-wider">
+              <span className="mf-label">
                 Tracked Assets
               </span>
               <span className="text-[#F5F7FA] font-bold">
@@ -151,7 +151,7 @@ export default function Watchlist() {
 
             {topMover && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#667085] uppercase tracking-wider">
+                <span className="mf-label">
                   Top Mover (24h)
                 </span>
                 <span className="text-[#F5F7FA] font-bold">
@@ -169,13 +169,13 @@ export default function Watchlist() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Search bar */}
           <div className="relative w-full sm:w-60">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search symbols..."
-              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#667085]"
+              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
             />
           </div>
 
@@ -206,7 +206,7 @@ export default function Watchlist() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-[#667085] tracking-wider bg-[#09090B]/50">
+              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-text-muted tracking-wider bg-[#09090B]/50">
                 <th className="py-3 px-5 cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('symbol')}>
                   <span className="flex items-center gap-1">
                     Ticker <ArrowUp className="w-3 h-3" />
@@ -229,7 +229,7 @@ export default function Watchlist() {
             <tbody className="divide-y divide-[rgba(255,255,255,0.04)]">
               {filteredWatchlist.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-xs text-[#667085]">
+                  <td colSpan={7} className="py-12 mf-empty">
                     No tracked symbols found in watchlist.
                   </td>
                 </tr>

@@ -48,7 +48,9 @@
 
   --text-primary: #F5F7FA;
   --text-secondary: #9CA3AF;
-  --text-muted: #667085;
+  /* #667085 failed WCAG AA on cards (3.74:1); #8A93A6 clears it
+     (6.02 card / 6.45 page) while staying visibly muted. */
+  --text-muted: #8A93A6;
 
   --accent: #3B82F6;
   --accent-hover: #2563EB;
@@ -351,6 +353,81 @@ textarea {
 }
 @media (min-width: 640px) {
   .mf-h1 { font-size: 1.875rem; }
+}
+/* ── Type scale (workspace + marketing) ──────────────────────────
+   Role table — every heading/label/figure below maps to one rung:
+   page title → .mf-h1 (24px → 30px @sm, mono 700)
+   section heading / card title → .mf-h2 (16px, 600)
+   micro label (table headers, eyebrows) → .mf-label (10px mono caps)
+   numeric figures → .mf-num (mono + tabular numbers)
+   body/caption keep Tailwind text-sm / text-xs. */
+.mf-h2 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.mf-label {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+.mf-num {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+/* ── Extended roles (full-app legibility pass) ───────────────────
+   body: paragraphs, descriptions (14px floor for reading prose)
+   subtitle: secondary card subtitles under .mf-h2
+   input-label: form labels (replaces scattered text-xs promos)
+   badge: pill/badge text — uppercase-tracked micro treatment keeps
+     pills compact while staying micro-legal (no 10px loose text)
+   empty: empty-state messaging, centered
+   meta: 12px secondary inline (company names, vs-lines, timestamps) */
+.mf-body {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.mf-subtitle {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.mf-input-label {
+  display: block;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+.mf-badge {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.mf-empty {
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-align: center;
+}
+.mf-meta {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 /* Ticker Ribbon */

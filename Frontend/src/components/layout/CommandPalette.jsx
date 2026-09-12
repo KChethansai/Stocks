@@ -111,7 +111,7 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
-            className="w-full bg-transparent text-sm text-[#F5F7FA] placeholder:text-[#667085] focus:outline-none"
+            className="w-full bg-transparent text-sm text-[#F5F7FA] placeholder-[#8A93A6] focus:outline-none"
           />
           {query ? (
             <button
@@ -131,7 +131,7 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
         <div className="max-h-96 overflow-y-auto p-2 divide-y divide-[rgba(255,255,255,0.04)]">
           {/* Stocks Section */}
           <div className="py-2">
-            <p className="px-3 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-[#667085]">
+            <p className="px-3 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-text-muted">
               Equities & Assets
             </p>
             {filteredStocks.length === 0 ? (
@@ -158,7 +158,7 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
                             {stock.name}
                           </span>
                         </div>
-                        <span className="text-[0.7rem] text-[#667085]">
+                        <span className="text-[0.7rem] text-text-muted">
                           {stock.sector || 'Stock'}
                         </span>
                       </div>
@@ -201,7 +201,7 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
 
           {/* Navigation Section */}
           <div className="py-2">
-            <p className="px-3 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-[#667085]">
+            <p className="px-3 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-text-muted">
               Quick Navigation
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
@@ -223,7 +223,7 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
         </div>
 
         {/* Footer shortcuts helper */}
-        <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] px-4 py-2 text-[0.7rem] text-[#667085]">
+        <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.08)] bg-[rgba(0,0,0,0.2)] px-4 py-2 text-[0.7rem] text-text-muted">
           <div className="flex items-center gap-3">
             <span>
               <kbd className="rounded border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.05)] px-1.5 py-0.5 mr-1 font-mono">

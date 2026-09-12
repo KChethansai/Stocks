@@ -155,7 +155,7 @@ export default function StrategyScene() {
                           <h3 className="text-sm font-bold font-mono text-text-primary">{s.name}</h3>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span
-                              className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+                              className="mf-badge font-mono px-1.5 py-0.5 rounded"
                               style={{ backgroundColor: `${s.color}20`, color: s.color }}
                             >
                               {s.signal}
@@ -171,7 +171,7 @@ export default function StrategyScene() {
 
                     <p className="text-xs text-text-secondary mb-4 leading-relaxed">{s.desc}</p>
 
-                    <div className="flex items-center gap-4 font-mono text-[10px] pt-3 border-t border-[var(--border)]">
+                    <div className="flex items-center gap-4 font-mono mf-meta pt-3 border-t border-[var(--border)]">
                       <div>
                         <span className="text-text-muted">Win Rate </span>
                         <span className="text-text-primary font-bold">{s.winRate}</span>

@@ -22,10 +22,10 @@ import {
   summarizePortfolio
 } from '../utils/marketAnalytics'
 import { useShell } from './layout/ShellContext'
-import PortfolioAllocation3D from './3d/PortfolioAllocation3D'
 import { NumberTicker } from './magicui/NumberTicker'
 import { BorderBeam } from './magicui/BorderBeam'
 import { ParticleButton } from './kokonutui/ParticleButton'
+import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
@@ -137,14 +137,15 @@ function PortfolioContent() {
     return [...holdings].sort((a, b) => (b.pnlPercent || 0) - (a.pnlPercent || 0))[0]
   }, [holdings])
 
-  // Sector breakdown
+  // Sector breakdown (live prices — same derivation as summarizePortfolio,
+  // so Insight-2 stays consistent with the fixed portfolio totals)
   const sectorAllocation = useMemo(() => {
     const map = {}
     let totalInvested = 0
     holdings.forEach((h) => {
       const stock = stocks.find((s) => s.symbol === h.symbol)
       const sec = stock?.sector || 'Other'
-      const val = h.currentValue || (h.quantity * (h.currentPrice || h.avgBuyPrice)) || 0
+      const val = (h.quantity * (stock?.price ?? h.currentPrice ?? h.avgBuyPrice)) || 0
       map[sec] = (map[sec] || 0) + val
       totalInvested += val
     })
@@ -155,6 +156,18 @@ function PortfolioContent() {
       percentage: ((val / totalInvested) * 100)
     })).sort((a, b) => b.percentage - a.percentage)
   }, [holdings, stocks])
+
+  // Equity vs Cash mix for Insight-3 (live)
+  const { equityValue, cashValue, equityPct } = useMemo(() => {
+    const equity = sectorAllocation.reduce((s, sec) => s + (sec.value || 0), 0)
+    const cash = Number(portfolio?.user?.balance ?? 0)
+    const total = equity + cash
+    return {
+      equityValue: equity,
+      cashValue: cash,
+      equityPct: total > 0 ? Math.min(100, Math.max(0, (equity / total) * 100)) : 0,
+    }
+  }, [sectorAllocation, portfolio])
 
   // Export to CSV
   const handleExport = useCallback(() => {
@@ -269,7 +282,7 @@ function PortfolioContent() {
           <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
-              <h2 className="text-base font-semibold text-[#F5F7FA]">
+              <h2 className="mf-h2">
                 Performance
               </h2>
               <div className="h-4 w-px bg-white/8"></div>
@@ -278,8 +291,8 @@ function PortfolioContent() {
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
                   Portfolio
                 </span>
-                <span className="flex items-center gap-1.5 text-[#667085]">
-                  <span className="w-2 h-2 rounded-full bg-[#667085]"></span>
+                <span className="flex items-center gap-1.5 text-text-muted">
+                  <span className="w-2 h-2 rounded-full bg-[#8A93A6]"></span>
                   S&amp;P 500
                 </span>
               </div>
@@ -324,7 +337,7 @@ function PortfolioContent() {
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-[#22C55E]" />
-                <span className="text-[10px] font-mono text-[#667085] uppercase tracking-widest">
+                <span className="mf-label font-mono">
                   Best Performer
                 </span>
               </div>
@@ -336,7 +349,7 @@ function PortfolioContent() {
               <span className="text-2xl font-bold font-mono text-[#F5F7FA]">
                 {bestPerformer ? `+${(bestPerformer.pnlPercent || 0).toFixed(1)}%` : '+0.0%'}
               </span>
-              <span className="text-xs text-[#667085] font-mono">unrealized return</span>
+              <span className="text-xs text-text-muted font-mono">unrealized return</span>
             </div>
             <p className="mt-2 text-xs text-[#9CA3AF] leading-relaxed">
               {bestPerformer
@@ -354,7 +367,7 @@ function PortfolioContent() {
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-[#3B82F6]" />
-                <span className="text-[10px] font-mono text-[#667085] uppercase tracking-widest">
+                <span className="mf-label font-mono">
                   Sector Weight
                 </span>
               </div>
@@ -363,42 +376,64 @@ function PortfolioContent() {
               </span>
             </div>
 
-            {/* Stacked Allocation Bar */}
-            <div className="w-full h-2 bg-white/[0.08] rounded-full mb-3 overflow-hidden flex">
-              {sectorAllocation.slice(0, 3).map((sec, i) => (
-                <div
-                  key={sec.name}
-                  className={`h-full ${
-                    i === 0 ? 'bg-[#3B82F6]' : i === 1 ? 'bg-[#22C55E]' : 'bg-[#9CA3AF]'
-                  }`}
-                  style={{ width: `${sec.percentage}%` }}
-                />
-              ))}
-            </div>
+            {/* Stacked Allocation Bar → shared sector donut (real data) */}
+            <SectorAllocation
+              items={sectorAllocation.slice(0, 3).map((sec) => ({
+                label: sec.name,
+                value: sec.value,
+                display: `${sec.percentage.toFixed(1)}%`,
+              }))}
+              palette={SECTOR_THEMES.terminal}
+              size={118}
+              totalDisplay={formatCurrency(
+                sectorAllocation.reduce((s, sec) => s + (sec.value || 0), 0)
+              )}
+              totalLabel="Invested"
+              legendLimit={3}
+              className="my-1"
+            />
 
             <div className="flex justify-between items-baseline">
               <span className="text-lg font-bold font-mono text-[#F5F7FA]">
                 {sectorAllocation[0]?.percentage ? `${sectorAllocation[0].percentage.toFixed(1)}%` : '100%'}
               </span>
-              <span className="text-xs text-[#667085] font-mono">
+              <span className="text-xs text-text-muted font-mono">
                 {sectorAllocation[0]?.name || 'Portfolio'}
               </span>
             </div>
           </SpotlightCard>
 
-          {/* Insight 3: 3D Asset Structure Preview */}
-          <div className="bg-gradient-to-br from-[#111318] to-[#151820] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col relative overflow-hidden shadow-xl">
-            <div className="flex justify-between items-start mb-2">
+          {/* Insight 3: Equity vs Cash mix (replaces the removed 3D torus —
+              it rendered hardcoded dummy segments; this shows live data) */}
+          <div className="bg-gradient-to-br from-[#111318] to-[#151820] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col justify-between relative overflow-hidden shadow-xl">
+            <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
-                <span className="text-[10px] font-mono text-[#667085] uppercase tracking-widest">
-                  Asset Geometry 3D
+                <span className="mf-label font-mono">
+                  Asset Mix
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-[#22C55E]">Dynamic</span>
+              <span className="mf-badge text-[#22C55E]">Live</span>
             </div>
-            <div className="h-28 w-full flex items-center justify-center">
-              <PortfolioAllocation3D className="w-full h-full" />
+            <div
+              className="w-full h-3 rounded-full overflow-hidden flex bg-white/[0.08]"
+              role="img"
+              aria-label={`Equity ${equityPct.toFixed(1)} percent, cash ${(100 - equityPct).toFixed(1)} percent`}
+            >
+              <div className="h-full bg-[#3B82F6]" style={{ width: `${equityPct}%` }} />
+              <div className="h-full bg-[#22C55E]" style={{ width: `${100 - equityPct}%` }} />
+            </div>
+            <div className="mt-3 space-y-1.5 font-mono text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full shrink-0 bg-[#3B82F6]" />
+                <span className="text-[#9CA3AF]">Equity</span>
+                <span className="text-[#F5F7FA] font-bold ml-auto">{formatCurrency(equityValue)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full shrink-0 bg-[#22C55E]" />
+                <span className="text-[#9CA3AF]">Cash</span>
+                <span className="text-[#F5F7FA] font-bold ml-auto">{formatCurrency(cashValue)}</span>
+              </div>
             </div>
           </div>
         </Reveal>
@@ -408,30 +443,30 @@ function PortfolioContent() {
       <Reveal delay={0.15} as="section" className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         <div className="p-5 border-b border-[rgba(255,255,255,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-[#F5F7FA]">
+            <h2 className="mf-h2">
               Holdings &amp; Positions
             </h2>
-            <p className="text-xs text-[#667085] mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               {holdings.length} active position{holdings.length === 1 ? '' : 's'} in portfolio
             </p>
           </div>
 
           {/* Search Filter */}
           <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search holdings..."
-              className="w-full bg-[#151820] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#667085]"
+              className="w-full bg-[#151820] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
             />
           </div>
         </div>
 
         {/* Holdings Table */}
         {filteredHoldings.length === 0 ? (
-          <div className="p-12 text-center text-xs text-[#667085]">
+          <div className="p-12 mf-empty">
             <p>No active stock positions found.</p>
             <Link
               to="/markets"
@@ -443,9 +478,9 @@ function PortfolioContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono">
+            <table className="w-full text-left text-xs mf-num">
               <thead>
-                <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-[#667085] tracking-wider">
+                <tr className="border-b border-[rgba(255,255,255,0.08)] mf-label">
                   <th className="py-3 px-5">Symbol</th>
                   <th className="py-3 px-4 text-right">Shares</th>
                   <th className="py-3 px-4 text-right">Avg Price</th>
@@ -474,18 +509,18 @@ function PortfolioContent() {
                             <span className="font-bold text-[#F5F7FA] group-hover:text-[#3B82F6] transition block">
                               {holding.symbol}
                             </span>
-                            <span className="text-[10px] text-[#667085] block truncate max-w-[120px]">
+                            <span className="mf-meta block truncate max-w-[120px]">
                               {holding.name}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-medium text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-semibold text-[#F5F7FA]">
                         {holding.quantity}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right text-[#9CA3AF]">
+                      <td className="py-3.5 px-4 text-right font-medium text-[#9CA3AF]">
                         ${Number(holding.avgBuyPrice || 0).toFixed(2)}
                       </td>
 
@@ -493,11 +528,11 @@ function PortfolioContent() {
                         ${Number(holding.currentPrice || 0).toFixed(2)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right text-[#9CA3AF]">
+                      <td className="py-3.5 px-4 text-right font-medium text-[#9CA3AF]">
                         {formatCurrency(holding.invested || 0)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-semibold text-[#F5F7FA]">
                         {formatCurrency(holding.currentValue || 0)}
                       </td>
 
@@ -559,7 +594,7 @@ function PortfolioContent() {
               </div>
 
               <div>
-                <label className="text-[11px] text-[#9CA3AF] block mb-1">
+                <label className="mf-input-label block mb-1">
                   Quantity to Sell
                 </label>
                 <QuantityStepper

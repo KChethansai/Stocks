@@ -15,6 +15,7 @@ import { SpotlightCard } from '../kokonutui/SpotlightCard'
 import { ShinyText } from '../reactbits/ShinyText'
 import { gsap, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
 import { PriceAreaChart, useOhlcSeries } from '../charts/market-charts'
+import { SectorAllocation, SECTOR_THEMES } from '../charts/sector-donut'
 import { Area } from '../charts/area-chart'
 import { useMemo } from 'react'
 
@@ -51,7 +52,7 @@ function ComparisonChart() {
 
   return (
     <div>
-      <div className="flex items-center gap-5 mb-2 font-mono text-[10px]">
+      <div className="flex items-center gap-5 mb-2 font-mono mf-meta">
         <span className="flex items-center gap-1.5 text-[#7ce6ff]">
           <span className="inline-block w-4 h-0.5 bg-[#7ce6ff]" />
           Portfolio {pfPct >= 0 ? '+' : ''}{pfPct.toFixed(1)}%
@@ -76,49 +77,24 @@ function ComparisonChart() {
   )
 }
 
-// Sector allocation donut — simple SVG
+// Sector allocation donut — Bklit-port shared component (charts/sector-donut)
+// on illustrative sample data; the card carries the Illustrative badge.
 function SectorDonut() {
   const sectors = [
-    { pct: 35, color: '#2eafff', label: 'Tech' },
-    { pct: 22, color: '#7ed6a3', label: 'Health' },
-    { pct: 18, color: '#7ce6ff', label: 'Finance' },
-    { pct: 15, color: '#96cdde', label: 'Energy' },
-    { pct: 10, color: '#84949e', label: 'Consumer' },
+    { label: 'Tech', value: 35, display: '35%' },
+    { label: 'Health', value: 22, display: '22%' },
+    { label: 'Finance', value: 18, display: '18%' },
+    { label: 'Energy', value: 15, display: '15%' },
+    { label: 'Consumer', value: 10, display: '10%' },
   ]
-  let cum = 0
-  const r = 38, cx = 50, cy = 50, stroke = 12
-  const circ = 2 * Math.PI * r
-
   return (
-    <div className="flex items-center gap-6">
-      <svg viewBox="0 0 100 100" className="w-28 h-28 shrink-0" role="img" aria-label="Sector allocation donut chart">
-        {sectors.map((s) => {
-          const dash = (s.pct / 100) * circ
-          const offset = circ - (cum / 100) * circ
-          cum += s.pct
-          return (
-            <circle key={s.label} cx={cx} cy={cy} r={r} fill="none"
-              stroke={s.color} strokeWidth={stroke}
-              strokeDasharray={`${dash} ${circ - dash}`}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              opacity="0.85"
-            />
-          )
-        })}
-        <text x={cx} y={cy - 2} textAnchor="middle" fill="var(--text-primary)" fontSize="11" fontWeight="bold" fontFamily="monospace">23.4%</text>
-        <text x={cx} y={cy + 9} textAnchor="middle" fill="var(--text-muted)" fontSize="6" fontFamily="monospace">RETURN</text>
-      </svg>
-      <div className="space-y-1.5 font-mono text-[10px]">
-        {sectors.map((s) => (
-          <div key={s.label} className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="text-text-secondary">{s.label}</span>
-            <span className="text-text-primary font-bold ml-auto">{s.pct}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <SectorAllocation
+      items={sectors}
+      palette={SECTOR_THEMES.landing}
+      size={160}
+      totalDisplay="100%"
+      totalLabel="Allocated"
+    />
   )
 }
 
@@ -223,9 +199,9 @@ export default function AnalyticsScene() {
                 className="bg-[var(--surface)]/80 border border-[var(--border)] rounded-xl p-4 font-mono"
                 variants={scaleIn(isComfort ? 0 : DURATIONS.content, 0)}
               >
-                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{m.label}</div>
+                <div className="mf-label mb-1">{m.label}</div>
                 <div className={`text-xl font-bold ${m.positive ? 'text-positive' : 'text-negative'}`}>{m.value}</div>
-                <div className="text-[10px] text-text-muted mt-1">{m.sub}</div>
+                <div className="mf-meta mt-1">{m.sub}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -268,8 +244,16 @@ export default function AnalyticsScene() {
                 tiltIntensity={3}
                 className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 h-full"
               >
-                <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-4">
-                  Sector Allocation
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
+                    Sector Allocation
+                  </div>
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-wider text-text-muted"
+                    title="Static illustrative values, not your live account data"
+                  >
+                    Illustrative
+                  </span>
                 </div>
                 <SectorDonut />
               </SpotlightCard>

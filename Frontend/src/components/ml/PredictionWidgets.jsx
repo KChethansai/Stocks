@@ -30,7 +30,7 @@ export function PredictionBadge({ prediction, compact = false }) {
   if (compact) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold ${meta.className}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md mf-badge font-mono ${meta.className}`}
       >
         <Icon className="w-3 h-3" />
         {meta.label} · {conf}%
@@ -44,7 +44,7 @@ export function PredictionBadge({ prediction, compact = false }) {
         <Sparkles className="w-3.5 h-3.5" />
         AI · {meta.label}
       </div>
-      <div className="text-[11px] font-mono opacity-90">
+      <div className="mf-meta font-mono opacity-90">
         Conf {conf}% · tgt {formatCurrency(prediction.predictedPrice)}
       </div>
     </div>
@@ -52,9 +52,9 @@ export function PredictionBadge({ prediction, compact = false }) {
 }
 
 function AccuracyBadge({ accuracy }) {
-  if (!accuracy || accuracy.insufficientData) return <span className="text-[10px] text-[#5C6B7E]">Accuracy pending</span>
+  if (!accuracy || accuracy.insufficientData) return <span className="mf-meta">Accuracy pending</span>
   const pct = Math.round(accuracy.accuracy * 100)
-  return <span className="inline-flex items-center gap-1 text-[10px] font-mono text-[#8B97A8]"><span className={`h-1.5 w-1.5 rounded-full ${pct >= 60 ? 'bg-[#2ECF8E]' : 'bg-[#60A5FA]'}`} />{pct}% {accuracy.demo ? 'demo accuracy' : `accurate · ${accuracy.total} resolved`}</span>
+  return <span className="inline-flex items-center gap-1 mf-meta font-mono text-[#8B97A8]"><span className={`h-1.5 w-1.5 rounded-full ${pct >= 60 ? 'bg-[#2ECF8E]' : 'bg-[#60A5FA]'}`} />{pct}% {accuracy.demo ? 'demo accuracy' : `accurate · ${accuracy.total} resolved`}</span>
 }
 
 export function PredictionPanel({
@@ -105,7 +105,7 @@ export function PredictionPanel({
 
       <div className="flex items-start justify-between gap-3 relative">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-mono text-[#8B97A8] mb-1">
+          <p className="mf-label mb-1">
             MarketForge AI
           </p>
           <h3 className="font-display font-bold text-lg text-[#E8EEF7]">
@@ -121,8 +121,8 @@ export function PredictionPanel({
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between"><span className="text-[11px] text-[#8B97A8]">Forecast horizon</span><Select value={String(horizon)} onChange={(v) => onHorizonChange?.(Number(v))} ariaLabel="Forecast horizon" className="min-w-[7.5rem]" options={[{ value: '1', label: '1 day' }, { value: '5', label: '5 days' }, { value: '10', label: '10 days' }]} /></div>
-      <div className="flex items-center justify-between border-b border-white/8 pb-3"><AccuracyBadge accuracy={accuracy} /><span title="Combines SMA crossover, OLS trend slope, momentum and RSI dampening." className="cursor-help text-[10px] font-mono uppercase tracking-wider text-[#5C6B7E]">ⓘ Technical model</span></div>
+      <div className="flex items-center justify-between"><span className="mf-meta">Forecast horizon</span><Select value={String(horizon)} onChange={(v) => onHorizonChange?.(Number(v))} ariaLabel="Forecast horizon" className="min-w-[7.5rem]" options={[{ value: '1', label: '1 day' }, { value: '5', label: '5 days' }, { value: '10', label: '10 days' }]} /></div>
+      <div className="flex items-center justify-between border-b border-white/8 pb-3"><AccuracyBadge accuracy={accuracy} /><span title="Combines SMA crossover, OLS trend slope, momentum and RSI dampening." className="cursor-help mf-label font-mono text-[#8B97A8]">ⓘ Technical model</span></div>
 
       {loading && (
         <div className="space-y-2">
@@ -135,25 +135,25 @@ export function PredictionPanel({
         <>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-[#162235] border border-white/5 p-3">
-              <p className="text-[10px] text-[#5C6B7E] font-mono uppercase mb-1">Target</p>
+              <p className="mf-label mb-1">Target</p>
               <p className="font-mono font-semibold text-sm text-[#E8EEF7]">
                 {formatCurrency(prediction.predictedPrice)}
               </p>
             </div>
             <div className="rounded-xl bg-[#162235] border border-white/5 p-3">
-              <p className="text-[10px] text-[#5C6B7E] font-mono uppercase mb-1">Range</p>
-              <p className="font-mono font-semibold text-[11px] text-[#E8EEF7]">
+              <p className="mf-label mb-1">Range</p>
+              <p className="mf-num text-xs font-semibold text-[#E8EEF7]">
                 {formatCurrency(prediction.priceRange?.low)}–{formatCurrency(prediction.priceRange?.high)}
               </p>
             </div>
             <div className="rounded-xl bg-[#162235] border border-white/5 p-3">
-              <p className="text-[10px] text-[#5C6B7E] font-mono uppercase mb-1">Confidence</p>
+              <p className="mf-label mb-1">Confidence</p>
               <p className="font-mono font-semibold text-sm text-[#60A5FA]">
                 {Math.round(prediction.confidence * 100)}%
               </p>
             </div>
           </div>
-          <div className="space-y-1"><div className="flex justify-between text-[10px] font-mono text-[#8B97A8]"><span>Confidence</span><span className="text-[#60A5FA]">{Math.round(prediction.confidence * 100)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#3B82F6] transition-all" style={{ width: `${Math.round(prediction.confidence * 100)}%` }} /></div></div>
+          <div className="space-y-1"><div className="flex justify-between mf-meta font-mono text-[#8B97A8]"><span>Confidence</span><span className="text-[#60A5FA]">{Math.round(prediction.confidence * 100)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#3B82F6] transition-all" style={{ width: `${Math.round(prediction.confidence * 100)}%` }} /></div></div>
 
           <p className="rounded-xl border border-white/8 bg-[#162235]/70 px-3 py-2.5 text-xs text-[#8B97A8] leading-relaxed">
             {prediction.explainability?.summary}
@@ -161,7 +161,7 @@ export function PredictionPanel({
 
           <ul className="space-y-1.5">
             {(prediction.explainability?.factors || []).slice(0, 3).map((factor) => (
-              <li key={factor} className="inline-flex mr-1.5 mb-1 rounded-full border border-white/10 bg-[#162235] px-2 py-1 text-[10px] text-[#8B97A8] font-mono">
+              <li key={factor} className="inline-flex mr-1.5 mb-1 rounded-full border border-white/10 bg-[#162235] px-2 py-1 mf-badge text-[#8B97A8] font-mono">
                 <span className="text-[#3B82F6] mr-1">•</span><span>{factor}</span>
               </li>
             ))}
@@ -176,13 +176,13 @@ export function PredictionPanel({
                 <button
                   type="button"
                   onClick={() => onToggleAutomation?.(symbol, false)}
-                  className="ml-auto text-[10px] font-mono text-[#F0656E] hover:underline"
+                  className="ml-auto mf-meta font-mono text-[#F0656E] hover:underline"
                 >
                   Disable
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-[#5C6B7E]">
+            <p className="mf-meta">
               Auto-trade or alert when confidence clears your threshold — virtual balance only.
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -204,7 +204,7 @@ export function PredictionPanel({
                 step={0.05}
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                className="bg-[#06090F] border border-white/10 rounded-lg px-2 py-2 text-[11px] font-mono text-[#E8EEF7]"
+                className="bg-[#06090F] border border-white/10 rounded-lg px-2 py-2 text-xs font-mono text-[#E8EEF7]"
                 title="Confidence threshold"
               />
               <input
@@ -213,7 +213,7 @@ export function PredictionPanel({
                 max={1000}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="bg-[#06090F] border border-white/10 rounded-lg px-2 py-2 text-[11px] font-mono text-[#E8EEF7]"
+                className="bg-[#06090F] border border-white/10 rounded-lg px-2 py-2 text-xs font-mono text-[#E8EEF7]"
                 title="Quantity"
               />
             </div>
@@ -268,10 +268,10 @@ export function AiInsightWidget({ symbols = [] }) {
     <div className="cc-panel p-5 space-y-4 h-full">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.18em] font-mono text-[#8B97A8]">
+          <p className="mf-label">
             AI Insight
           </p>
-          <h3 className="font-display font-bold text-[#E8EEF7]">Short-term signals</h3>
+          <h3 className="mf-h2">Short-term signals</h3>
         </div>
         <Sparkles className="w-4 h-4 text-[#3B82F6]" />
       </div>
@@ -285,7 +285,7 @@ export function AiInsightWidget({ symbols = [] }) {
       )}
 
       {!loading && predictions.length === 0 && (
-        <p className="text-xs text-[#5C6B7E]">No predictions yet — sync market data and retry.</p>
+        <p className="text-xs text-[#8B97A8]">No predictions yet — sync market data and retry.</p>
       )}
 
       {!loading && (
@@ -299,18 +299,18 @@ export function AiInsightWidget({ symbols = [] }) {
                   to={`/markets?stock=${p.symbol}`}
                   className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] transition group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-[#162235] border border-white/8 flex items-center justify-center font-mono text-[11px] font-bold text-[#60A5FA]">
+                  <div className="w-9 h-9 rounded-lg bg-[#162235] border border-white/8 flex items-center justify-center font-mono text-xs font-bold text-[#60A5FA]">
                     {p.symbol.slice(0, 3)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-[#E8EEF7] group-hover:text-[#60A5FA] transition">
                       {p.symbol}
                     </p>
-                    <p className="text-[10px] text-[#5C6B7E] font-mono truncate">
+                    <p className="mf-meta font-mono truncate">
                       {formatCurrency(p.predictedPrice)} · ± band
                     </p>
                   </div>
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono font-semibold ${meta.className}`}>
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md mf-badge font-mono ${meta.className}`}>
                     <Icon className="w-3 h-3" />
                     {Math.round(p.confidence * 100)}%
                   </span>

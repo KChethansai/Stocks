@@ -30,7 +30,7 @@ export default function Footer() {
             <Link to="/" className="flex items-center group" aria-label="MarketForge home">
               <Logo3D size="xs" showText={true} textClassName="text-sm" />
             </Link>
-            <p className="text-[0.75rem] text-[#84949e] text-center md:text-left leading-relaxed">
+            <p className="mf-meta text-center md:text-left leading-relaxed">
               Paper trading with real market data, simulated execution, and zero real risk.
             </p>
           </div>
@@ -58,7 +58,7 @@ export default function Footer() {
             )}
           </nav>
 
-          <p className="text-[0.75rem] text-[#84949e]">
+          <p className="mf-meta">
             © {new Date().getFullYear()} MarketForge. All rights reserved.
           </p>
         </div>

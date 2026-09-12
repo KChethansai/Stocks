@@ -125,7 +125,7 @@ export default function Login() {
           {/* Divider */}
           <div className="my-6 flex items-center">
             <div className="flex-grow border-t border-white/8"></div>
-            <span className="flex-shrink-0 mx-3 text-[11px] font-mono text-[#84949e]">
+            <span className="flex-shrink-0 mx-3 mf-meta font-mono text-[#84949e]">
               or continue with
             </span>
             <div className="flex-grow border-t border-white/8"></div>
@@ -191,15 +191,15 @@ export default function Login() {
             {/* Bottom Row Chips */}
             <div className="grid grid-cols-3 gap-3 font-mono text-xs">
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Virtual Capital</span>
+                <span className="mf-label block">Virtual Capital</span>
                 <span className="font-bold text-[#f8fdff]">$100,000</span>
               </div>
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Execution</span>
+                <span className="mf-label block">Execution</span>
                 <span className="font-bold text-[#7ed6a3]">0ms Latency</span>
               </div>
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Market Depth</span>
+                <span className="mf-label block">Market Depth</span>
                 <span className="font-bold text-[#7ce6ff]">30 Equities</span>
               </div>
             </div>

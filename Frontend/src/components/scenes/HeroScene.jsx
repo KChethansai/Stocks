@@ -285,7 +285,10 @@ export default function HeroScene() {
               <div className="flex-1 p-5 grid grid-cols-3 gap-5 bg-[var(--bg-primary)]/80">
                 {/* Main chart area */}
                 <div className="col-span-2 flex flex-col gap-4">
-                  <div className="flex justify-between items-end">
+                  {/* Price header stacks above the timeframe pills: at this
+                      card width (~264px) the 6-pill group (~200px) cannot sit
+                      beside the price without overflowing into Quick Watch. */}
+                  <div className="flex flex-col gap-2">
                     <div>
                       <h3 className="text-lg font-bold font-mono text-text-primary">
                         {activeTicker.symbol}
@@ -300,13 +303,13 @@ export default function HeroScene() {
                         ) : null}
                       </div>
                     </div>
-                    <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]" role="group" aria-label="Chart timeframe">
+                    <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px] w-fit max-w-full overflow-x-auto" role="group" aria-label="Chart timeframe">
                       {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((tf) => (
                         <button
                           key={tf}
                           onClick={() => setTimeframe(tf)}
                           aria-pressed={timeframe === tf}
-                          className={`px-2 py-0.5 rounded ${timeframe === tf ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}
+                          className={`px-2 py-0.5 rounded shrink-0 ${timeframe === tf ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}
                         >
                           {tf}
                         </button>
@@ -327,7 +330,7 @@ export default function HeroScene() {
                       { label: 'Unrealized', value: '+$4,640.50', accent: true },
                     ].map((item, i) => (
                       <div key={i} className="bg-[var(--surface)]/90 border border-[var(--border)] rounded-lg p-2.5">
-                        <div className="text-[10px] text-text-muted uppercase">{item.label}</div>
+                        <div className="mf-label">{item.label}</div>
                         <div className={`font-bold ${item.accent ? 'text-positive' : 'text-text-primary'}`}>{item.value}</div>
                       </div>
                     ))}

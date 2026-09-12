@@ -93,12 +93,12 @@ export default function Transactions() {
       {/* Header Summary */}
       <Reveal className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#F5F7FA] mb-4">
+          <h1 className="mf-h1 mb-4">
             <ShinyText>Activity Ledger</ShinyText>
           </h1>
           <div className="flex flex-wrap gap-8 text-xs font-mono">
             <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
-              <span className="text-[10px] text-[#667085] uppercase tracking-wider">
+              <span className="mf-label">
                 Total Trades
               </span>
               <span className="text-xl font-bold text-[#F5F7FA]">
@@ -107,7 +107,7 @@ export default function Transactions() {
             </div>
 
             <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
-              <span className="text-[10px] text-[#667085] uppercase tracking-wider">
+              <span className="mf-label">
                 Buys
               </span>
               <span className="text-xl font-bold text-[#22C55E]">
@@ -116,7 +116,7 @@ export default function Transactions() {
             </div>
 
             <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
-              <span className="text-[10px] text-[#667085] uppercase tracking-wider">
+              <span className="mf-label">
                 Sells
               </span>
               <span className="text-xl font-bold text-[#EF4444]">
@@ -129,13 +129,13 @@ export default function Transactions() {
         {/* Action Controls & Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-60">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search symbol or action..."
-              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#667085]"
+              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
             />
           </div>
 
@@ -169,11 +169,11 @@ export default function Transactions() {
             <Reveal as="section" key={groupKey} delay={0.05} className="space-y-3">
               <h3 className="text-xs font-mono font-semibold text-[#9CA3AF] border-b border-[rgba(255,255,255,0.08)] pb-2 flex items-center justify-between">
                 <span>{groupKey}</span>
-                <span className="text-[10px] text-[#667085]">{list.length} transactions</span>
+                <span className="mf-meta font-mono">{list.length} transactions</span>
               </h3>
 
               {/* Table Header (Hidden on Mobile) */}
-              <div className="hidden md:grid grid-cols-[120px_80px_100px_1fr_1fr_120px_100px] gap-4 px-4 py-2 text-[10px] font-mono uppercase text-[#667085] tracking-wider">
+              <div className="hidden md:grid grid-cols-[120px_80px_100px_1fr_1fr_120px_100px] gap-4 px-4 py-2 text-[10px] font-mono uppercase text-text-muted tracking-wider">
                 <div>Time</div>
                 <div>Action</div>
                 <div>Symbol</div>
@@ -236,7 +236,7 @@ export default function Transactions() {
                       </div>
 
                       <div className="md:text-right">
-                        <span className="text-[#22C55E] flex items-center md:justify-end gap-1.5 text-[11px]">
+                        <span className="text-[#22C55E] flex items-center md:justify-end gap-1.5 mf-badge">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
                           Completed
                         </span>
@@ -250,7 +250,7 @@ export default function Transactions() {
         })}
 
         {filteredTransactions.length === 0 && (
-          <div className="p-12 text-center text-xs font-mono text-[#667085] bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.06)]">
+          <div className="p-12 text-center text-xs font-mono text-text-muted bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.06)]">
             No executed trades recorded in activity ledger yet.
           </div>
         )}

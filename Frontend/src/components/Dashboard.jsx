@@ -112,7 +112,7 @@ export default function Dashboard() {
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Top Header / Hero Section */}
       <Reveal className="flex flex-col gap-3">
-        <p className="text-[#667085] text-sm font-medium">
+        <p className="text-text-muted text-sm font-medium">
           {greeting}{currentUser?.username ? `, ${currentUser.username}` : ''}
         </p>
 
@@ -150,7 +150,7 @@ export default function Dashboard() {
           {/* Gridless Inline Metrics */}
           <div className="flex flex-wrap gap-8 items-end border-t lg:border-t-0 border-white/8 pt-4 lg:pt-0">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-mono">Today&apos;s P&amp;L</span>
+              <span className="text-text-muted text-xs font-mono">Today&apos;s P&amp;L</span>
               <span
                 className={`font-mono text-sm font-semibold ${
                   isTodayPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
@@ -162,14 +162,14 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-mono">Available Cash</span>
+              <span className="text-text-muted text-xs font-mono">Available Cash</span>
               <span className="text-[#F5F7FA] font-mono text-sm font-semibold">
                 {formatCurrency(analytics.cashBalance || 0)}
               </span>
             </div>
 
             <div className="flex flex-col gap-0.5">
-              <span className="text-[#667085] text-xs font-mono">Invested Capital</span>
+              <span className="text-text-muted text-xs font-mono">Invested Capital</span>
               <span className="text-[#F5F7FA] font-mono text-sm font-semibold">
                 {formatCurrency(analytics.investedAmount || 0)}
               </span>
@@ -188,7 +188,7 @@ export default function Dashboard() {
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-[#F5F7FA]">
+                <h3 className="mf-h2">
                   Performance
                 </h3>
                 <div className="flex items-center gap-3 text-xs text-[#9CA3AF] font-mono">
@@ -229,7 +229,7 @@ export default function Dashboard() {
             className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col"
           >
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-5 border-b border-white/8 pb-4">
-              <h3 className="text-base font-semibold text-[#F5F7FA]">
+              <h3 className="mf-h2">
                 Market Movers
               </h3>
               <div className="flex items-center gap-4">
@@ -280,7 +280,7 @@ export default function Dashboard() {
                       <span className="font-mono text-sm text-[#F5F7FA]">
                         ${Number(stock.price).toFixed(2)}
                       </span>
-                      <span className="text-[11px] text-[#667085] truncate max-w-[90px]">
+                      <span className="mf-meta truncate max-w-[90px]">
                         {stock.name}
                       </span>
                     </div>
@@ -306,7 +306,7 @@ export default function Dashboard() {
             className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col"
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-[#F5F7FA]">
+              <h3 className="mf-h2">
                 Watchlist
               </h3>
               <Link
@@ -318,7 +318,7 @@ export default function Dashboard() {
             </div>
 
             {/* Watchlist Table Headers */}
-            <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-white/8 text-[#667085] text-[10px] uppercase font-mono tracking-wider">
+            <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-white/8 text-text-muted text-[10px] uppercase font-mono tracking-wider">
               <div className="col-span-4">Symbol</div>
               <div className="col-span-4 text-right">Price</div>
               <div className="col-span-4 text-right">24H</div>
@@ -338,7 +338,7 @@ export default function Dashboard() {
                       <span className="font-mono text-xs font-bold text-[#F5F7FA] group-hover:text-[#3B82F6] transition truncate">
                         {stock.symbol}
                       </span>
-                      <span className="text-[10px] text-[#667085] truncate">
+                      <span className="mf-meta truncate">
                         {stock.name}
                       </span>
                     </div>

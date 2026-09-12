@@ -142,7 +142,7 @@ export default function Register() {
           {/* Divider */}
           <div className="my-5 flex items-center">
             <div className="flex-grow border-t border-white/8"></div>
-            <span className="flex-shrink-0 mx-3 text-[11px] font-mono text-[#84949e]">
+            <span className="flex-shrink-0 mx-3 mf-meta font-mono text-[#84949e]">
               or continue with
             </span>
             <div className="flex-grow border-t border-white/8"></div>
@@ -208,15 +208,15 @@ export default function Register() {
             {/* Bottom Row Chips */}
             <div className="grid grid-cols-3 gap-3 font-mono text-xs">
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Virtual Currency</span>
+                <span className="mf-label block">Virtual Currency</span>
                 <span className="font-bold text-[#7ed6a3]">No Deposit Needed</span>
               </div>
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Execution</span>
+                <span className="mf-label block">Execution</span>
                 <span className="font-bold text-[#f8fdff]">Instant Orders</span>
               </div>
               <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="text-[10px] text-[#84949e] uppercase block">Asset Universe</span>
+                <span className="mf-label block">Asset Universe</span>
                 <span className="font-bold text-[#7ce6ff]">30+ Equities</span>
               </div>
             </div>

@@ -56,7 +56,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
               <span className="font-bold text-sm text-[#E8EEF7] tracking-tight block">
                 MarketForge
               </span>
-              <span className="text-[10px] text-[#5C6B7E] uppercase tracking-wider block font-mono">
+              <span className="mf-label block font-mono">
                 Trading Workspace
               </span>
             </div>
@@ -75,7 +75,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
       {/* Main Navigation Links */}
       <div className="min-h-0 flex-1 overflow-y-auto py-5 px-3 space-y-1">
         {!isCollapsed && (
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-[#5C6B7E]">
+          <p className="px-3 pb-2 mf-label">
             Workspace
           </p>
         )}
@@ -105,12 +105,12 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
       {/* Capital Summary Card */}
       {!isCollapsed && (
         <div className="mx-3 mb-3 p-3.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0F1724]">
-          <div className="flex items-center justify-between text-[11px] text-[#8B97A8] mb-1">
+          <div className="flex items-center justify-between text-xs text-[#8B97A8] mb-1">
             <span className="flex items-center gap-1.5 font-medium">
               <Wallet className="w-3.5 h-3.5 text-[#3B82F6]" />
               Virtual Capital
             </span>
-            <span className="text-[10px] font-mono text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded font-medium">
+            <span className="mf-badge text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded font-medium">
               Live
             </span>
           </div>
@@ -131,7 +131,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
               <p className="text-xs font-medium text-[#E8EEF7] truncate">
                 {currentUser?.username || 'Trader'}
               </p>
-              <p className="text-[10px] text-[#5C6B7E] truncate font-mono">
+              <p className="mf-meta truncate font-mono">
                 {currentUser?.email || 'trader@marketforge.app'}
               </p>
             </div>

@@ -178,7 +178,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
               )}
             </span>
-            <span className="text-[11px] font-medium text-[#9CA3AF] whitespace-nowrap">
+            <span className="text-xs font-medium text-[#9CA3AF] whitespace-nowrap">
               {isMarketOpen ? 'Market Open' : 'US Markets Live'}
             </span>
           </div>
@@ -222,7 +222,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
               aria-expanded={notificationsOpen}
             >
               <Bell className="w-4 h-4" />
-              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full bg-[#3B82F6] text-[9px] leading-4 text-[#09090B] font-bold font-mono ring-2 ring-[#09090B]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full bg-[#3B82F6] text-[10px] leading-4 text-[#09090B] font-bold font-mono ring-2 ring-[#09090B]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
             </button>
 
             <AnimatePresence>
@@ -236,19 +236,19 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                 >
                 <div className="flex items-center justify-between pb-2 border-b border-[rgba(255,255,255,0.08)]">
                   <span className="text-xs font-semibold text-[#F5F7FA]">Market Alerts</span>
-                  <span className="text-[10px] text-[#22C55E] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
+                  <span className="mf-badge text-[#22C55E] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
                 </div>
                 <div className="max-h-80 overflow-y-auto py-2 space-y-1 text-xs">
-                  {alertsLoading && <p className="px-2 py-5 text-center text-[11px] text-[#9CA3AF]">Loading alerts…</p>}
-                  {!alertsLoading && alerts.length === 0 && <p className="px-2 py-5 text-center text-[11px] text-[#9CA3AF]">No market alerts yet.</p>}
+                  {alertsLoading && <p className="px-2 py-5 text-center mf-meta">Loading alerts…</p>}
+                  {!alertsLoading && alerts.length === 0 && <p className="px-2 py-5 text-center mf-meta">No market alerts yet.</p>}
                   {!alertsLoading && alerts.map((alert) => (
                     <button key={alert._id} type="button" onClick={() => handleMarkAlertRead(alert)} className={`w-full rounded-lg border p-2.5 text-left transition ${alert.read ? 'border-white/[0.04] bg-[#111318]/60' : 'border-[#3B82F6]/20 bg-[#111318]'}`}>
                       <div className="flex items-center justify-between gap-3">
                         <span className={`font-mono font-semibold ${alert.direction === 'UP' ? 'text-[#22C55E]' : alert.direction === 'DOWN' ? 'text-[#EF4444]' : 'text-[#60A5FA]'}`}>{alert.symbol} · {alert.direction}</span>
-                        <span className="shrink-0 text-[10px] text-[#667085]">{formatAlertTime(alert.createdAt)}</span>
+                        <span className="shrink-0 mf-meta font-mono">{formatAlertTime(alert.createdAt)}</span>
                       </div>
-                      <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">{alert.message}</p>
-                      <p className="mt-1 text-[10px] font-mono text-[#667085]">Confidence {Math.round((alert.confidence || 0) * 100)}%{!alert.read && ' · Click to mark read'}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[#9CA3AF]">{alert.message}</p>
+                      <p className="mt-1 mf-meta font-mono">Confidence {Math.round((alert.confidence || 0) * 100)}%{!alert.read && ' · Click to mark read'}</p>
                     </button>
                   ))}
                 </div>
@@ -281,7 +281,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                   <p className="text-xs font-semibold text-[#F5F7FA]">
                     {currentUser?.username || 'Trader'}
                   </p>
-                  <p className="text-[10px] text-[#9CA3AF] truncate font-mono">
+                  <p className="mf-meta truncate font-mono">
                     {currentUser?.email || 'trader@marketforge.app'}
                   </p>
                 </div>

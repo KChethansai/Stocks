@@ -328,20 +328,20 @@ export default function Market() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#F5F7FA]">
               Markets
             </h2>
-            <span className="text-[11px] font-mono text-[#667085]">
+            <span className="mf-meta font-mono text-text-muted">
               {filteredStocks.length} listed
             </span>
           </div>
 
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search ticker, name..."
-              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#667085]"
+              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
             />
           </div>
 
@@ -383,7 +383,7 @@ export default function Market() {
                         <span className="text-xs font-bold font-mono text-[#F5F7FA] block truncate">
                           {stock.symbol}
                         </span>
-                        <span className="text-[11px] text-[#667085] block truncate max-w-[100px]">
+                        <span className="mf-meta block truncate max-w-[100px]">
                           {stock.name}
                         </span>
                       </div>
@@ -394,7 +394,7 @@ export default function Market() {
                         ${Number(stock.price).toFixed(2)}
                       </span>
                       <span
-                        className={`text-[11px] font-mono font-medium block ${
+                        className={`mf-num text-xs font-medium block ${
                           isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
                         }`}
                       >
@@ -442,7 +442,7 @@ export default function Market() {
                     <p className="text-xs text-[#9CA3AF] mt-1.5 flex items-center gap-2">
                       <span className="truncate">{selectedStock.name}</span>
                       <span>•</span>
-                      <span className="text-[#667085] font-mono">{selectedStock.sector || 'US Equity'}</span>
+                      <span className="text-text-muted font-mono">{selectedStock.sector || 'US Equity'}</span>
                     </p>
                   </div>
                 </div>
@@ -518,14 +518,14 @@ export default function Market() {
               {/* Key Metrics Bento Grid */}
               <div className="p-5 sm:p-6 border-t border-[rgba(255,255,255,0.08)] grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#09090B]">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-mono uppercase text-[#667085]">Volume</span>
+                  <span className="text-[10px] font-mono uppercase text-text-muted">Volume</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
                     {selectedStock.volume ? formatCompact(selectedStock.volume) : '—'}
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-mono uppercase text-[#667085]">Market Cap</span>
+                  <span className="text-[10px] font-mono uppercase text-text-muted">Market Cap</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
                     {selectedStock.marketCap
                       ? formatCompact(selectedStock.marketCap)
@@ -534,7 +534,7 @@ export default function Market() {
                 </div>
 
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-mono uppercase text-[#667085]">52W Range</span>
+                  <span className="text-[10px] font-mono uppercase text-text-muted">52W Range</span>
                   <span className="text-xs font-mono font-semibold text-[#F5F7FA]">
                     {week52
                       ? `$${week52.low.toFixed(2)} - $${week52.high.toFixed(2)}`
@@ -548,7 +548,7 @@ export default function Market() {
                     {currentHolding ? `${currentHolding.quantity} shares` : '0 shares'}
                   </span>
                   {currentHolding && (
-                    <span className="text-[10px] text-[#667085] font-mono">
+                <span className="mf-meta font-mono">
                       Avg ${Number(currentHolding.avgBuyPrice || 0).toFixed(2)}
                     </span>
                   )}
@@ -556,7 +556,7 @@ export default function Market() {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-xs text-[#667085]">
+            <div className="flex items-center justify-center h-full text-xs text-text-muted">
               Select a stock to view details
             </div>
           )}
@@ -610,8 +610,8 @@ export default function Market() {
             {/* Quantity Input with Controls */}
             <div>
               <div className="flex justify-between items-center mb-1.5">
-                <label className="text-[11px] text-[#9CA3AF] font-mono">Quantity</label>
-                <span className="text-[10px] text-[#667085] font-mono">
+                <label className="mf-input-label font-mono">Quantity</label>
+                <span className="mf-meta font-mono">
                   {orderSide === 'BUY'
                     ? `Max ~${Math.floor(userBalance / (stockPrice || 1))} shares`
                     : `Owned: ${currentHolding?.quantity || 0} shares`}
@@ -654,7 +654,7 @@ export default function Market() {
                   {formatCurrency(estimatedTotal)}
                 </span>
               </div>
-              <div className="flex justify-between text-[#667085] text-[11px] pt-1">
+              <div className="flex justify-between mf-meta pt-1">
                 <span>Available Cash</span>
                 <span className="text-[#9CA3AF]">{formatCurrency(userBalance)}</span>
               </div>
@@ -712,7 +712,7 @@ export default function Market() {
             <div className="flex items-center justify-between border-b border-white/8 pb-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-[#3B82F6]" />
-                <h3 className="text-base font-semibold text-[#F5F7FA]">
+                <h3 className="mf-h2">
                   Confirm Order
                 </h3>
               </div>
