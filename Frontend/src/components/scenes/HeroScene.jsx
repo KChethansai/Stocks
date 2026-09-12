@@ -130,11 +130,12 @@ export default function HeroScene() {
               </ShinyText>
             </motion.div>
 
-            {/* Title (reference: light lead line + strong emphasis) */}
+            {/* Title (reference: light phrase line + heavy punch line —
+                two deliberate line-boxes, natural wrap inside each) */}
             <h1 className="font-landing-display-light tracking-tight text-text-primary leading-[1.1]"
                 style={{ fontSize: 'var(--mf-font-display-xl)' }}>
               <TextReveal
-                text="Practice trading."
+                text="Practice trading. Understand markets."
                 duration={DURATIONS.title}
                 stagger={STAGGER.titleWords}
                 initialDelay={isComfort ? 0 : DELAYS.titleStart}
@@ -143,26 +144,13 @@ export default function HeroScene() {
                 as="span"
               />
               <motion.span
-                className="block font-landing-display text-text-secondary"
-                initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{
-                  duration: isComfort ? 0 : DURATIONS.body,
-                  delay: isComfort ? 0 : DELAYS.titleStart + 0.12,
-                  ease: EASING.contentReveal,
-                }}
-              >
-                Understand markets.
-              </motion.span>
-              <motion.span
                 className="block font-landing-display"
                 initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 8 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{
                   duration: isComfort ? 0 : DURATIONS.title,
-                  delay: isComfort ? 0 : DELAYS.titleStart + 0.24,
+                  delay: isComfort ? 0 : DELAYS.titleStart + 0.12,
                   ease: EASING.textReveal,
                 }}
               >

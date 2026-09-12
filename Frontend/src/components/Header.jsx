@@ -1,46 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { Menu, X, ArrowRight } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import Logo3D from './Logo3D'
 import { Button } from './ui/Button'
 
+// Floating chrome (cryptowl reference: fixed, zero bar background/border,
+// pointer-events passthrough — blur lives only behind the pills).
 export default function Header() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-
-  // Transparent over hero -> solid surface on scroll (cryptowl header behavior)
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   return (
-    <header
-      className={`sticky top-0 z-40 transition-all duration-300 ${
-        scrolled
-          ? 'border-b border-[rgba(150,205,222,0.12)] bg-[#07090d]/85 backdrop-blur-md'
-          : 'border-b border-transparent bg-transparent'
-      }`}
-    >      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-40">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 pt-5">
         {/* Brand */}
-        <div className="flex items-center gap-8">
-          <NavLink to="/" className="flex items-center group">
+        <div className="pointer-events-auto flex items-center gap-8">
+          <NavLink to="/" className="flex items-center group" aria-label="MarketForge home">
             <Logo3D size="sm" showText={true} textClassName="text-base" />
           </NavLink>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
             <NavLink
               to="/about"
               className={({ isActive }) =>
-                `px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                `px-3 py-2 rounded-full text-[13px] font-semibold transition backdrop-blur-md ${
                   isActive
-                    ? 'bg-[rgba(255,255,255,0.08)] text-[#f8fdff]'
-                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-[rgba(255,255,255,0.04)]'
+                    ? 'bg-white/[0.07] text-[#f8fdff] shadow-[0_2px_12px_rgba(0,0,0,0.35)]'
+                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-white/[0.04]'
                 }`
               }
             >
@@ -49,10 +37,10 @@ export default function Header() {
             <NavLink
               to="/features"
               className={({ isActive }) =>
-                `px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                `px-3 py-2 rounded-full text-[13px] font-semibold transition backdrop-blur-md ${
                   isActive
-                    ? 'bg-[rgba(255,255,255,0.08)] text-[#f8fdff]'
-                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-[rgba(255,255,255,0.04)]'
+                    ? 'bg-white/[0.07] text-[#f8fdff] shadow-[0_2px_12px_rgba(0,0,0,0.35)]'
+                    : 'text-[#b7c6cf] hover:text-[#f8fdff] hover:bg-white/[0.04]'
                 }`
               }
             >
@@ -62,11 +50,11 @@ export default function Header() {
         </div>
 
         {/* Right CTA Actions */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="pointer-events-auto hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <Button
               onClick={() => navigate('/dashboard')}
-              className="rounded-xl px-4 py-2"
+              className="rounded-full px-4 py-2"
             >
               <span>Open Terminal</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -75,13 +63,13 @@ export default function Header() {
             <>
               <NavLink
                 to="/login"
-                className="px-3.5 py-1.5 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0c121b] hover:bg-[#151820] text-xs font-semibold text-[#f8fdff] transition"
+                className="px-4 py-2 rounded-full border border-[rgba(150,205,222,0.25)] bg-[rgba(12,18,27,0.55)] backdrop-blur-md hover:border-[rgba(124,230,255,0.5)] text-[13px] font-semibold text-[#f8fdff] transition"
               >
                 Log In
               </NavLink>
               <NavLink
                 to="/register"
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#1c83d8] hover:bg-[#2eafff] text-xs font-semibold text-white shadow-sm transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1c83d8] hover:bg-[#2eafff] hover:shadow-[0_2px_20px_rgba(46,175,255,0.45)] text-[13px] font-semibold text-white shadow-[0_2px_16px_rgba(0,0,0,0.4)] transition"
               >
                 <span>Get $100k Practice</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -93,15 +81,17 @@ export default function Header() {
         {/* Mobile menu trigger */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-[#b7c6cf] hover:text-[#f8fdff]"
+          aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={mobileMenuOpen}
+          className="pointer-events-auto md:hidden p-2 rounded-full border border-[rgba(150,205,222,0.25)] bg-[rgba(12,18,27,0.55)] backdrop-blur-md text-[#b7c6cf] hover:text-[#f8fdff]"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
 
-      {/* Mobile menu modal */}
+      {/* Mobile menu floating panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[rgba(150,205,222,0.12)] bg-[#07090d] p-4 space-y-3">
+        <div className="pointer-events-auto md:hidden mx-4 mt-2 rounded-2xl border border-[rgba(150,205,222,0.16)] bg-[rgba(7,9,13,0.92)] backdrop-blur-xl p-4 space-y-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
           <div className="flex flex-col gap-1 text-sm font-medium">
             <NavLink
               to="/about"
@@ -119,14 +109,14 @@ export default function Header() {
             </NavLink>
           </div>
 
-          <div className="pt-3 border-t border-[rgba(255,255,255,0.08)] flex flex-col gap-2">
+          <div className="pt-3 border-t border-[rgba(150,205,222,0.12)] flex flex-col gap-2">
             {isAuthenticated ? (
               <Button
                 onClick={() => {
                   setMobileMenuOpen(false)
                   navigate('/dashboard')
                 }}
-                className="w-full py-2.5 rounded-xl text-xs font-bold"
+                className="w-full py-2.5 rounded-full text-xs font-bold"
               >
                 Open Terminal
               </Button>
@@ -135,7 +125,7 @@ export default function Header() {
                 <NavLink
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-xl border border-[rgba(255,255,255,0.12)] text-center text-xs font-semibold text-[#f8fdff]"
+                  className="w-full py-2 rounded-full border border-[rgba(150,205,222,0.25)] text-center text-xs font-semibold text-[#f8fdff]"
                 >
                   Log In
                 </NavLink>
