@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { useTrade } from '../../store/tradeStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
-import { BorderBeam } from '../magicui/BorderBeam'
 import { Button } from '../ui/Button'
 
 const NAV_ITEMS = [
@@ -101,7 +100,6 @@ export default function CommandPalette({ isOpen, onClose, onOpenTrade }) {
         className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#111318]/95 shadow-2xl overflow-hidden text-[#F5F7FA] relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#10B981" />
         {/* Search Bar Input */}
         <div className="relative flex items-center border-b border-[rgba(255,255,255,0.08)] px-4 py-3.5">
           <Search className="w-5 h-5 text-[#9CA3AF] mr-3 shrink-0" />

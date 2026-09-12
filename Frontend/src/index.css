@@ -463,16 +463,6 @@ textarea {
   animation: fadeIn 0.25s ease-out forwards;
 }
 
-@keyframes border-beam {
-  100% {
-    offset-distance: 100%;
-  }
-}
-
-.animate-border-beam {
-  animation: border-beam var(--duration) infinite linear;
-}
-
 @keyframes gradient-text {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }

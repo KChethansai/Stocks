@@ -16,7 +16,6 @@ import {
 } from '../../lib/motion'
 import { gsap, canScrub, refreshLandingTriggers } from '../../lib/landingGsap'
 import MarketCanvas from '../3d/MarketCanvas'
-import { BorderBeam } from '../magicui/BorderBeam'
 import { AnimatedGradientText } from '../magicui/AnimatedGradientText'
 import { FlickeringGrid } from '../magicui/FlickeringGrid'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
@@ -268,7 +267,6 @@ export default function HeroScene() {
               tiltIntensity={6}
               className="absolute inset-0 rounded-2xl border border-[var(--border)] shadow-2xl p-0 overflow-hidden flex flex-col bg-[var(--surface)]/95"
             >
-              <BorderBeam size={200} duration={8} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
               {/* Top bar */}
               <div className="h-11 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">

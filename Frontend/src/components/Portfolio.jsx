@@ -23,7 +23,6 @@ import {
 } from '../utils/marketAnalytics'
 import { useShell } from './layout/ShellContext'
 import { NumberTicker } from './magicui/NumberTicker'
-import { BorderBeam } from './magicui/BorderBeam'
 import { ParticleButton } from './kokonutui/ParticleButton'
 import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
@@ -279,7 +278,6 @@ function PortfolioContent() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Performance Chart */}
         <Reveal delay={0.05} className="lg:col-span-8 bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
-          <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <h2 className="mf-h2">
@@ -570,7 +568,6 @@ function PortfolioContent() {
       {sellModalHolding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-sm bg-[#151820]/95 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 relative overflow-hidden">
-            <BorderBeam size={180} duration={7} colorFrom="#EF4444" colorTo="#3B82F6" />
             <div className="flex items-center justify-between border-b border-white/8 pb-3">
               <h3 className="text-sm font-bold text-[#F5F7FA]">
                 Liquidate {sellModalHolding.symbol}

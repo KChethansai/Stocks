@@ -11,7 +11,6 @@ import {
   staggerContainer,
 } from '../../lib/motion'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
-import { BorderBeam } from '../magicui/BorderBeam'
 import { ShinyText } from '../reactbits/ShinyText'
 import { Play, RotateCcw } from 'lucide-react'
 import { useMemo } from 'react'
@@ -109,7 +108,6 @@ export default function ReplayScene() {
               tiltIntensity={3}
               className="rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden bg-[var(--surface)]/95"
             >
-              <BorderBeam size={120} duration={12} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
               {/* Title bar */}
               <div className="h-10 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">

@@ -12,7 +12,6 @@ import {
 } from '../../lib/motion'
 import { gsap, canPin, refreshLandingTriggers } from '../../lib/landingGsap'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
-import { BorderBeam } from '../magicui/BorderBeam'
 import { ShinyText } from '../reactbits/ShinyText'
 import { PriceAreaChart, ChartValueLine, useOhlcSeries } from '../charts/market-charts'
 
@@ -122,7 +121,6 @@ export default function ControlScene() {
                 tiltIntensity={4}
                 className="rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden bg-[var(--surface)]/95"
               >
-                <BorderBeam size={160} duration={10} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
                 {/* Title bar */}
                 <div className="h-10 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">

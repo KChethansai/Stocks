@@ -9,7 +9,6 @@ import {
 } from '../utils/marketAnalytics'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ParticleButton } from './kokonutui/ParticleButton'
-import { BorderBeam } from './magicui/BorderBeam'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
 import { ShinyText } from './reactbits/ShinyText'
@@ -154,7 +153,6 @@ export default function Analytics() {
         <Reveal delay={0.05} className="xl:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
           <div className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
-            <BorderBeam size={220} duration={8} colorFrom="#3B82F6" colorTo="#22C55E" />
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
               <div>
                 <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-1">

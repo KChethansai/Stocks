@@ -23,7 +23,6 @@ import {
   formatCurrency
 } from '../utils/marketAnalytics'
 import { ParticleButton } from './kokonutui/ParticleButton'
-import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
 import { BuyButton } from './ui/BuyButton'
 import { Button, Chip } from './ui/Button'
@@ -472,7 +471,6 @@ export default function Market() {
 
               {/* Chart Controls & Canvas */}
               <div className="flex-1 relative p-5 sm:p-6 flex flex-col min-h-[320px]">
-                <BorderBeam size={200} duration={10} colorFrom="#3B82F6" colorTo="#22C55E" />
                 <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
                   {/* Candlestick vs Line Toggle */}
                   <SegmentedControl
@@ -708,7 +706,6 @@ export default function Market() {
       {pendingOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md bg-[#151820]/95 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-5 relative overflow-hidden">
-            <BorderBeam size={200} duration={8} colorFrom={pendingOrder.side === 'BUY' ? '#22C55E' : '#EF4444'} colorTo="#3B82F6" />
             <div className="flex items-center justify-between border-b border-white/8 pb-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-[#3B82F6]" />

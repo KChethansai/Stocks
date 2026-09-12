@@ -16,7 +16,6 @@ import {
   summarizePortfolio
 } from '../utils/marketAnalytics'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { BorderBeam } from './magicui/BorderBeam'
 import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
 import { SegmentedControl } from './ui/SegmentedControl'
@@ -184,7 +183,6 @@ export default function Dashboard() {
         <div className="lg:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
           <Reveal delay={0.05} className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
-            <BorderBeam size={240} duration={9} colorFrom="#3B82F6" colorTo="#22C55E" />
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">

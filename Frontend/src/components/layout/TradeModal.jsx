@@ -5,7 +5,6 @@ import { X, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useTrade } from '../../store/tradeStore'
 import { useAuth } from '../../store/authStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
-import { BorderBeam } from '../magicui/BorderBeam'
 import { ParticleButton } from '../kokonutui/ParticleButton'
 import { BuyButton } from '../ui/BuyButton'
 import { Button, Chip } from '../ui/Button'
@@ -105,7 +104,6 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
         className="w-full max-w-md rounded-2xl border border-white/15 bg-[#151820]/95 shadow-2xl p-6 text-[#F5F7FA] relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <BorderBeam size={200} duration={8} colorFrom={isBuy ? '#22C55E' : '#EF4444'} colorTo="#3B82F6" />
 
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-white/8">

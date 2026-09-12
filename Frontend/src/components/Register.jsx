@@ -14,7 +14,6 @@ import { useAuth } from '../store/authStore'
 import GoogleAuthButton from './GoogleAuthButton'
 import { ParticleButton } from './kokonutui/ParticleButton'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { BorderBeam } from './magicui/BorderBeam'
 import { ShinyText } from './reactbits/ShinyText'
 import { Aurora } from './reactbits/Aurora'
 import Logo3D from './Logo3D'
@@ -171,7 +170,6 @@ export default function Register() {
           tiltIntensity={7}
           className="relative z-10 w-full max-w-2xl aspect-[16/10] bg-[#0c121b]/90 rounded-2xl border border-white/10 shadow-2xl p-0 overflow-hidden flex flex-col group"
         >
-          <BorderBeam size={200} duration={8} colorFrom="#2eafff" colorTo="#7ed6a3" />
 
           {/* Top Bar Mock */}
           <div className="h-10 bg-[#0c121b]/90 border-b border-white/8 flex items-center px-4 gap-2">
@@ -196,13 +194,15 @@ export default function Register() {
             </div>
 
             {/* Abstract Visual Bars */}
-            <div className="flex-1 bg-[#0e0e10]/90 rounded-xl border border-white/5 p-4 flex items-end gap-3 relative overflow-hidden">
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[40%] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[70%] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[55%] border-t-2 border-[#7ce6ff] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[80%] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[60%] border-t-2 border-[#7ce6ff] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[90%] border-t-2 border-[#7ed6a3] rounded-t"></div>
+            <div className="flex-1 min-h-[160px] bg-[#0e0e10]/90 rounded-xl border border-white/5 p-4 flex items-end gap-3 relative overflow-hidden">
+              {/* Decorative mock bars use fixed px heights: % heights never resolve
+                  inside this flex-grown (height:auto) container and collapse to 2px */}
+              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[51px] border-t-2 border-[#7ed6a3] rounded-t"></div>
+              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[90px] border-t-2 border-[#7ed6a3] rounded-t"></div>
+              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[70px] border-t-2 border-[#7ce6ff] rounded-t"></div>
+              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[102px] border-t-2 border-[#7ed6a3] rounded-t"></div>
+              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[77px] border-t-2 border-[#7ce6ff] rounded-t"></div>
+              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[115px] border-t-2 border-[#7ed6a3] rounded-t"></div>
             </div>
 
             {/* Bottom Row Chips */}
