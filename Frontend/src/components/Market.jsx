@@ -30,6 +30,7 @@ import { SegmentedControl } from './ui/SegmentedControl'
 import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 import { PredictionPanel, PredictionBadge } from './ml/PredictionWidgets'
+import NewsPanel from './NewsPanel'
 import {
   fetchAccuracy,
   fetchPrediction,
@@ -512,6 +513,9 @@ export default function Market() {
                   )}
                 </div>
               </div>
+
+              {/* Latest headlines for the selected symbol */}
+              <NewsPanel symbol={selectedStock.symbol} />
 
               {/* Key Metrics Bento Grid */}
               <div className="p-5 sm:p-6 border-t border-[rgba(255,255,255,0.08)] grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#09090B]">

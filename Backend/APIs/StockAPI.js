@@ -277,8 +277,64 @@ stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
 })
 
 // -----------------------------
-// Historical OHLC Data
+// Per-stock news (via Yahoo search)
 // -----------------------------
+// search() is the only yahoo-finance2 module carrying news (no standalone
+// news module in v3.14.1). News tolerates staleness, so a 30-min in-memory
+// cache per symbol keeps us far under Yahoo rate limits. Fail-soft: Yahoo
+// errors return 200 with an empty (or stale-cached) list, never a 502 —
+// a missing panel must not break the detail view.
+const NEWS_CACHE_TTL_MS = 30 * 60 * 1000
+const NEWS_COUNT = 8
+const newsCache = new Map()
+
+stockApp.get('/news/:symbol', async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+
+    const symbol = req.params.symbol?.toUpperCase()?.trim()
+    if (!symbol || !/^[A-Z.]{1,10}$/.test(symbol)) {
+      return res.status(400).json({ message: 'Invalid stock symbol' })
+    }
+
+    const hit = newsCache.get(symbol)
+    if (hit && Date.now() - hit.at < NEWS_CACHE_TTL_MS) {
+      return res.status(200).json({ message: 'News fetched (cache)', symbol, news: hit.items })
+    }
+
+    let items = []
+    try {
+      const results = await yahooFinance.search(symbol, { quotesCount: 0, newsCount: NEWS_COUNT })
+      items = (results?.news || [])
+        .map((a) => {
+          // providerPublishTime arrives in ms on some articles, s on others.
+          const ts = Number(a?.providerPublishTime) || 0
+          return {
+            title: a?.title || '',
+            publisher: a?.publisher || 'Yahoo Finance',
+            link: a?.link || a?.url || '',
+            publishedAt: ts ? new Date(ts > 1e12 ? ts : ts * 1000).toISOString() : null
+          }
+        })
+        .filter((a) => a.title)
+        .slice(0, NEWS_COUNT)
+    } catch (err) {
+      console.error(`[News] Yahoo Finance search failed for ${symbol}:`, err.message)
+      // Stale cache beats an empty panel; empty beats an error.
+      return res.status(200).json({
+        message: 'News temporarily unavailable',
+        symbol,
+        stale: true,
+        news: hit?.items || []
+      })
+    }
+
+    newsCache.set(symbol, { at: Date.now(), items })
+    return res.status(200).json({ message: 'News fetched (live)', symbol, news: items })
+  } catch (err) {
+    next(err)
+  }
+})
 // Daily candles don't change intraday: 24h cache. Intraday (60m) candles are
 // fresher: 15m cache. Both are answered from the same route via ?interval=.
 const HISTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
