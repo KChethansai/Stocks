@@ -10,6 +10,7 @@ import { stockApp } from './APIs/StockAPI.js'
 import { tradeApp } from './APIs/TradeAPI.js'
 import { marketApp } from './APIs/MarketAPI.js'
 import { mlApp } from './APIs/MlAPI.js'
+import { priceAlertApp } from './APIs/PriceAlertAPI.js'
 import { googleAuth } from './controllers/googleAuthController.js'
 import { startAutomationScheduler } from './ml/automationJob.js'
 import { startAccuracyResolver } from './ml/accuracyResolver.js'
@@ -51,6 +52,7 @@ app.use('/stock-api', stockApp)
 app.use('/trade-api', tradeApp)
 app.use('/market-api', marketApp)
 app.use('/ml-api', mlApp)
+app.use('/alert-api', priceAlertApp)
 
 // 404 handler
 app.use((req, res) => {

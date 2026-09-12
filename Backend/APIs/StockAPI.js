@@ -3,6 +3,7 @@ import YahooFinance from 'yahoo-finance2'
 import { verifyToken } from '../middlewares/verifyToken.js'
 import { stockModel } from '../models/StockModel.js'
 import { historyModel, intradayHistoryModel } from '../models/HistoryModel.js'
+import { checkPriceTriggers } from '../services/priceMonitor.js'
 import { cached, invalidateCache } from '../config/cache.js'
 
 export const stockApp = exp.Router()
@@ -160,6 +161,13 @@ const syncStocksData = async (force = false) => {
       invalidateCache('market-summary')
 
       console.log(`[Background Sync] Successfully updated ${stocks.length} stocks. Source: ${isFallback ? 'Simulation' : 'Yahoo Finance'}`)
+
+      // Fresh prices are in — evaluate price-alert thresholds on the same
+      // tick (no competing poller). Fire-and-forget: a monitor failure must
+      // never fail the stock sync.
+      checkPriceTriggers().catch((err) =>
+        console.error('[PriceMonitor] Tick failed:', err.message)
+      )
 
       return stocks
     }

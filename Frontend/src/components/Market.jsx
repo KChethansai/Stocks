@@ -31,6 +31,7 @@ import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 import { PredictionPanel, PredictionBadge } from './ml/PredictionWidgets'
 import NewsPanel from './NewsPanel'
+import PriceAlertsPanel from './PriceAlertsPanel'
 import {
   fetchAccuracy,
   fetchPrediction,
@@ -703,6 +704,10 @@ export default function Market() {
             )}
           </form>
           </div>
+
+          {selectedStock && (
+            <PriceAlertsPanel symbol={selectedStock.symbol} currentPrice={selectedStock.price} />
+          )}
         </Reveal>
       </div>
 
