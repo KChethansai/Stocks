@@ -4,6 +4,7 @@ import {
   Search,
   LayoutDashboard,
   TrendingUp,
+  Newspaper,
   Bookmark,
   Briefcase,
   BarChart3,
@@ -21,6 +22,7 @@ import { Button } from '../ui/Button'
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, category: 'Navigation' },
   { label: 'Markets & Trading', path: '/markets', icon: TrendingUp, category: 'Navigation' },
+  { label: 'News', path: '/news', icon: Newspaper, category: 'Navigation' },
   { label: 'Watchlist', path: '/watchlist', icon: Bookmark, category: 'Navigation' },
   { label: 'Portfolio', path: '/portfolio', icon: Briefcase, category: 'Navigation' },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, category: 'Navigation' },

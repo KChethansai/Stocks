@@ -19,6 +19,7 @@ const Login = lazy(() => import('./components/Login'))
 const Register = lazy(() => import('./components/Register'))
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const Market = lazy(() => import('./components/Market'))
+const News = lazy(() => import('./components/News'))
 const Watchlist = lazy(() => import('./components/Watchlist'))
 const Portfolio = lazy(() => import('./components/Portfolio'))
 const Transactions = lazy(() => import('./components/Transactions'))
@@ -44,6 +45,7 @@ const routerObj = createBrowserRouter([
       { path: 'features', element: <Features /> },
       { path: 'dashboard', element: protect(<Dashboard />) },
       { path: 'markets', element: protect(<Market />) },
+      { path: 'news', element: protect(<News />) },
       { path: 'watchlist', element: protect(<Watchlist />) },
       { path: 'portfolio', element: protect(<Portfolio />) },
       { path: 'activity', element: protect(<Transactions />) },

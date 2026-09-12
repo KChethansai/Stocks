@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router'
 import {
   LayoutDashboard,
   TrendingUp,
+  Newspaper,
   Bookmark,
   Briefcase,
   BarChart3,
@@ -23,6 +24,7 @@ export function MobileDrawer({ isOpen, onClose }) {
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Markets', path: '/markets', icon: TrendingUp },
+    { label: 'News', path: '/news', icon: Newspaper },
     { label: 'Watchlist', path: '/watchlist', icon: Bookmark },
     { label: 'Portfolio', path: '/portfolio', icon: Briefcase },
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },

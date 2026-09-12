@@ -121,7 +121,7 @@ export function PredictionPanel({
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between"><span className="mf-meta">Forecast horizon</span><Select value={String(horizon)} onChange={(v) => onHorizonChange?.(Number(v))} ariaLabel="Forecast horizon" className="min-w-[7.5rem]" options={[{ value: '1', label: '1 day' }, { value: '5', label: '5 days' }, { value: '10', label: '10 days' }]} /></div>
+      <div className="flex items-center justify-between"><span className="mf-meta">Forecast horizon</span><Select value={String(horizon)} onChange={(v) => onHorizonChange?.(Number(v))} ariaLabel="Forecast horizon" className="min-w-[7.5rem]" options={[{ value: '1', label: '1 day' }, { value: '5', label: '5 days' }]} /></div>
       <div className="flex items-center justify-between border-b border-white/8 pb-3"><AccuracyBadge accuracy={accuracy} /><span title="Combines SMA crossover, OLS trend slope, momentum and RSI dampening." className="cursor-help mf-label font-mono text-[#8B97A8]">ⓘ Technical model</span></div>
 
       {loading && (
@@ -153,22 +153,29 @@ export function PredictionPanel({
               </p>
             </div>
           </div>
-          <div className="space-y-1"><div className="flex justify-between mf-meta font-mono text-[#8B97A8]"><span>Confidence</span><span className="text-[#60A5FA]">{Math.round(prediction.confidence * 100)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#3B82F6] transition-all" style={{ width: `${Math.round(prediction.confidence * 100)}%` }} /></div></div>
-
           <p className="rounded-xl border border-white/8 bg-[#162235]/70 px-3 py-2.5 text-xs text-[#8B97A8] leading-relaxed">
             {prediction.explainability?.summary}
           </p>
 
-          <ul className="space-y-1.5">
-            {(prediction.explainability?.factors || []).slice(0, 3).map((factor) => (
-              <li key={factor} className="inline-flex mr-1.5 mb-1 rounded-full border border-white/10 bg-[#162235] px-2 py-1 mf-badge text-[#8B97A8] font-mono">
-                <span className="text-[#3B82F6] mr-1">•</span><span>{factor}</span>
-              </li>
-            ))}
-          </ul>
+          {(prediction.explainability?.factors || []).length > 0 && (
+            <details className="group rounded-xl border border-white/8 bg-[#162235]/50 px-3 py-2">
+              <summary className="cursor-pointer list-none flex items-center justify-between text-xs text-[#8B97A8] hover:text-[#E8EEF7] transition">
+                <span>Why this forecast</span>
+                <span className="font-mono text-[#3B82F6] group-open:hidden">+</span>
+                <span className="font-mono text-[#3B82F6] hidden group-open:inline">−</span>
+              </summary>
+              <ul className="mt-2 space-y-1.5 pb-1">
+                {(prediction.explainability?.factors || []).slice(0, 3).map((factor) => (
+                  <li key={factor} className="inline-flex mr-1.5 mb-1 rounded-full border border-white/10 bg-[#162235] px-2 py-1 mf-badge text-[#8B97A8] font-mono">
+                    <span className="text-[#3B82F6] mr-1">•</span><span>{factor}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           {/* Automation controls */}
-          <div className="pt-3 border-t border-white/8 space-y-3">
+          <div className="pt-3 border-t border-white/8 space-y-2">
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-[#3B82F6]" />
               <p className="text-xs font-semibold text-[#E8EEF7]">Paper automation</p>
@@ -222,7 +229,7 @@ export function PredictionPanel({
               variant="primary"
               disabled={saving}
               onClick={handleSave}
-              className="w-full py-2.5"
+              className="w-full py-2 text-xs"
             >
               {saving ? 'Saving…' : automationRule ? 'Update rule' : 'Enable automation'}
             </Button>
