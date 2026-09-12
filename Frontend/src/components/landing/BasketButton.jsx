@@ -33,7 +33,7 @@ export function BasketButton({
       disabled={disabled}
       whileTap={disabled ? {} : { scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      className={`group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full bg-gradient-to-b from-[#2eafff] to-[#1c83d8] px-7 py-3.5 font-mono text-[0.9375rem] font-bold text-white shadow-[0_2px_18px_rgba(46,175,255,0.4)] transition-shadow duration-200 hover:shadow-[0_4px_28px_rgba(124,230,255,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(124,230,255,0.42)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090d] disabled:pointer-events-none disabled:opacity-40 ${className}`}
+      className={`group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full border border-[rgba(150,205,222,0.3)] bg-[rgba(12,18,27,0.6)] px-7 py-3 font-mono text-[0.9375rem] font-bold text-white shadow-[0_2px_18px_rgba(0,0,0,0.4)] backdrop-blur-md transition-all duration-200 hover:border-[rgba(124,230,255,0.6)] hover:shadow-[0_2px_24px_rgba(124,230,255,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(124,230,255,0.42)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090d] disabled:pointer-events-none disabled:opacity-40 ${className}`}
       {...props}
     >
       {/* Sheen sweep on hover */}
@@ -44,7 +44,7 @@ export function BasketButton({
       <span className="relative z-10 flex items-center gap-2">
         <span
           className={`flex h-4 w-4 items-center justify-center rounded-full transition-all duration-200 ${
-            added ? 'bg-white text-[#1c83d8]' : 'bg-white/20 text-white'
+            added ? 'bg-[#7ce6ff] text-[#03060b]' : 'bg-white/15 text-white'
           }`}
           aria-hidden="true"
         >

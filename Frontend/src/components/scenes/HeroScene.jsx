@@ -19,7 +19,6 @@ import { BorderBeam } from '../magicui/BorderBeam'
 import { AnimatedGradientText } from '../magicui/AnimatedGradientText'
 import { FlickeringGrid } from '../magicui/FlickeringGrid'
 import { SpotlightCard } from '../kokonutui/SpotlightCard'
-import { LiquidGlassButton } from '../kokonutui/LiquidGlassButton'
 import { ShinyText } from '../reactbits/ShinyText'
 import { Aurora } from '../reactbits/Aurora'
 import { BasketButton } from '../landing/BasketButton'
@@ -114,10 +113,9 @@ export default function HeroScene() {
         <div className="mf-scene-frame grid lg:grid-cols-2 gap-12 lg:gap-16 items-center w-full">
           {/* ── Left: Copy ── */}
           <div className="flex flex-col gap-6 max-w-2xl">
-            {/* Eyebrow */}
+            {/* Eyebrow (reference: bare mono caps, no pill) */}
             <motion.div
-              className="mf-eyebrow inline-flex items-center gap-2 px-3.5 py-1 rounded-full w-fit
-                         bg-[var(--surface)]/90 border border-[var(--border)] shadow-md backdrop-blur-md"
+              className="mf-eyebrow w-fit"
               initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
@@ -127,14 +125,13 @@ export default function HeroScene() {
                 ease: EASING.contentReveal,
               }}
             >
-              <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
-              <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
+              <ShinyText className="text-xs font-mono uppercase font-bold">
                 Paper trading · Real market data
               </ShinyText>
             </motion.div>
 
-            {/* Title */}
-            <h1 className="font-landing-display tracking-tight text-text-primary leading-[1.1]"
+            {/* Title (reference: light lead line + strong emphasis) */}
+            <h1 className="font-landing-display-light tracking-tight text-text-primary leading-[1.1]"
                 style={{ fontSize: 'var(--mf-font-display-xl)' }}>
               <TextReveal
                 text="Practice trading."
@@ -146,7 +143,7 @@ export default function HeroScene() {
                 as="span"
               />
               <motion.span
-                className="block text-text-secondary"
+                className="block font-landing-display text-text-secondary"
                 initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 8 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
@@ -159,7 +156,7 @@ export default function HeroScene() {
                 Understand markets.
               </motion.span>
               <motion.span
-                className="block"
+                className="block font-landing-display"
                 initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 8 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
@@ -211,10 +208,8 @@ export default function HeroScene() {
                   <ArrowRight className="w-4 h-4" />
                 </BasketButton>
               </Link>
-              <Link to={isAuthenticated ? '/markets' : '/login'}>
-                <LiquidGlassButton variant="primary" className="px-6 py-3 text-xs font-bold font-mono">
-                  Explore Markets
-                </LiquidGlassButton>
+              <Link to={isAuthenticated ? '/markets' : '/login'} className="px-1 py-3 text-[0.9375rem] font-bold text-text-primary underline decoration-[rgba(150,205,222,0.4)] underline-offset-8 transition hover:text-[#7ce6ff] hover:decoration-[#7ce6ff]">
+                Explore Markets
               </Link>
             </motion.div>
 

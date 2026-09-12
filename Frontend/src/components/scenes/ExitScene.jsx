@@ -11,7 +11,6 @@ import {
   staggerContainer,
 } from '../../lib/motion'
 import { useAuth } from '../../store/authStore'
-import { LiquidGlassButton } from '../kokonutui/LiquidGlassButton'
 import { BasketButton } from '../landing/BasketButton'
 import { Aurora } from '../reactbits/Aurora'
 import Logo3D from '../Logo3D'
@@ -46,9 +45,9 @@ export default function ExitScene() {
               <Logo3D size="lg" />
             </motion.div>
 
-            {/* Heading */}
+            {/* Heading (reference: light display) */}
             <motion.h2
-              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-6"
+              className="font-landing-display-light tracking-tight text-text-primary leading-[1.1] mb-6"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >
@@ -84,10 +83,8 @@ export default function ExitScene() {
                   <ArrowRight className="w-4 h-4" />
                 </BasketButton>
               </Link>
-              <Link to={isAuthenticated ? '/markets' : '/login'}>
-                <LiquidGlassButton variant="primary" className="px-6 py-3 text-xs font-bold font-mono">
-                  {isAuthenticated ? 'Explore Markets' : 'Log In'}
-                </LiquidGlassButton>
+              <Link to={isAuthenticated ? '/markets' : '/login'} className="px-1 py-3 text-[0.9375rem] font-bold text-text-primary underline decoration-[rgba(150,205,222,0.4)] underline-offset-8 transition hover:text-[#7ce6ff] hover:decoration-[#7ce6ff]">
+                {isAuthenticated ? 'Explore Markets' : 'Log In'}
               </Link>
             </motion.div>
 

@@ -48,18 +48,16 @@ export default function ProofScene() {
             viewport={{ once: true, amount: 0.2 }}
           >
             <motion.div
-              className="mf-eyebrow inline-flex items-center gap-2 px-3.5 py-1 rounded-full w-fit mx-auto
-                         bg-[var(--surface)]/90 border border-[var(--border)] backdrop-blur-md mb-6"
+              className="mf-eyebrow w-fit mx-auto mb-6"
               variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
             >
-              <span className="w-2 h-2 rounded-full bg-[#7ce6ff] animate-pulse" />
-              <ShinyText className="text-[10px] font-mono uppercase tracking-wider font-semibold">
+              <ShinyText className="text-xs font-mono uppercase font-bold">
                 Proof
               </ShinyText>
             </motion.div>
 
             <motion.h2
-              className="font-landing-display tracking-tight text-text-primary leading-[1.1] mb-4"
+              className="font-landing-display-light tracking-tight text-text-primary leading-[1.1] mb-4"
               style={{ fontSize: 'var(--mf-font-display-lg)' }}
               variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
             >

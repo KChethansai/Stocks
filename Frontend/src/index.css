@@ -157,13 +157,29 @@
   --ring: var(--accent);
 }
 
-/* Landing display type: Inter Tight 900 (Gilroy fallback — Gilroy is
-   commercial and unavailable; geometry-checked closest free match) */
+/* Landing display type: Inter Tight (Gilroy fallback — Gilroy is
+   commercial and unavailable; geometry-checked closest free match).
+   Reference pairs Light 300 headlines with Strong 900 emphasis
+   (--font-weight-display-light Lad300 / --font-weight-display-strong: 900). */
 [data-landing] .font-landing-display {
   font-family: 'Inter Tight', 'Gilroy', Inter, 'Helvetica Neue', Arial, sans-serif;
   font-weight: 900;
   letter-spacing: -0.045em;
   line-height: 0.94;
+}
+
+[data-landing] .font-landing-display-light {
+  font-family: 'Inter Tight', 'Gilroy', Inter, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+}
+
+/* Reference eyebrows are bare mono caps (no pill, no dot):
+   --eyebrow-size caption, --tracking-eyebrow 0, accent-muted tone */
+[data-landing] .mf-eyebrow {
+  color: #96cdde;
+  letter-spacing: 0;
 }
 
 [data-landing]::selection,
