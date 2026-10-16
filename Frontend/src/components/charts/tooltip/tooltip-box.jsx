@@ -7,12 +7,11 @@ import { useChartConfig } from "../chart-config-context";
 import { chartCssVars } from "../chart-context";
 import * as React from "react";
 function TooltipBox(props) {
-  const [mounted, setMounted] = useState(false);
+  const [container, setContainer] = useState(null);
   useEffect(() => {
-    setMounted(true);
-  }, []);
-  const container = props.containerRef.current;
-  if (!(mounted && container)) {
+    setContainer(props.containerRef?.current ?? null);
+  }, [props.containerRef]);
+  if (!container) {
     return null;
   }
   if (!props.visible) {
@@ -44,8 +43,9 @@ function TooltipBoxInner({
   const tooltipWidthRef = useRef(180);
   const tooltipHeightRef = useRef(80);
   const [staticPosition, setStaticPosition] = useState({ left: x, top: y });
-  const tw = tooltipWidthRef.current;
-  const th = tooltipHeightRef.current;
+  const [measured, setMeasured] = useState({ w: 180, h: 80 });
+  const tw = measured.w;
+  const th = measured.h;
   const shouldFlipX = x + tw + offset > containerWidth;
   const targetX = shouldFlipX ? x - offset - tw : x + offset;
   const targetY = Math.max(
@@ -54,12 +54,14 @@ function TooltipBoxInner({
   );
   const animatedLeft = useSpring(targetX, effectiveSpring);
   const animatedTop = useSpring(targetY, effectiveSpring);
-  if (animate && leftOverride === void 0) {
-    animatedLeft.set(targetX);
-  }
-  if (animate && topOverride === void 0) {
-    animatedTop.set(targetY);
-  }
+  useEffect(() => {
+    if (animate && leftOverride === void 0) {
+      animatedLeft.set(targetX);
+    }
+    if (animate && topOverride === void 0) {
+      animatedTop.set(targetY);
+    }
+  }, [animate, leftOverride, topOverride, targetX, targetY, animatedLeft, animatedTop]);
   useLayoutEffect(() => {
     if (!tooltipRef.current) {
       return;
@@ -73,6 +75,7 @@ function TooltipBoxInner({
     if (h > 0) {
       tooltipHeightRef.current = h;
     }
+    setMeasured({ w: tooltipWidthRef.current, h: tooltipHeightRef.current });
     const w2 = tooltipWidthRef.current;
     const h2 = tooltipHeightRef.current;
     const flip = x + w2 + offset > containerWidth;

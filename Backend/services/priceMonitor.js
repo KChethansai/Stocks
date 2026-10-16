@@ -31,11 +31,18 @@ export const checkPriceTriggers = async () => {
   const symbols = [...new Set(pending.map((a) => a.symbol))]
   let priceMap = new Map()
   try {
+    // Provenance enforcement: alerts evaluate on verified, fresh quotes only.
+    // Unverified or stale rows never fire alerts. A stale badge in the UI is
+    // not enforcement — this gate is.
     const stocks = await stockModel
       .find({ symbol: { $in: symbols } })
-      .select({ symbol: 1, price: 1 })
+      .select({ symbol: 1, price: 1, source: 1, stale: 1, lastVerifiedAt: 1, asOf: 1 })
       .lean()
-    priceMap = new Map(stocks.map((s) => [s.symbol, Number(s.price)]))
+    priceMap = new Map(
+      stocks
+        .filter((s) => s.source === 'yahoo' && s.lastVerifiedAt && !s.stale && Number(s.price) > 0)
+        .map((s) => [s.symbol, Number(s.price)])
+    )
   } catch (err) {
     console.error('[PriceMonitor] Failed to load prices:', err.message)
     return { checked: pending.length, fired: 0 }

@@ -1,64 +1,61 @@
 /**
- * MarketForge Motion System
+ * MarketForge Motion System — three tiers.
  *
- * Centralized source of truth for animation durations, stagger values,
- * easing curves, and motion variants. Based on CryptOwl interaction
- * patterns adapted for MarketForge's visual identity.
+ * 1. Response: 180ms or less, ease-out, replies to a user action.
+ * 2. Orchestrated: one entrance per page load, never per section.
+ * 3. Data: a changed value flashes gain/loss for 400ms (no count-ups).
  *
- * All timing values derived from CryptOwl reference:
- *   Eyebrow:  0.42s (power2.out)
- *   Title:    0.78s (power3.out)
- *   Body:     0.54s (power2.out)
- *   Content:  0.34s (power2.out)
- *   Word stagger: 0.048s / 0.016s
- *   Trigger: top 78%
- *
- * Easing mapped from GSAP to cubic-bezier (Motion has no power* easings):
- *   power3.out (quart.out) -> [0.165, 0.84, 0.44, 1]
- *   power2.out (cubic.out) -> [0.215, 0.61, 0.355, 1]
- *   power1.out (quad.out)   -> [0.25, 0.46, 0.45, 0.94]
+ * Export names are preserved for existing callers migrating in later phases.
+ * Comfort mode (uiStore motionMode === 'comfort' or OS reduced-motion) means
+ * opacity-only: callers must branch on useReducedMotion / useMotionMode.
  */
 
 // ── Durations (seconds) ──────────────────────────────────────────
 export const DURATIONS = {
-  eyebrow: 0.42,
-  title: 0.78,
-  body: 0.54,
-  content: 0.34,
-  card: 0.78,
+  // Response tier (≤0.18)
   hover: 0.18,
-  ui: 0.22,
+  ui: 0.18,
+  // Orchestrated tier (single page-load entrance)
+  eyebrow: 0.3,
+  title: 0.5,
+  body: 0.4,
+  content: 0.3,
+  card: 0.5,
+  // Data tier
+  flash: 0.4,
+  // Legacy canvas key retained for importers; canvas loops are off in
+  // comfort mode and gated by useReducedMotion.
   canvas: 1,
 }
 
 // ── Stagger (seconds) ────────────────────────────────────────────
+// Only for the single orchestrated page-load entrance.
 export const STAGGER = {
-  titleWords: 0.048,
+  titleWords: 0.04,
   bodyWords: 0.016,
-  featureCards: 0.08,
-  stats: 0.06,
+  featureCards: 0.06,
+  stats: 0.05,
   eyebrow: 0,
 }
 
 // ── Delay offsets (seconds) ──────────────────────────────────────
 export const DELAYS = {
-  eyebrowStart: 0.1,
-  titleStart: 0.18,
-  bodyStart: 0.42,
-  ctaStart: 0.54,
-  statsStart: 0.6,
-  cardStart: 0.3,
+  eyebrowStart: 0.05,
+  titleStart: 0.1,
+  bodyStart: 0.2,
+  ctaStart: 0.28,
+  statsStart: 0.32,
+  cardStart: 0.15,
 }
 
 // ── Easing curves ────────────────────────────────────────────────
-// Motion/Framer Motion accepts cubic-bezier arrays [x1, y1, x2, y2]
-// Exact GSAP equivalents from the CryptOwl reference (see header).
 export const EASING = {
-  textReveal: [0.165, 0.84, 0.44, 1], // power3.out
-  contentReveal: [0.215, 0.61, 0.355, 1], // power2.out
-  decelerate: [0.16, 1, 0.3, 1], // --ease-decelerate (exact)
-  standard: [0.22, 0.61, 0.36, 1], // --ease-standard (exact)
-  wall: [0.25, 0.46, 0.45, 0.94], // power1.out (structural)
+  response: [0.25, 0.46, 0.45, 0.94],
+  textReveal: [0.165, 0.84, 0.44, 1],
+  contentReveal: [0.215, 0.61, 0.355, 1],
+  decelerate: [0.16, 1, 0.3, 1],
+  standard: [0.22, 0.61, 0.36, 1],
+  wall: [0.25, 0.46, 0.45, 0.94],
   spring: { type: 'spring', stiffness: 300, damping: 30 },
 }
 
@@ -70,9 +67,6 @@ export const SCROLL = {
 
 // ── Motion variants (reusable with <motion.div variants={...}>) ──
 
-/**
- * Fade-up: opacity 0 → 1, y offset → 0
- */
 export function fadeUp(duration, delay = 0, easing = EASING.contentReveal) {
   return {
     hidden: { opacity: 0, y: 12 },
@@ -84,9 +78,6 @@ export function fadeUp(duration, delay = 0, easing = EASING.contentReveal) {
   }
 }
 
-/**
- * Scale-fade: opacity + scale for cards/panels
- */
 export function scaleFade(duration, delay = 0) {
   return {
     hidden: { opacity: 0, scale: 0.96, y: 16 },
@@ -99,9 +90,6 @@ export function scaleFade(duration, delay = 0) {
   }
 }
 
-/**
- * Word-by-word reveal: for use with mapped word spans
- */
 export function wordReveal(duration = DURATIONS.title, stagger = STAGGER.titleWords) {
   return {
     hidden: { opacity: 0, y: 8, filter: 'blur(4px)' },
@@ -118,9 +106,6 @@ export function wordReveal(duration = DURATIONS.title, stagger = STAGGER.titleWo
   }
 }
 
-/**
- * Stagger container: orchestrates child stagger
- */
 export function staggerContainer(stagger = STAGGER.featureCards, delay = 0) {
   return {
     hidden: {},
@@ -133,9 +118,6 @@ export function staggerContainer(stagger = STAGGER.featureCards, delay = 0) {
   }
 }
 
-/**
- * Simple fade: opacity only, no transform
- */
 export function fadeIn(duration = DURATIONS.content, delay = 0) {
   return {
     hidden: { opacity: 0 },
@@ -143,9 +125,6 @@ export function fadeIn(duration = DURATIONS.content, delay = 0) {
   }
 }
 
-/**
- * Slide from left/right
- */
 export function slideFrom(direction = 'left', duration = DURATIONS.body, delay = 0) {
   const x = direction === 'left' ? -24 : direction === 'right' ? 24 : 0
   const y = direction === 'up' ? 24 : direction === 'down' ? -24 : 0
@@ -155,9 +134,6 @@ export function slideFrom(direction = 'left', duration = DURATIONS.body, delay =
   }
 }
 
-/**
- * Scale in: grows from smaller
- */
 export function scaleIn(duration = DURATIONS.card, delay = 0) {
   return {
     hidden: { opacity: 0, scale: 0.92 },
@@ -165,9 +141,6 @@ export function scaleIn(duration = DURATIONS.card, delay = 0) {
   }
 }
 
-/**
- * Scene reveal: combined orchestration for entire scene entrance
- */
 export function sceneReveal() {
   return {
     hidden: {},
@@ -179,6 +152,9 @@ export function sceneReveal() {
     },
   }
 }
+
+/* DATA_FLASH_MS deleted (D3): price flashes were removed from LiveValue —
+   values swap silently with tabular-nums. */
 
 // ── Comfort mode helpers ─────────────────────────────────────────
 

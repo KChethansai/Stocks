@@ -3,7 +3,7 @@ import { useRef, useState, useCallback } from 'react'
 export function SpotlightCard({
   children,
   className = '',
-  spotlightColor = 'rgba(59, 130, 246, 0.12)',
+  spotlightColor = 'rgba(201, 169, 110, 0.12)',
   spotlightSize = 350,
   tiltIntensity = 4,
   enableTilt = true,
@@ -50,7 +50,7 @@ export function SpotlightCard({
         transition: 'transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), border-color 0.2s, box-shadow 0.2s',
         willChange: 'transform'
       }}
-      className={`relative rounded-xl border border-white/8 bg-[#111318] p-6 shadow-sm overflow-hidden group ${className}`}
+      className={`relative rounded-xl border border-white/8 bg-[#111316] p-6 shadow-sm overflow-hidden group ${className}`}
       {...props}
     >
       {/* Spotlight highlight */}

@@ -15,13 +15,13 @@ import { cn } from '@/lib/utils'
 // InteractiveHoverButton (theatrical text-swap) for fintech restraint.
 
 const tones = {
-  blue: {
-    bg: '#3B82F6',
-    fg: '#FFFFFF',
-    ring: 'focus-visible:ring-[#3B82F6]/60',
-    shadow: 'shadow-[0_2px_14px_rgba(59,130,246,0.35)] hover:shadow-[0_4px_22px_rgba(59,130,246,0.45)]',
+  brass: {
+    bg: 'var(--brass)',
+    fg: '#0B0C0E',
+    ring: 'focus-visible:ring-[rgba(201,169,110,0.5)]',
+    shadow: 'shadow-[0_2px_14px_rgba(201,169,110,0.35)] hover:shadow-[0_4px_22px_rgba(201,169,110,0.45)]',
     hover: 'hover:brightness-110',
-    particle: '#93C5FD'
+    particle: 'var(--brass)'
   },
   cyan: {
     bg: 'rgba(12, 18, 27, 0.6)',
@@ -33,20 +33,20 @@ const tones = {
     particle: '#7ce6ff'
   },
   red: {
-    bg: '#EF4444',
+    bg: 'var(--loss)',
     fg: '#FFFFFF',
-    ring: 'focus-visible:ring-[#EF4444]/60',
-    shadow: 'shadow-[0_2px_14px_rgba(239,68,68,0.35)] hover:shadow-[0_4px_22px_rgba(239,68,68,0.45)]',
+    ring: 'focus-visible:ring-[var(--loss)]/60',
+    shadow: 'shadow-[0_2px_14px_rgba(217,102,122,0.35)] hover:shadow-[0_4px_22px_rgba(217,102,122,0.45)]',
     hover: 'hover:brightness-110',
-    particle: '#FCA5A5'
+    particle: 'var(--loss)'
   },
   amber: {
-    bg: '#F59E0B',
+    bg: '#D9A441',
     fg: '#1A1005',
-    ring: 'focus-visible:ring-[#F59E0B]/60',
-    shadow: 'shadow-[0_2px_14px_rgba(245,158,11,0.35)] hover:shadow-[0_4px_22px_rgba(245,158,11,0.45)]',
+    ring: 'focus-visible:ring-[#D9A441]/60',
+    shadow: 'shadow-[0_2px_14px_rgba(217,164,65,0.35)] hover:shadow-[0_4px_22px_rgba(217,164,65,0.45)]',
     hover: 'hover:brightness-110',
-    particle: '#FCD34D'
+    particle: '#D9A441'
   }
 }
 
@@ -73,12 +73,12 @@ export function ParticleButton({
   onClick,
   disabled = false,
   type = 'button',
-  tone = 'blue',
+  tone = 'brass',
   burstDuration = 900,
   className,
   ...props
 }) {
-  const t = tones[tone] || tones.blue
+  const t = tones[tone] || tones.brass
   const [burst, setBurst] = useState(null)
   const buttonRef = useRef(null)
   const timer = useRef(null)
@@ -124,7 +124,7 @@ export function ParticleButton({
           t.hover,
           t.border,
           t.ring,
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B]',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0C0E]',
           'disabled:pointer-events-none disabled:opacity-40',
           className
         )}

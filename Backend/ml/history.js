@@ -13,7 +13,7 @@ const HISTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const HISTORY_WINDOW_DAYS = 730
 
 /** Minimum candles the feature layer needs before it will emit a feature set. */
-export const MIN_HISTORY_CANDLES = 20
+export const MIN_HISTORY_CANDLES = 30
 
 /**
  * Return cached OHLC candles for a symbol, refreshing from Yahoo when stale.

@@ -98,7 +98,14 @@ const ChartCore = memo(function ChartCore2({
     if (maxVal === Number.NEGATIVE_INFINITY) {
       maxVal = 100;
     }
-    const padding = (maxVal - minVal) * 0.05 || 1;
+    // D1 price domain: compressed ranges snap to mid ±0.5%, pad is
+    // max(8% of range, $0.02), zero never forced (candles need no baseline).
+    const mid = (minVal + maxVal) / 2;
+    if (mid > 0 && maxVal - minVal < mid * 0.005) {
+      minVal = mid * 0.995;
+      maxVal = mid * 1.005;
+    }
+    const padding = Math.max((maxVal - minVal) * 0.08, 0.02);
     return scaleLinear({
       range: [innerHeight, 0],
       domain: [minVal - padding, maxVal + padding],
@@ -235,7 +242,7 @@ const ChartCore = memo(function ChartCore2({
       hoveredCandleIndex
     ]
   );
-  return /* @__PURE__ */ React.createElement(ChartProvider, { value: contextValue }, /* @__PURE__ */ React.createElement("svg", { "aria-hidden": "true", height, width }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: "candlestick-positive", x1: "0", x2: "0", y1: "1", y2: "0" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "var(--color-emerald-500)" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "var(--color-emerald-500)" })), /* @__PURE__ */ React.createElement("linearGradient", { id: "candlestick-negative", x1: "0", x2: "0", y1: "1", y2: "0" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "var(--color-red-500)" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "var(--color-red-500)" })), defsChildren), /* @__PURE__ */ React.createElement("rect", { fill: "transparent", height, width, x: 0, y: 0 }), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(ChartProvider, { value: contextValue }, /* @__PURE__ */ React.createElement("svg", { "aria-hidden": "true", height, width }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: "candlestick-positive", x1: "0", x2: "0", y1: "1", y2: "0" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "#4FB286" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "#4FB286" })), /* @__PURE__ */ React.createElement("linearGradient", { id: "candlestick-negative", x1: "0", x2: "0", y1: "1", y2: "0" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "#D9667A" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "#D9667A" })), defsChildren), /* @__PURE__ */ React.createElement("rect", { fill: "transparent", height, width, x: 0, y: 0 }), /* @__PURE__ */ React.createElement(
     "g",
     {
       ...interactionHandlers,

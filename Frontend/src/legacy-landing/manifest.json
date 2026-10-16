@@ -1,0 +1,62 @@
+{
+ "archivedAtHead": "de208be80c08627d2f3ddbc1f0fa5423c7e79495",
+ "note": "Pre-redesign 5-section landing (Home + 5 scenes + preloader). Shared chrome/deps stayed live and are listed, not copied.",
+ "files": [
+  {
+   "live": "src/components/Home.jsx",
+   "archive": "src/legacy-landing/Home.archived.jsx",
+   "md5": "2213dd25681c0f767dffcded4d6497b4",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/scenes/AnalyticsScene.jsx",
+   "archive": "src/legacy-landing/scenes/AnalyticsScene.jsx",
+   "md5": "f18b0feed546f1d67fee3029164e6554",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/scenes/ControlScene.jsx",
+   "archive": "src/legacy-landing/scenes/ControlScene.jsx",
+   "md5": "17b13ee1c5ed3e12aa86478a33848301",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/scenes/ExitScene.jsx",
+   "archive": "src/legacy-landing/scenes/ExitScene.jsx",
+   "md5": "885ee91f03a46f90f35900be4b171d60",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/scenes/ForecastsScene.jsx",
+   "archive": "src/legacy-landing/scenes/ForecastsScene.jsx",
+   "md5": "6ef80d9f27debc5b4fed57864b50792b",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/scenes/HeroScene.jsx",
+   "archive": "src/legacy-landing/scenes/HeroScene.jsx",
+   "md5": "81713cdde7a7fe82cbba2a42ca7bf048",
+   "byteIdentical": true
+  },
+  {
+   "live": "src/components/landing/LandingPreloader.jsx",
+   "archive": "src/legacy-landing/landing/LandingPreloader.jsx",
+   "md5": "d36336f34296c76c7ff9af5306082d47",
+   "byteIdentical": true
+  }
+ ],
+ "sharedLiveDeps": [
+  "src/components/Header.jsx",
+  "src/components/Footer.jsx",
+  "src/components/Logo3D.jsx",
+  "src/components/About.jsx",
+  "src/components/Features.jsx",
+  "src/components/RootLayout.jsx",
+  "src/index.css ([data-landing] scope + tokens)",
+  "src/lib/motion.js",
+  "src/hooks/useReducedMotion.js",
+  "src/components/charts/market-charts.jsx",
+  "src/components/charts/area-chart.jsx",
+  "src/components/charts/sector-donut.jsx"
+ ]
+}

@@ -5,6 +5,8 @@ import { userModel } from '../models/UserModel.js'
 import { automationRuleModel } from '../models/AutomationRuleModel.js'
 import { alertModel } from '../models/AlertModel.js'
 import { predict, predictBatch } from '../ml/predictor.js'
+import { getModelStatus } from '../ml/trainedPredictor.js'
+import { activeReleaseId, verifyInstalled, checkRuntime } from '../ml/modelRelease.js'
 import { predictionLogModel } from '../models/PredictionLogModel.js'
 import { resolvePredictionAccuracy } from '../ml/accuracyResolver.js'
 
@@ -43,7 +45,28 @@ const demoAccuracy = {
 
 const isDemoAccuracyEnabled = () => process.env.ML_DEMO_MODE === 'true' && process.env.NODE_ENV !== 'production'
 
-const cacheKey = (symbol, horizon) => `${symbol}:${horizon}`
+const cacheKey = (symbol, horizon) => `${activeReleaseCached()}:${symbol}:${horizon}`
+
+/** Release id cached ≤60s so cache keys track bundle swaps without a file read per hit. */
+let cachedRelease = null
+let cachedReleaseAt = 0
+const activeReleaseCached = () => {
+  if (!cachedRelease || Date.now() - cachedReleaseAt > 60_000) {
+    try {
+      cachedRelease = activeReleaseId()
+    } catch {
+      cachedRelease = 'unreleased'
+    }
+    cachedReleaseAt = Date.now()
+  }
+  return cachedRelease
+}
+
+/** Drop all cached predictions (release swap, tests). Exported for tooling. */
+export function clearPredictionCache() {
+  predictionCache.clear()
+  cachedRelease = null
+}
 
 /**
  * Prediction for one symbol, served from the 5-minute cache when warm.
@@ -120,13 +143,64 @@ async function logPrediction(prediction, horizonDays) {
     const price = prediction.currentPrice ?? prediction.livePrice
     if (!(price > 0)) return
     const createdAt = new Date()
+    // Calendar estimate for due-query only — resolution counts TRADING sessions
+    // forward from the prediction candle (see accuracyResolver), so weekends /
+    // holidays never shift the horizon.
     const targetDate = new Date(createdAt)
     targetDate.setUTCDate(targetDate.getUTCDate() + horizonDays)
-    await predictionLogModel.create({ symbol: prediction.symbol, direction: prediction.direction, confidence: prediction.confidence, predictedPrice: prediction.predictedPrice, predictedRange: prediction.predictedRange, priceAtPrediction: price, horizonDays, targetDate })
+    await predictionLogModel.create({
+      symbol: prediction.symbol,
+      direction: prediction.direction,
+      confidence: prediction.confidence,
+      predictedPrice: prediction.predictedPrice,
+      predictedRange: prediction.predictedRange,
+      priceAtPrediction: price,
+      horizonDays,
+      targetDate,
+      model: prediction.model || 'unknown',
+      releaseId: prediction.releaseId || activeReleaseCached() || 'unreleased',
+      modelVersion: prediction.model || 'unknown',
+      provenance: prediction.provenance || (prediction.trained ? 'trained' : 'heuristic'),
+      status: 'pending',
+      asOf: prediction.asOf || null,
+      priceProvenance: 'quote-cache'
+    })
   } catch (error) {
     console.error('[ML] prediction log write failed:', error.message)
   }
 }
+
+// ── GET /ml-api/model-status ────────────────────────────────────────
+// Consistent model-status interface (Phase 1.6 §9): installed/loadable,
+// active version, supported horizons, schema, trained-vs-heuristic state,
+// validation limits. Public — no auth; contains no secrets or user data.
+mlApp.get('/model-status', async (req, res, next) => {
+  try {
+    const horizons = [1, 2, 3, 4, 5]
+    const perHorizon = {}
+    for (const h of horizons) perHorizon[h] = await getModelStatus(h)
+    const verification = verifyInstalled()
+    const trainedHorizons = horizons.filter((h) => perHorizon[h]?.ok)
+    return res.status(200).json({
+      releaseId: activeReleaseCached(),
+      approved: verification.ok,
+      trainedHorizons,
+      heuristicFallback: trainedHorizons.length < horizons.length ? 'active' : 'standby',
+      featureSchema: 'features-v1.0',
+      classOrder: ['DOWN', 'NEUTRAL', 'UP'],
+      predictionType: 'direction-classifier',
+      limitations: [
+        'Sealed-test accuracy at or below majority baselines; no predictive edge demonstrated.',
+        'Confidence values are raw classifier scores, not calibrated success rates.',
+        'Price targets and ranges are heuristic display projections, not trained forecasts.'
+      ],
+      horizons: perHorizon,
+      runtime: checkRuntime()
+    })
+  } catch (err) {
+    next(err)
+  }
+})
 
 // ── GET /ml-api/predict/:symbol?horizon=1 ─────────────────────────
 mlApp.get('/predict/:symbol', async (req, res, next) => {
@@ -403,15 +477,34 @@ const accuracySummary = async (query, limit = 30) => {
   if (logs.length < 10) return { insufficientData: true, resolved: logs.length, predictions: logs }
   const correct = logs.filter((l) => l.wasCorrect).length
   const byDirection = {}
-  for (const direction of ['UP', 'DOWN']) {
+  for (const direction of ['UP', 'DOWN', 'NEUTRAL']) {
     const rows = logs.filter((l) => l.direction === direction)
     byDirection[direction] = { total: rows.length, correct: rows.filter((l) => l.wasCorrect).length, precision: rows.length ? rows.filter((l) => l.wasCorrect).length / rows.length : null }
   }
+  const byModel = {}
+  for (const log of logs) {
+    const m = log.model || 'unknown'
+    byModel[m] = byModel[m] || { total: 0, correct: 0 }
+    byModel[m].total += 1
+    if (log.wasCorrect) byModel[m].correct += 1
+  }
+  for (const m of Object.keys(byModel)) byModel[m].accuracy = byModel[m].total ? byModel[m].correct / byModel[m].total : null
+  // Phase 1.6: per-release breakdown so cross-version aggregation cannot
+  // misattribute old heuristic outcomes to the current trained bundle.
+  // Logs without a releaseId predate provenance tracking (legacy/unknown).
+  const byRelease = {}
+  for (const log of logs) {
+    const r = log.releaseId || 'legacy/unknown'
+    byRelease[r] = byRelease[r] || { total: 0, correct: 0 }
+    byRelease[r].total += 1
+    if (log.wasCorrect) byRelease[r].correct += 1
+  }
+  for (const r of Object.keys(byRelease)) byRelease[r].accuracy = byRelease[r].total ? byRelease[r].correct / byRelease[r].total : null
   const buckets = Array.from({ length: 10 }, (_, bucket) => {
     const rows = logs.filter((l) => Math.min(9, Math.floor(l.confidence * 10)) === bucket)
     return { bucket, confidence: `${bucket * 10}-${bucket * 10 + 10}%`, total: rows.length, hitRate: rows.length ? rows.filter((l) => l.wasCorrect).length / rows.length : null }
   })
-  return { insufficientData: false, accuracy: correct / logs.length, total: logs.length, correct, byDirection, calibration: buckets, predictions: logs }
+  return { insufficientData: false, accuracy: correct / logs.length, total: logs.length, correct, byDirection, byModel, byRelease, calibration: buckets, predictions: logs }
 }
 
 mlApp.get('/accuracy/:symbol', async (req, res, next) => {
@@ -433,6 +526,8 @@ mlApp.get('/accuracy', async (req, res, next) => {
 mlApp.post('/accuracy/resolve-now', async (req, res, next) => {
   try {
     if (process.env.NODE_ENV === 'production') return res.status(404).end()
-    return res.json(await resolvePredictionAccuracy())
+    // Report-only drain rehearsal: ?dryRun=true resolves nothing, reports counts.
+    const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true
+    return res.json(await resolvePredictionAccuracy({ dryRun }))
   } catch (e) { next(e) }
 })

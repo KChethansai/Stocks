@@ -1,5 +1,6 @@
 import { computeFeatures, loadFeatures, DEFAULT_LOOKBACK, MIN_CANDLES } from './features.js'
 import { scoreWithTrained } from './trainedPredictor.js'
+import { activeReleaseId, FEATURE_SCHEMA } from './modelRelease.js'
 
 /**
  * Composite technical scoring model — pure JavaScript, no Python, no training step.
@@ -51,21 +52,49 @@ const rsiSignal = (rsi14) => {
 
 /**
  * Apply the trained ONNX model as an overlay on a heuristic prediction:
- * it replaces direction + confidence; everything else (price, range, chart,
- * factors) stays from the heuristic. Returns the base unchanged when no
- * model bundle is available or inference fails.
+ * it replaces direction + confidence and re-anchors price/range so they can
+ * never contradict the trained direction. Returns the base unchanged when no
+ * model bundle is available or inference fails (explicit heuristic fallback).
  */
-async function overlayTrained(base, features) {
+async function overlayTrained(base, features, horizon) {
   try {
-    const trained = await scoreWithTrained(features)
-    if (trained && trained.direction && trained.confidence) {
-      return {
+    const trained = await scoreWithTrained(features, { horizon })
+    if (trained && trained.direction && Number.isFinite(trained.confidence)) {
+      const out = {
         ...base,
         direction: trained.direction,
         confidence: round(trained.confidence, 4),
         confidencePct: round(trained.confidence * 100, 1),
-        model: trained.model
+        model: trained.model,
+        modelHorizon: trained.horizon,
+        trained: true,
+        // Phase 1.6 provenance: this direction came from the approved ONNX
+        // bundle. Price/range remain heuristic display projections (see below).
+        provenance: 'trained-onnx',
+        predictionType: 'direction-classifier',
+        releaseId: trained.releaseId || activeReleaseId(),
+        featureSchema: trained.featureSchema || FEATURE_SCHEMA,
+        confidenceNote: 'Raw classifier score, not a calibrated success rate.'
       }
+      // Re-anchor price/target so direction and predictedPrice never contradict
+      // (heuristic price was fit for the heuristic direction, not the trained one).
+      if (out.ok && Number.isFinite(out.currentPrice) && Number.isFinite(out.predictedPrice)) {
+        if (trained.direction === 'UP' && out.predictedPrice < out.currentPrice) {
+          out.predictedPrice = out.currentPrice
+          out.expectedChangePct = 0
+        } else if (trained.direction === 'DOWN' && out.predictedPrice > out.currentPrice) {
+          out.predictedPrice = out.currentPrice
+          out.expectedChangePct = 0
+        }
+        if (out.predictedRange && Number.isFinite(out.predictedRange.low) && Number.isFinite(out.predictedRange.high)) {
+          out.predictedRange = {
+            low: Math.min(out.predictedRange.low, out.predictedPrice),
+            high: Math.max(out.predictedRange.high, out.predictedPrice)
+          }
+          out.priceRange = out.predictedRange
+        }
+      }
+      return out
     }
   } catch (err) {
     // heuristic result already populated — trained is purely additive
@@ -257,6 +286,26 @@ export function scoreFeatures(features, options = {}) {
     reversalRisk,
     factors,
     model: MODEL_ID,
+    /** Explicit fallback signal: false = pure-JS heuristic, true = ONNX ensemble served. */
+    trained: false,
+    // Phase 1.6 provenance contract: the system predicts DIRECTION (a 3-class
+    // signal). predictedPrice/predictedRange/expectedChangePct/chart forecasts
+    // are heuristic display projections derived from the same technical
+    // features — they are NOT trained price forecasts. Consumers must read
+    // `predictionType` + `priceProjection.kind`, never infer ML pricing.
+    provenance: 'heuristic',
+    predictionType: 'direction-classifier',
+    priceProjection: {
+      kind: 'heuristic-display',
+      note: 'Display projection from technical drift, not a trained price forecast.'
+    },
+    // Countable primary-signal agreement (D7): surfaced so the UI can state
+    // "n/3 signals aligned" honestly instead of a confidence percentage.
+    signalsAligned: agreeing,
+    signalsTotal: primary.length,
+    releaseId: activeReleaseId(),
+    featureSchema: FEATURE_SCHEMA,
+    confidenceNote: 'Heuristic agreement score, not a calibrated success rate.',
     explainability: {
       summary,
       factors,
@@ -297,9 +346,10 @@ export function predictFromCandles(candles, options = {}) {
 
 /** predictFromCandles + trained-model overlay (async, prefer when available). */
 export async function predictFromCandlesAsync(candles, options = {}) {
+  const horizon = options.horizon ?? options.horizonDays ?? 1
   const features = computeFeatures(candles, { lookback: options.lookback || DEFAULT_LOOKBACK })
-  const base = scoreFeatures(features, { horizon: options.horizon ?? options.horizonDays ?? 1 })
-  return overlayTrained(base, features)
+  const base = scoreFeatures(features, { horizon })
+  return overlayTrained(base, features, horizon)
 }
 
 /**
@@ -312,9 +362,10 @@ export async function predictFromCandlesAsync(candles, options = {}) {
 export async function predict(symbol, options = {}) {
   const ticker = String(symbol || '').toUpperCase().trim()
   try {
+    const horizon = options.horizon ?? 1
     const features = await loadFeatures(ticker, { lookback: options.lookback || DEFAULT_LOOKBACK })
-    const base = scoreFeatures(features, { horizon: options.horizon ?? 1 })
-    const predicted = await overlayTrained(base, features)
+    const base = scoreFeatures(features, { horizon })
+    const predicted = await overlayTrained(base, features, horizon)
     return { symbol: ticker, ...predicted }
   } catch (err) {
     console.error(`[ML] predict(${ticker}) failed:`, err.message)

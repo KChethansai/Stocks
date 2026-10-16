@@ -1,418 +1,474 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+// Account workspace: overview, login details, security, preferences, data.
+// Real backend fields only (UserAPI: GET/PUT /profile, PUT /password,
+// profile-picture POST/PUT/DELETE). No verification badges, no sessions list,
+// no fabricated stats. Member-since renders only when createdAt arrives.
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import toast from 'react-hot-toast'
 import {
-  User,
-  Shield,
+  User as UserIcon,
+  Lock,
+  SlidersHorizontal,
+  Database,
+  LayoutDashboard,
   Camera,
   Trash2,
   Eye,
   EyeOff,
-  Wallet,
-  Calendar,
-  Mail,
-  Lock
 } from 'lucide-react'
 import { useAuth } from '../store/authStore'
-import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { ParticleButton } from './kokonutui/ParticleButton'
-import { NumberTicker } from './magicui/NumberTicker'
-import { ShinyText } from './reactbits/ShinyText'
+import { useTrade } from '../store/tradeStore'
+import { formatCurrency } from '../utils/marketAnalytics'
 import { Button } from './ui/Button'
-import Reveal from './ui/Reveal'
+import { Field } from './ui/Primitives'
+import MotionToggle from './layout/MotionToggle'
+
+const SECTIONS = [
+  { id: 'account', label: 'Account', Icon: UserIcon },
+  { id: 'login', label: 'Login', Icon: UserIcon },
+  { id: 'security', label: 'Security', Icon: Lock },
+  { id: 'preferences', label: 'Preferences', Icon: SlidersHorizontal },
+  { id: 'data', label: 'Data', Icon: Database },
+]
+
+function monogram(name) {
+  const c = String(name || 'T').trim().charAt(0).toUpperCase()
+  return c || 'T'
+}
+
+function passwordScore(pw) {
+  let s = 0
+  if (pw.length >= 6) s += 1
+  if (pw.length >= 10) s += 1
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s += 1
+  if (/\d/.test(pw)) s += 1
+  if (/[^A-Za-z0-9]/.test(pw)) s += 1
+  return Math.min(s, 4)
+}
 
 export default function Profile() {
-  const fileInputRef = useRef(null)
-  const [showCurrentPw, setShowCurrentPw] = useState(false)
-  const [showNewPw, setShowNewPw] = useState(false)
-
   const {
     currentUser,
-    loading,
-    uploadProgress,
+    fetchProfile,
     updateProfile,
     updatePassword,
     uploadProfilePicture,
-    removeProfilePicture
+    removeProfilePicture,
+    uploadProgress,
   } = useAuth()
+  const portfolio = useTrade((s) => s.portfolio)
 
-  const {
-    register: registerDetails,
-    handleSubmit: handleDetailsSubmit,
-    formState: { errors: detailErrors, isDirty: isDetailsDirty },
-    reset: resetDetails
-  } = useForm({
-    defaultValues: {
-      username: currentUser?.username || '',
-      email: currentUser?.email || ''
-    }
-  })
+  const [active, setActive] = useState('account')
+  const [status, setStatus] = useState('')
+  const [avatarBusy, setAvatarBusy] = useState(false)
 
-  const {
-    register: registerPassword,
-    handleSubmit: handlePasswordSubmit,
-    formState: { errors: passwordErrors },
-    reset: resetPassword,
-    control: passwordControl
-  } = useForm({
-    defaultValues: {
-      currentPassword: '',
-      newPassword: ''
-    }
-  })
+  // Login form state (initialized from server user, reset on save).
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [loginErrors, setLoginErrors] = useState({})
+  const [loginSaving, setLoginSaving] = useState(false)
 
-  const newPwValue = useWatch({ control: passwordControl, name: 'newPassword' }) || ''
+  // Security form state.
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [pwErrors, setPwErrors] = useState({})
+  const [pwSaving, setPwSaving] = useState(false)
+
+  const firstErrorRef = useRef(null)
 
   useEffect(() => {
-    resetDetails({
-      username: currentUser?.username || '',
-      email: currentUser?.email || ''
+    fetchProfile?.()
+  }, [fetchProfile])
+
+  useEffect(() => {
+    if (currentUser) {
+      setUsername(currentUser.username || '')
+      setEmail(currentUser.email || '')
+    }
+  }, [currentUser?.username, currentUser?.email]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Section spy (scroll-margin anchors; segmented control under lg).
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setActive(e.target.id.replace('profile-', ''))
+        }
+      },
+      { rootMargin: '-96px 0px -70% 0px' }
+    )
+    SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(`profile-${id}`)
+      if (el) obs.observe(el)
     })
-  }, [currentUser, resetDetails])
+    return () => obs.disconnect()
+  }, [])
 
-  const onDetailsSubmit = async (data) => {
-    const result = await updateProfile(data)
-    if (result.success) {
-      toast.success(result.message || 'Profile updated successfully')
-      return
-    }
-    toast.error(result.message || 'Profile update failed')
+  const loginDirty = currentUser && (username !== (currentUser.username || '') || email !== (currentUser.email || ''))
+  const pwDirty = currentPw.length > 0 || newPw.length > 0
+  const dirtySections = useMemo(
+    () => ({ login: Boolean(loginDirty), security: Boolean(pwDirty) }),
+    [loginDirty, pwDirty]
+  )
+
+  const focusFirstError = () => {
+    window.setTimeout(() => firstErrorRef.current?.focus(), 30)
   }
 
-  const onPasswordSubmit = async (data) => {
-    const result = await updatePassword(data)
-    if (result.success) {
-      toast.success(result.message || 'Password changed successfully')
-      resetPassword()
+  const saveLogin = async (e) => {
+    e?.preventDefault()
+    const errors = {}
+    if (username.trim().length < 3 || username.trim().length > 30) errors.username = 'Username must be 3–30 characters.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address.'
+    setLoginErrors(errors)
+    if (Object.keys(errors).length) {
+      firstErrorRef.current = document.querySelector('[data-login-error="true"]')
+      focusFirstError()
       return
     }
-    toast.error(result.message || 'Password change failed')
+    setLoginSaving(true)
+    const res = await updateProfile({ username: username.trim(), email: email.trim().toLowerCase() })
+    setLoginSaving(false)
+    if (res.success) {
+      setLoginErrors({})
+      setStatus('Login details saved.')
+      toast.success('Login details saved.')
+    } else {
+      // Server returns a single ambiguous message; map to the dirty field(s).
+      const msg = res.message || 'Profile update failed.'
+      const both = username !== currentUser.username && email !== currentUser.email
+      const fieldErrors = {}
+      if (/already exists/i.test(msg)) {
+        if (email !== currentUser.email && (both || username === currentUser.username)) fieldErrors.email = msg
+        else fieldErrors.username = msg
+      } else {
+        fieldErrors.form = msg
+      }
+      setLoginErrors(fieldErrors)
+      setStatus(`Save failed: ${msg}`)
+      toast.error(msg)
+      fetchProfile?.()
+      firstErrorRef.current = document.querySelector('[data-login-error="true"]')
+      focusFirstError()
+    }
   }
 
-  const handleProfileImageChange = async (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  const savePassword = async (e) => {
+    e?.preventDefault()
+    const errors = {}
+    if (!currentPw) errors.current = 'Enter your current password.'
+    if (newPw.length < 6) errors.new = 'New password must be at least 6 characters.'
+    setPwErrors(errors)
+    if (Object.keys(errors).length) {
+      firstErrorRef.current = document.querySelector('[data-pw-error="true"]')
+      focusFirstError()
+      return
+    }
+    setPwSaving(true)
+    const res = await updatePassword({ currentPassword: currentPw, newPassword: newPw })
+    setPwSaving(false)
+    if (res.success) {
+      setCurrentPw('')
+      setNewPw('')
+      setPwErrors({})
+      setStatus('Password updated.')
+      toast.success('Password updated.')
+    } else {
+      const msg = res.message || 'Password update failed.'
+      setPwErrors(/incorrect/i.test(msg) ? { current: msg } : { new: msg })
+      setStatus(`Password update failed: ${msg}`)
+      toast.error(msg)
+      firstErrorRef.current = document.querySelector('[data-pw-error="true"]')
+      focusFirstError()
+    }
+  }
+
+  const onAvatarFile = async (file) => {
     if (!file) return
-    if (
-      !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
-      file.size > 5 * 1024 * 1024
-    ) {
-      toast.error('Please upload a JPG, PNG, or WEBP under 5MB')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Upload a JPG, PNG, or WEBP image.')
       return
     }
-    const result = await uploadProfilePicture(file)
-    if (result.success) {
-      toast.success(result.message || 'Profile picture updated')
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB.')
       return
     }
-    toast.error(result.message || 'Upload failed')
+    setAvatarBusy(true)
+    const res = await uploadProfilePicture(file)
+    setAvatarBusy(false)
+    if (res.success) {
+      setStatus('Profile photo updated.')
+      toast.success('Profile photo updated.')
+    } else {
+      setStatus(`Photo upload failed: ${res.message}`)
+      toast.error(res.message || 'Photo upload failed.')
+    }
   }
 
-  const handleRemoveProfileImage = async () => {
-    const result = await removeProfilePicture()
-    if (result.success) {
-      toast.success(result.message || 'Profile picture removed')
-      return
+  const onAvatarRemove = async () => {
+    setAvatarBusy(true)
+    const res = await removeProfilePicture()
+    setAvatarBusy(false)
+    if (res?.success) {
+      setStatus('Profile photo removed.')
+      toast.success('Profile photo removed.')
+    } else {
+      toast.error(res?.message || 'Photo removal failed.')
     }
-    toast.error(result.message || 'Removal failed')
   }
 
-  const profileImageUrl =
+  const imageUrl =
     currentUser?.profileImage?.secureUrl ||
-    (typeof currentUser?.profileImage === 'string' ? currentUser?.profileImage : null)
-  const fallbackInitial = currentUser?.username?.charAt(0)?.toUpperCase() || 'U'
-
+    (typeof currentUser?.profileImage === 'string' ? currentUser.profileImage : null)
   const memberSince = currentUser?.createdAt
-    ? new Date(currentUser.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        year: 'numeric'
-      })
-    : 'Recently'
-
-  // Password strength helper
-  const pwStrength = useMemo(() => {
-    if (!newPwValue) return 0
-    let score = 0
-    if (newPwValue.length >= 8) score += 1
-    if (/[A-Z]/.test(newPwValue)) score += 1
-    if (/[0-9]/.test(newPwValue)) score += 1
-    if (/[^A-Za-z0-9]/.test(newPwValue)) score += 1
-    return score
-  }, [newPwValue])
+    ? new Date(currentUser.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : null
+  const isGoogle = currentUser?.provider === 'google'
+  const balance = Number(currentUser?.balance ?? portfolio?.user?.balance ?? NaN)
+  const holdingsCount = portfolio?.holdings?.length
+  const strength = passwordScore(newPw)
+  const strengthLabel = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'][strength]
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      {/* Header */}
-      <Reveal className="pb-2">
-        <div className="flex items-center gap-2">
-          <User className="w-5 h-5 text-[#3B82F6]" />
-          <h1 className="mf-h1">
-            <ShinyText>Account & Security Settings</ShinyText>
-          </h1>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
+      <p className="mf-label text-[var(--brass)] text-xs font-bold tracking-[0.14em] uppercase">Account workspace</p>
+      <h1 className="mt-2 text-2xl font-bold text-[var(--ivory)]">Profile &amp; settings</h1>
+      <p className="mt-1 text-sm text-[var(--stone)]">Identity, credentials, preferences, and your data links.</p>
+
+      {/* polite status for form outcomes (mirrors toasts for SR users) */}
+      <div aria-live="polite" className="sr-only">{status}</div>
+
+      {/* Mobile section nav */}
+      <div className="lg:hidden sticky top-14 z-20 -mx-4 px-4 py-2 bg-[#0B0C0E]/95 backdrop-blur mt-6" role="group" aria-label="Profile sections">
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/8 bg-[#111316] p-1">
+          {SECTIONS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#profile-${id}`}
+              aria-current={active === id ? 'true' : undefined}
+              className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 min-h-[44px] inline-flex items-center justify-center text-xs font-semibold transition ${
+                active === id ? 'bg-white/[0.07] text-[var(--ivory)]' : 'text-[var(--stone)]'
+              }`}
+            >
+              {label}
+              {dirtySections[id] && <span aria-hidden="true" className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#D9A441]" />}
+            </a>
+          ))}
         </div>
-        <p className="text-xs sm:text-sm text-[#9CA3AF] mt-1">
-          Manage your identity, personal details, security credentials, and virtual account balance.
-        </p>
-      </Reveal>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Identity Card & Virtual Account (4 cols) */}
-        <Reveal delay={0.05} className="lg:col-span-4 space-y-6">
-          {/* Identity & Avatar Card */}
-          <SpotlightCard
-            spotlightColor="rgba(59, 130, 246, 0.15)"
-            tiltIntensity={4}
-            className="rounded-2xl border border-white/8 bg-[#111318]/95 p-6 shadow-xl text-center"
-          >
-            <div className="relative inline-block mx-auto mb-4">
-              <div className="w-24 h-24 rounded-full p-0.5 bg-gradient-to-tr from-[#3B82F6] to-[#22C55E] mx-auto">
-                <div className="w-full h-full rounded-full overflow-hidden bg-[#09090B] flex items-center justify-center text-3xl font-bold text-[#F5F7FA]">
-                  {profileImageUrl ? (
-                    <img
-                      src={profileImageUrl}
-                      alt={currentUser?.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    fallbackInitial
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 p-2 rounded-full bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-lg transition cursor-pointer"
-                title="Change photo"
+      <div className="mt-6 flex gap-8">
+        {/* Desktop sub-nav */}
+        <nav aria-label="Profile sections" className="hidden lg:block w-60 shrink-0">
+          <div className="sticky top-20 rounded-2xl border border-white/8 bg-[#111316] p-2">
+            {SECTIONS.map(({ id, label, Icon }) => (
+              <a
+                key={id}
+                href={`#profile-${id}`}
+                aria-label={dirtySections[id] ? `${label} — unsaved changes` : label}
+                aria-current={active === id ? 'true' : undefined}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-sm transition ${
+                  active === id ? 'bg-white/[0.06] text-[var(--ivory)]' : 'text-[var(--stone)] hover:text-[var(--ivory)]'
+                }`}
               >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <h2 className="text-lg font-bold text-[#F5F7FA]">{currentUser?.username || 'Trader'}</h2>
-            <p className="text-xs text-[#9CA3AF] mt-0.5">{currentUser?.email}</p>
-
-            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-4 text-xs text-text-muted">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#3B82F6]" />
-                Joined {memberSince}
-              </span>
-              <span className="flex items-center gap-1">
-                <Shield className="w-3.5 h-3.5 text-[#22C55E]" />
-                Verified
-              </span>
-            </div>
-
-            {uploadProgress > 0 && uploadProgress < 100 && (
-              <p className="text-xs text-[#3B82F6] mt-2 font-mono">Uploading {uploadProgress}%...</p>
-            )}
-
-            <div className="flex gap-2 mt-5">
-              <Button
-                type="button"
-                variant="primary"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-                className="flex-1 py-2 rounded-xl"
-              >
-                Upload Photo
-              </Button>
-              {profileImageUrl && (
-                <Button
-                  type="button"
-                  variant="outline-danger"
-                  onClick={handleRemoveProfileImage}
-                  disabled={loading}
-                  className="p-2 rounded-xl"
-                  title="Remove photo"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleProfileImageChange}
-              className="hidden"
-            />
-          </SpotlightCard>
-
-          {/* Account Balance Snapshot */}
-          <SpotlightCard
-            spotlightColor="rgba(34, 197, 94, 0.15)"
-            tiltIntensity={4}
-            className="rounded-2xl border border-white/8 bg-[#111318]/95 p-6 shadow-xl"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Wallet className="w-4 h-4 text-[#22C55E]" />
-              <h3 className="text-sm font-bold text-[#F5F7FA]">Virtual Capital Allocation</h3>
-            </div>
-            <p className="text-2xl font-bold font-mono text-[#F5F7FA]">
-              $<NumberTicker value={Number(currentUser?.balance || 100000)} decimalPlaces={2} />
-            </p>
-            <p className="text-xs text-[#9CA3AF] mt-1">
-              Your practice trading balance is refreshed automatically on executed buy and sell orders.
-            </p>
-          </SpotlightCard>
-        </Reveal>
-
-        {/* Right Column: Account Details Form & Password Change (8 cols) */}
-        <Reveal delay={0.1} className="lg:col-span-8 space-y-6">
-          {/* Personal Details Form */}
-          <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-              <Mail className="w-4 h-4 text-[#3B82F6]" />
-              <h3 className="text-base font-bold text-[#F5F7FA]">Account Information</h3>
-            </div>
-
-            <form onSubmit={handleDetailsSubmit(onDetailsSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="mf-input-label mb-1.5">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    {...registerDetails('username', { required: 'Username is required' })}
-                    className="w-full rounded-xl border border-white/8 bg-[#09090B] px-3.5 py-2.5 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6]"
-                  />
-                  {detailErrors.username && (
-                    <p className="text-xs text-[#EF4444] mt-1">{detailErrors.username.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="mf-input-label mb-1.5">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    {...registerDetails('email', { required: 'Email is required' })}
-                    className="w-full rounded-xl border border-white/8 bg-[#09090B] px-3.5 py-2.5 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6]"
-                  />
-                  {detailErrors.email && (
-                    <p className="text-xs text-[#EF4444] mt-1">{detailErrors.email.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <ParticleButton
-                  type="submit"
-                  disabled={loading || !isDetailsDirty}
-                  tone="blue"
-                  className="px-5 py-2 text-xs font-semibold font-mono"
-                >
-                  Save Profile Changes
-                </ParticleButton>
-              </div>
-            </form>
+                <Icon className="w-4 h-4" aria-hidden="true" />
+                <span className="flex-1">{label}</span>
+                {dirtySections[id] ? (
+                  <span className="flex items-center gap-1.5 text-xs text-[var(--stone)]">
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#D9A441]" />
+                    Unsaved
+                  </span>
+                ) : null}
+              </a>
+            ))}
           </div>
+        </nav>
 
-          {/* Security & Password Change Form */}
-          <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-              <Lock className="w-4 h-4 text-[#F59E0B]" />
-              <h3 className="text-base font-bold text-[#F5F7FA]">Change Password</h3>
-            </div>
-
-            <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
-              <div>
-                <label className="mf-input-label mb-1.5">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPw ? 'text' : 'password'}
-                    {...registerPassword('currentPassword', { required: 'Current password is required' })}
-                    placeholder="Enter current password"
-                    className="w-full rounded-xl border border-white/8 bg-[#09090B] px-3.5 py-2.5 pr-10 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPw(!showCurrentPw)}
-                    className="absolute right-3.5 top-3 text-text-muted hover:text-[#F5F7FA]"
-                  >
-                    {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {passwordErrors.currentPassword && (
-                  <p className="text-xs text-[#EF4444] mt-1">{passwordErrors.currentPassword.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="mf-input-label mb-1.5">
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPw ? 'text' : 'password'}
-                    {...registerPassword('newPassword', {
-                      required: 'New password is required',
-                      minLength: { value: 6, message: 'Minimum 6 characters' }
-                    })}
-                    placeholder="Enter new password (min. 6 characters)"
-                    className="w-full rounded-xl border border-white/8 bg-[#09090B] px-3.5 py-2.5 pr-10 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPw(!showNewPw)}
-                    className="absolute right-3.5 top-3 text-text-muted hover:text-[#F5F7FA]"
-                  >
-                    {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {passwordErrors.newPassword && (
-                  <p className="text-xs text-[#EF4444] mt-1">{passwordErrors.newPassword.message}</p>
-                )}
-
-                {/* Password strength bar */}
-                {newPwValue && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex gap-1 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-300 ${
-                          pwStrength <= 1
-                            ? 'w-1/4 bg-[#EF4444]'
-                            : pwStrength === 2
-                            ? 'w-2/4 bg-[#F59E0B]'
-                            : pwStrength === 3
-                            ? 'w-3/4 bg-[#3B82F6]'
-                            : 'w-full bg-[#22C55E]'
-                        }`}
-                      ></div>
-                    </div>
-                    <span className="text-[0.68rem] text-[#9CA3AF]">
-                      Strength:{' '}
-                      {pwStrength <= 1
-                        ? 'Weak'
-                        : pwStrength === 2
-                        ? 'Fair'
-                        : pwStrength === 3
-                        ? 'Good'
-                        : 'Strong'}
-                    </span>
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Account summary header (D9): compact identity row + capital strip.
+              Full width; the four control cards below share a 2-col grid. */}
+          <section id="profile-account" aria-labelledby="profile-account-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-5">
+            <h2 id="profile-account-h" className="text-base font-bold text-[var(--ivory)]">Account</h2>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <div className="flex items-center gap-3 min-w-0">
+                {imageUrl ? (
+                  <img src={imageUrl} alt="" className="w-14 h-14 rounded-full object-cover border border-white/10" />
+                ) : (
+                  <div aria-hidden="true" className="w-14 h-14 rounded-full bg-[#181B1F] border border-white/10 flex items-center justify-center text-xl font-bold text-[var(--ivory)]">
+                    {monogram(currentUser?.username)}
                   </div>
                 )}
+                <div className="min-w-0">
+                  <p className="text-base font-bold text-[var(--ivory)] truncate">{currentUser?.username || 'Trader'}</p>
+                  <p className="text-xs text-[var(--stone)] truncate">{currentUser?.email || ''}</p>
+                  {memberSince && <p className="text-xs text-[var(--stone-muted)]">Member since {memberSince}</p>}
+                </div>
               </div>
+              <div className="flex items-center gap-2">
+                <label className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-white/10 px-3.5 text-xs font-semibold transition ${avatarBusy ? 'opacity-50' : 'hover:border-[var(--brass)]/50 cursor-pointer'}`}>
+                  <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+                  {imageUrl ? 'Change photo' : 'Upload photo'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={avatarBusy} onChange={(e) => onAvatarFile(e.target.files?.[0])} />
+                </label>
+                {imageUrl && (
+                  <Button variant="ghost" type="button" disabled={avatarBusy} onClick={onAvatarRemove} className="min-h-[44px] text-xs">
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Remove
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-3 sm:ml-auto">
+                <div>
+                  <p className="mf-label">Virtual capital</p>
+                  <p className="font-mono font-bold text-base text-[var(--ivory)] tabular-nums">
+                    {Number.isFinite(balance) ? formatCurrency(balance) : '—'}
+                  </p>
+                </div>
+                <Link to="/portfolio" className="text-xs font-semibold text-[var(--brass)] hover:underline min-h-[44px] inline-flex items-center">
+                  View portfolio
+                </Link>
+              </div>
+            </div>
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <p className="text-xs text-[var(--stone)] mt-2 font-mono" role="status">Uploading {uploadProgress}%…</p>
+            )}
+            <p className="mf-meta mt-2">JPG, PNG, or WEBP under 5MB.</p>
+          </section>
 
-              <div className="flex justify-end pt-2">
-                <ParticleButton
-                  type="submit"
-                  disabled={loading}
-                  tone="amber"
-                  className="px-5 py-2 text-xs font-semibold font-mono"
-                >
-                  Update Password
-                </ParticleButton>
-              </div>
+          <div className="grid gap-4 xl:grid-cols-2 items-start">
+
+          {/* Login details (editable) */}
+          <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+            <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">Login details</h2>
+            <form onSubmit={saveLogin} className="mt-4 space-y-3" noValidate>
+              <Field label="Username" htmlFor="profile-username" error={loginErrors.username} hint="3–30 characters.">
+                <input
+                  id="profile-username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  data-login-error={loginErrors.username ? 'true' : undefined}
+                  aria-invalid={Boolean(loginErrors.username)}
+                  className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                />
+              </Field>
+              <Field label="Email address" htmlFor="profile-email" error={loginErrors.email} hint="Used for sign-in.">
+                <input
+                  id="profile-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  data-login-error={loginErrors.email ? 'true' : undefined}
+                  aria-invalid={Boolean(loginErrors.email)}
+                  className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                />
+              </Field>
+              {loginErrors.form && <p className="text-xs text-[var(--loss)]" data-login-error="true">{loginErrors.form}</p>}
+              <Button type="submit" variant="primary" disabled={!loginDirty || loginSaving} className="min-h-[44px]">
+                {loginSaving ? 'Saving…' : 'Save login details'}
+              </Button>
             </form>
-          </div>
-        </Reveal>
+          </section>
+
+          {/* Security (editable unless Google provider) */}
+          <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+            <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">Security</h2>
+            {isGoogle ? (
+              <p className="mt-3 text-sm text-[var(--stone)]">Signed in with Google — there is no MarketForge password to change. Manage credentials with your Google account.</p>
+            ) : (
+              <form onSubmit={savePassword} className="mt-4 space-y-3" noValidate>
+                <Field label="Current password" htmlFor="profile-current-pw" error={pwErrors.current}>
+                  <div className="relative">
+                    <input
+                      id="profile-current-pw"
+                      type={showCurrent ? 'text' : 'password'}
+                      value={currentPw}
+                      onChange={(e) => setCurrentPw(e.target.value)}
+                      autoComplete="current-password"
+                      data-pw-error={pwErrors.current ? 'true' : undefined}
+                      aria-invalid={Boolean(pwErrors.current)}
+                      className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 pr-11 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                    />
+                    <button type="button" onClick={() => setShowCurrent((v) => !v)} aria-label={showCurrent ? 'Hide current password' : 'Show current password'} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-w-[44px] min-h-[44px] text-[var(--stone)]">
+                      {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="New password" htmlFor="profile-new-pw" error={pwErrors.new} hint="At least 6 characters.">
+                  <div className="relative">
+                    <input
+                      id="profile-new-pw"
+                      type={showNew ? 'text' : 'password'}
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                      autoComplete="new-password"
+                      data-pw-error={pwErrors.new ? 'true' : undefined}
+                      aria-invalid={Boolean(pwErrors.new)}
+                      className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 pr-11 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                    />
+                    <button type="button" onClick={() => setShowNew((v) => !v)} aria-label={showNew ? 'Hide new password' : 'Show new password'} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-w-[44px] min-h-[44px] text-[var(--stone)]">
+                      {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </Field>
+                {newPw && (
+                  <div className="flex items-center gap-2" role="status">
+                    <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden" aria-hidden="true">
+                      <div className="h-full rounded-full bg-[var(--brass)] transition-all" style={{ width: `${(strength / 4) * 100}%` }} />
+                    </div>
+                    <span className="text-xs text-[var(--stone)]">{strengthLabel}</span>
+                  </div>
+                )}
+                <Button type="submit" variant="primary" disabled={!pwDirty || pwSaving} className="min-h-[44px]">
+                  {pwSaving ? 'Updating…' : 'Update password'}
+                </Button>
+              </form>
+            )}
+          </section>
+
+          {/* Preferences */}
+          <section id="profile-preferences" aria-labelledby="profile-preferences-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+            <h2 id="profile-preferences-h" className="text-base font-bold text-[var(--ivory)]">Preferences</h2>
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-[var(--ivory)]">Motion</p>
+                <p className="mf-meta mt-0.5">Full plays reveals and chart draws. Comfort renders everything statically. Saved on this device.</p>
+              </div>
+              <MotionToggle />
+            </div>
+          </section>
+
+          {/* Data & activity */}
+          <section id="profile-data" aria-labelledby="profile-data-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+            <h2 id="profile-data-h" className="text-base font-bold text-[var(--ivory)]">Data &amp; activity</h2>
+            <ul className="mt-4 space-y-2">
+              {[
+                { to: '/activity', label: 'Activity ledger', desc: `Every fill with its order key${Number.isFinite(holdingsCount) ? ` · ${holdingsCount} open positions` : ''}` },
+                { to: '/activity', label: 'Export CSV', desc: 'Filtered view, latest 100 rows, from the ledger' },
+                { to: '/watchlist', label: 'Watchlist & price alerts', desc: 'Symbols you follow and the thresholds watching them' },
+              ].map(({ to, label, desc }) => (
+                <li key={label}>
+                  <Link to={to} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-[#0B0C0E] px-4 py-3 min-h-[44px] transition hover:border-[var(--brass)]/40">
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--ivory)]">{label}</span>
+                      <span className="block text-xs text-[var(--stone)] mt-0.5">{desc}</span>
+                    </span>
+                    <span aria-hidden="true" className="text-[var(--brass)]">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+          </div>{/* /grid */}
+
+          <p className="flex items-center gap-2 text-sm text-[var(--stone)]">
+            <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
+            Signed in as {currentUser?.email || 'your account'}. Balances change only through fills.
+          </p>
+        </div>
       </div>
     </div>
   )

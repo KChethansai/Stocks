@@ -5,7 +5,7 @@
 // fixed-size (no ParentSize), single context, plain-text center (no
 // @number-flow dependency), palette via explicit props (same rationale as
 // CHART_THEMES in market-charts.jsx), calm mode for reduced-motion.
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useId, useMemo, useState } from 'react'
 import { Group } from '@visx/group'
 import { arc as arcGenerator } from '@visx/shape'
 import { pie as d3Pie } from 'd3-shape'
@@ -18,12 +18,37 @@ import {
 } from 'motion/react'
 import { EASING } from '../../lib/motion'
 
-// Categorical palettes — cyan for landing, blue for the authenticated
-// workspace (per the A3 accent split). Order matches existing usage:
-// primary, positive, secondary, muted, faint.
+// Categorical allocation ramp (D1). Fixed 8 slots; assignment is stable by
+// symbol hash, never by rank, so a symbol keeps its color across donut, bars,
+// and legend on every page. Gain/loss hues are banned here (they imply
+// performance); stone hues are reserved for body text and the Other bucket.
+// Raw hex: SVG fills can't read CSS vars — values mirror --alloc-* tokens.
+export const ALLOCATION_RAMP = [
+  '#C9A96E', // --alloc-1 brass
+  '#ECE9E2', // --alloc-2 ivory
+  '#B07D62', // --alloc-3 clay
+  '#7A8B6F', // --alloc-4 sage
+  '#9C7B8E', // --alloc-5 mauve
+  '#6E7F8A', // --alloc-6 slate
+  '#C4B49A', // --alloc-7 sand
+  '#7D6B5D', // --alloc-8 umber
+]
+// "Other" bucket: always last, always this hue + diagonal hatch + label —
+// a treatment no live slot uses (redundant encoding: color + hatch +
+// position + label).
+export const ALLOC_OTHER = '#5C5A54' // --alloc-other
+
+export function allocationColor(key) {
+  const s = String(key ?? '')
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return ALLOCATION_RAMP[h % ALLOCATION_RAMP.length]
+}
+
 export const SECTOR_THEMES = {
-  landing: ['#7ce6ff', '#7ed6a3', '#2eafff', '#96cdde', '#84949e'],
-  terminal: ['#3B82F6', '#22C55E', '#60A5FA', '#9CA3AF', '#8A93A6'],
+  // Single ramp (D1): the pre-rework cyan landing ramp was deleted with the
+  // archived landing page. All donuts use the allocation ramp.
+  terminal: [...ALLOCATION_RAMP],
 }
 
 function arcPath(innerRadius, outerRadius, startAngle, endAngle, cornerRadius, padAngle) {
@@ -91,8 +116,14 @@ export function DonutChart({
     }))
   }, [data, padAngle])
 
-  const getColor = (index) =>
-    data[index]?.color || palette[index % palette.length]
+  const getColor = (index) => {
+    const d = data[index]
+    if (!d) return palette[index % palette.length]
+    if (d.color) return d.color
+    if (d.isOther) return ALLOC_OTHER
+    return allocationColor(d.key ?? d.symbol ?? d.label)
+  }
+  const isOtherSlice = (index) => Boolean(data[index]?.isOther) && !data[index]?.color
 
   const outerRadius = size / 2 - hoverOffset
   const inner = innerRadius ?? Math.round(size * 0.33)
@@ -103,6 +134,8 @@ export function DonutChart({
     if (child && typeof child === 'object' && isCenter(child)) centerKids.push(child)
     else if (child != null) svgKids.push(child)
   })
+
+  const hatchId = `mf-other-hatch-${useId().replace(/:/g, '')}`
 
   const value = useMemo(
     () => ({
@@ -116,10 +149,12 @@ export function DonutChart({
       hoveredIndex,
       setHoveredIndex,
       getColor,
+      isOtherSlice,
+      hatchId,
       calm,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, arcs, totalValue, outerRadius, inner, cornerRadius, hoverOffset, hoveredIndex, calm]
+    [data, arcs, totalValue, outerRadius, inner, cornerRadius, hoverOffset, hoveredIndex, hatchId, calm]
   )
 
   return (
@@ -143,6 +178,12 @@ export function DonutChart({
           style={{ gridArea: '1 / 1' }}
         >
           <Group left={size / 2} top={size / 2}>
+            <defs>
+              <pattern id={hatchId} width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <rect width="6" height="6" fill={ALLOC_OTHER} />
+                <line x1="0" y1="0" x2="0" y2="6" stroke="#8A867E" strokeWidth="1.2" opacity="0.7" />
+              </pattern>
+            </defs>
             {data.map((_, index) => (
               <DonutSlice key={data[index]?.label ?? index} index={index} />
             ))}
@@ -173,6 +214,8 @@ export function DonutSlice({ index }) {
     hoveredIndex,
     setHoveredIndex,
     getColor,
+    isOtherSlice,
+    hatchId,
     calm,
   } = useDonut()
 
@@ -239,7 +282,7 @@ export function DonutSlice({ index }) {
       />
       <motion.path
         d={entered ? fullPath : sweepPath}
-        fill={color}
+        fill={isOtherSlice(index) ? `url(#${hatchId})` : color}
         opacity={isFaded ? 0.35 : 1}
         pointerEvents="none"
         animate={{ x: isHovered ? offset.x : 0, y: isHovered ? offset.y : 0 }}
@@ -350,11 +393,21 @@ export function SectorAllocation({
         </DonutCenter>
       </DonutChart>
       <div className={`font-mono text-xs min-w-0 ${column ? 'w-full space-y-2' : 'flex-1 space-y-1.5'}`}>
-        {shown.map((s, i) => (
+        {shown.map((s) => (
           <div key={s.label} className="flex items-center gap-2">
             <span
               className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: s.color || palette[i % palette.length] }}
+              style={
+                s.color
+                  ? { backgroundColor: s.color }
+                  : s.isOther
+                    ? {
+                        backgroundColor: ALLOC_OTHER,
+                        backgroundImage:
+                          'repeating-linear-gradient(45deg, transparent 0 2px, rgba(138,134,126,0.7) 2px 3px)',
+                      }
+                    : { backgroundColor: allocationColor(s.key ?? s.symbol ?? s.label) }
+              }
             />
             <span className="text-text-secondary truncate" title={s.label}>{s.label}</span>
             <span className="text-text-primary font-bold ml-auto pl-2">

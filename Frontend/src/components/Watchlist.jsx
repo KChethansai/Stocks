@@ -60,16 +60,18 @@ export default function Watchlist() {
     }
   }, [sparkSymbols, fetchSparkline])
 
-  // Get user watchlist items or default stocks if empty
+  // Get user watchlist items. Empty means zero saved assets — suggestions
+  // are opt-in and clearly labeled, never rendered as holdings.
+  const savedSymbols = useMemo(() => currentUser?.watchlist || [], [currentUser?.watchlist])
   const watchlistStocks = useMemo(() => {
-    const symbols = currentUser?.watchlist || []
-    if (symbols.length === 0) {
-      return stocks.slice(0, 6)
-    }
-    return symbols
+    return savedSymbols
       .map((sym) => stocks.find((s) => s.symbol === sym))
       .filter(Boolean)
-  }, [currentUser?.watchlist, stocks])
+  }, [savedSymbols, stocks])
+  const suggestionStocks = useMemo(() => {
+    if (savedSymbols.length > 0) return []
+    return stocks.slice(0, 6)
+  }, [savedSymbols, stocks])
 
   // Filter and sort watchlist
   const filteredWatchlist = useMemo(() => {
@@ -142,7 +144,7 @@ export default function Watchlist() {
               <span className="mf-label">
                 Tracked Assets
               </span>
-              <span className="text-[#F5F7FA] font-bold">
+              <span className="text-[var(--ivory)] font-bold">
                 {watchlistStocks.length}
               </span>
             </div>
@@ -152,13 +154,13 @@ export default function Watchlist() {
             {topMover && (
               <div className="flex items-center gap-2">
                 <span className="mf-label">
-                  Top Mover (24h)
+                  Top Mover (session)
                 </span>
-                <span className="text-[#F5F7FA] font-bold">
+                <span className="text-[var(--ivory)] font-bold">
                   {topMover.symbol}
                 </span>
-                <span className="text-[#22C55E] bg-[#22C55E]/10 px-1.5 py-0.5 rounded font-semibold">
-                  +{topMover.changePercent?.toFixed(2)}%
+                <span className={`px-1.5 py-0.5 rounded font-semibold ${Number(topMover.changePercent || 0) >= 0 ? 'text-[var(--gain)] bg-[rgba(79,178,134,.12)]' : 'text-[var(--loss)] bg-[rgba(217,102,122,.12)]'}`}>
+                  {Number(topMover.changePercent || 0) >= 0 ? '+' : ''}{topMover.changePercent?.toFixed(2)}%
                 </span>
               </div>
             )}
@@ -175,7 +177,7 @@ export default function Watchlist() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search symbols..."
-              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
+              className="w-full bg-[#111316] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)] transition placeholder-[var(--stone-muted)]"
             />
           </div>
 
@@ -192,7 +194,7 @@ export default function Watchlist() {
 
           <ParticleButton
             onClick={() => navigate('/markets')}
-            tone="blue"
+            tone="brass"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             <PlusCircle className="w-3.5 h-3.5" />
@@ -202,35 +204,49 @@ export default function Watchlist() {
       </Reveal>
 
       {/* High Density Stock Table */}
-      <Reveal delay={0.05} className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
+      <Reveal delay={0.05} className="bg-[#111316] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-text-muted tracking-wider bg-[#09090B]/50">
-                <th className="py-3 px-5 cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('symbol')}>
+              <tr className="border-b border-[rgba(255,255,255,0.08)] text-[10px] uppercase text-text-muted tracking-wider bg-[#0B0C0E]/50">
+                <th className="py-3 px-5 cursor-pointer hover:text-[var(--ivory)]" onClick={() => toggleSort('symbol')}>
                   <span className="flex items-center gap-1">
                     Ticker <ArrowUp className="w-3 h-3" />
                   </span>
                 </th>
                 <th className="py-3 px-4">Company Name</th>
-                <th className="py-3 px-4 text-right cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('price')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:text-[var(--ivory)]" onClick={() => toggleSort('price')}>
                   Price
                 </th>
-                <th className="py-3 px-4 text-right cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('change')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:text-[var(--ivory)]" onClick={() => toggleSort('change')}>
                   $ Change
                 </th>
-                <th className="py-3 px-4 text-right cursor-pointer hover:text-[#F5F7FA]" onClick={() => toggleSort('changePercent')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:text-[var(--ivory)]" onClick={() => toggleSort('changePercent')}>
                   % Change
                 </th>
-                <th className="py-3 px-4 text-center">24H Trend</th>
+                <th className="py-3 px-4 text-center">30-day Trend</th>
                 <th className="py-3 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgba(255,255,255,0.04)]">
               {filteredWatchlist.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 mf-empty">
-                    No tracked symbols found in watchlist.
+                  <td colSpan={7} className="py-12 text-center">
+                    <p className="mf-empty">
+                      {savedSymbols.length === 0 ? 'Your watchlist is empty — no saved assets.' : 'No tracked symbols match this filter.'}
+                    </p>
+                    {savedSymbols.length === 0 && suggestionStocks.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-xs text-[var(--stone-muted)] mb-2">Suggestions to add (not saved):</p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {suggestionStocks.map((s) => (
+                            <button key={s.symbol} type="button" onClick={() => navigate(`/markets?stock=${s.symbol}`)} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs text-[var(--ivory)] hover:border-[var(--brass)]">
+                              {s.symbol}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -241,34 +257,34 @@ export default function Watchlist() {
                     <tr
                       key={stock.symbol}
                       onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                      className="hover:bg-[#151820] transition cursor-pointer group"
+                      className="hover:bg-[#181B1F] transition cursor-pointer group"
                     >
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3">
                           <button
                             onClick={(e) => handleRemove(e, stock.symbol)}
-                            className="text-[#F59E0B] hover:text-[#EF4444] transition cursor-pointer"
+                            className="text-[#D9A441] hover:text-[var(--loss)] transition cursor-pointer"
                             title="Remove from watchlist"
                           >
-                            <Star className="w-4 h-4 fill-[#F59E0B]" />
+                            <Star className="w-4 h-4 fill-[#D9A441]" />
                           </button>
-                          <span className="font-bold text-sm text-[#F5F7FA] group-hover:text-[#3B82F6] transition">
+                          <span className="font-bold text-sm text-[var(--ivory)] group-hover:text-[var(--brass)] transition">
                             {stock.symbol}
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 text-[#9CA3AF] truncate max-w-[200px]">
+                      <td className="py-3.5 px-4 text-[var(--stone)] truncate max-w-[200px]">
                         {stock.name}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-bold text-[var(--ivory)]">
                         ${Number(stock.price).toFixed(2)}
                       </td>
 
                       <td
                         className={`py-3.5 px-4 text-right font-semibold ${
-                          isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                          isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                         }`}
                       >
                         {isPos ? '+' : ''}
@@ -277,7 +293,7 @@ export default function Watchlist() {
 
                       <td
                         className={`py-3.5 px-4 text-right font-semibold ${
-                          isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                          isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                         }`}
                       >
                         {isPos ? '+' : ''}
@@ -288,7 +304,7 @@ export default function Watchlist() {
                         <div className="flex items-center justify-center">
                           <Sparkline
                             data={spark}
-                            color={isPos ? '#22C55E' : '#EF4444'}
+                            color={isPos ? '#4FB286' : '#D9667A'}
                             width={90}
                             height={22}
                           />

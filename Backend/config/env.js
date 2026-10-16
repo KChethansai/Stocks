@@ -35,7 +35,10 @@ export const env = {
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
   automationCron: process.env.AUTOMATION_INTERVAL_CRON || '*/15 * * * *',
   maxAutomationTradesPerDay: Number(process.env.MAX_AUTOMATION_TRADES_PER_DAY) || 10,
-  accuracyResolveCron: process.env.ACCURACY_RESOLVE_CRON || '30 21 * * 1-5'
+  accuracyResolveCron: process.env.ACCURACY_RESOLVE_CRON || '30 21 * * 1-5',
+  // Test-only escape hatch for the isolated audit backend. Production default
+  // is 20; the override is env-only and never committed to a production .env.
+  authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX) || 20,
 }
 
 export const isProduction = env.nodeEnv === 'production'

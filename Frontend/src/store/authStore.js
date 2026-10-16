@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import axios from 'axios'
+import { resetSessionExpiry } from '../lib/session'
 
 //base api url
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
@@ -58,6 +59,7 @@ export const useAuth = create((set) => ({
       const response = await axios.post(`${API_BASE}/user-api/login`, data, {
         withCredentials: true
       })
+      resetSessionExpiry()
       set({
         loading: false,
         error: null,
@@ -86,6 +88,7 @@ export const useAuth = create((set) => ({
       const response = await axios.post(`${API_BASE}/api/auth/google`, { credential }, {
         withCredentials: true
       })
+      resetSessionExpiry()
       set({
         loading: false,
         error: null,
@@ -139,6 +142,7 @@ export const useAuth = create((set) => ({
       const response = await axios.get(`${API_BASE}/user-api/profile`, {
         withCredentials: true
       })
+      resetSessionExpiry()
       set({
         loading: false,
         error: null,

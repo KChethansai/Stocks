@@ -161,7 +161,8 @@ tradeApp.post('/buy', async (req, res, next) => {
       symbol: req.body.symbol,
       quantity: req.body.quantity,
       side: 'BUY',
-      source: 'MANUAL'
+      source: 'MANUAL',
+      idempotencyKey: req.body.idempotencyKey
     })
 
     return res.status(200).json({
@@ -186,7 +187,8 @@ tradeApp.post('/sell', async (req, res, next) => {
       symbol: req.body.symbol,
       quantity: req.body.quantity,
       side: 'SELL',
-      source: 'MANUAL'
+      source: 'MANUAL',
+      idempotencyKey: req.body.idempotencyKey
     })
 
     return res.status(200).json({
@@ -320,14 +322,18 @@ tradeApp.get('/portfolio', async (req, res, next) => {
 tradeApp.get('/transactions', async (req, res, next) => {
   try {
     //fetch transactions sorted by newest first
+    // Scope note: the activity ledger is windowed to the latest 100 records.
+    // All-time totals, realized P&L and CSV exports inherit this scope until
+    // pagination lands. The UI and export carry the same scope label.
     const transactions = await transactionModel
       .find({ userId: req.user.id })
       .sort({ createdAt: -1 })
       .limit(100)
       .lean()
+    const total = await transactionModel.countDocuments({ userId: req.user.id })
     return res
       .status(200)
-      .json({ message: 'Transactions fetched', transactions })
+      .json({ message: 'Transactions fetched', transactions, scope: 'latest 100', total })
   } catch (err) {
     next(err)
   }
@@ -342,7 +348,8 @@ tradeApp.get('/orders', async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(100)
       .lean()
-    return res.status(200).json({ message: 'Orders fetched', orders })
+    const total = await orderModel.countDocuments({ userId: req.user.id })
+    return res.status(200).json({ message: 'Orders fetched', orders, scope: 'latest 100', total })
   } catch (err) {
     next(err)
   }

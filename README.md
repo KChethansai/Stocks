@@ -122,10 +122,11 @@ Stocks/
 
 ### Prerequisites
 
-- Node.js v18+
-- MongoDB Atlas account
-- Cloudinary account
-- Google OAuth 2.0 Client ID (for Google sign-in)
+- Node.js 22 LTS (Vite 8 requires Node ≥ 20.19; `node --version` to check)
+- MongoDB Atlas account on a replica set (paper-trade fills use multi-document transactions)
+- Cloudinary account (avatar uploads; the app runs without it, uploads return 503)
+- Google OAuth 2.0 Client ID (for Google sign-in; optional — the button hides gracefully without it)
+- Python 3.11+ only if you retrain ML models (`Backend/ml/python`)
 
 ### 1. Clone the Repository
 
@@ -187,6 +188,7 @@ cp .env.example .env
 
 ```env
 VITE_API_URL=http://localhost:4000
+VITE_GOOGLE_CLIENT_ID=
 ```
 
 Start the frontend:
@@ -196,6 +198,60 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:5173`.
+
+### 4. Quality Gates (run before any release)
+
+```bash
+cd Frontend
+npm run lint            # 0 errors required
+npm run tokens:check    # design-token gate (JSX + CSS), must print clean
+npm run test:unit       # history-cache policy unit tests (node --test)
+npm run build && npm run preview
+cd ../Backend
+npm run test:unit       # toProviderTime + seed-guard + seed failure-branch tests
+node scripts/verifyPhase0.js   # 13/13 gates; see warning below
+```
+
+### 5. Tests — Regression vs Live-Provider
+
+| Command | What it proves | Network / DB |
+|---|---|---|
+| `Backend: npm run test:unit` | Timestamp normalization, seed-guard refusals, seed failure branches (stubbed provider — deterministic) | Offline, no DB |
+| `Backend: node scripts/verifyPhase0.js` | Trading safeguards on an isolated DB (idempotency, quote gating, reconciliation) | Needs `DB_URL`; see warning |
+| `Frontend: npm run e2e` (= `sh scripts/e2e.sh --project=chromium-desktop`) | Full browser regression, serialized with `flock` — never run bare `npx playwright test` concurrently (concurrent runs corrupt artifacts and caused the Oct 2026 trace flakes) | Needs test backend + dev server below |
+| Live-provider smoke | Seed + suite against real Yahoo data | Test DB only |
+
+> ⚠️ `verifyPhase0` derives an isolated `phase0test_*` database on the **same
+> cluster** as `DB_URL` and **drops it** when done (drop scope is asserted
+> before deletion). Point `DB_URL` at a test cluster first — never run it
+> against the production connection string.
+
+### 6. Isolated Test Database (never production)
+
+All browser tests run against a throwaway database. The seed script refuses
+anything that does not look isolated, refuses the application's own `DB_URL`
+database, and never fabricates prices (unreachable symbols are marked
+`source:'seed'`/`stale:true`, never written as Yahoo data):
+
+```bash
+# 1. Seed verified quotes + history from live Yahoo (exit 2 = some symbols marked stale)
+cd Backend
+PWTEST_DB_URL=<isolated mongo url with "test" in the db name> node scripts/seedPwTest.js
+
+# 2. Backend on the isolated DB (from the Backend directory)
+DB_URL="<same isolated url>" PORT=4101 AUTH_RATE_LIMIT_MAX=1000 node server.js
+
+# 3. Frontend against it (from the Frontend directory, second terminal).
+# Blank VITE_GOOGLE_CLIENT_ID for hermetic runs: a real ID loads Google's
+# third-party GSI script, which races form clicks on Firefox in sandboxes.
+VITE_API_URL=http://localhost:4101 VITE_GOOGLE_CLIENT_ID= npx vite --port 5173
+
+# 4. Suite (from the Frontend directory, third terminal)
+npm run e2e
+```
+
+Test credentials are generated per run (`*-<timestamp>@example.com`); no
+real credentials or database URLs belong in logs or committed artifacts.
 
 ---
 
@@ -272,8 +328,73 @@ The app will be available at `http://localhost:5173`.
 
 1. Import the `Frontend` folder into [Vercel](https://vercel.com)
 2. Set **Framework Preset**: Vite
-3. Add environment variable: `VITE_API_URL=https://your-backend.onrender.com`
+3. Add environment variables: `VITE_API_URL=https://your-backend.onrender.com`, `VITE_GOOGLE_CLIENT_ID=<id>` (optional)
 4. The included `vercel.json` handles SPA routing rewrites automatically
+
+### Order + Rollback
+
+Deploy in this order — the backend allowlist must know the frontend origin:
+
+1. Deploy backend → note its URL → set `CLIENT_URLS` to include the Vercel URL → redeploy backend.
+2. Deploy frontend → smoke-test `/ml-api/accuracy` and one paper trade on the
+   production URL (verifies `CLIENT_URLS`, cookies, and `NODE_ENV=production`).
+3. Rollback: **app** — Render/Vercel dashboard revert to the previous deploy
+   (stateless; no migration to reverse). **Model** — `npm run release:rollback
+   && npm run release:verify` from `Backend/`.
+   App rollback and model rollback are independent operations: reverting the
+   app never touches model bundles, and rolling back a model never touches
+   deployed code. Do them separately, verify each separately.
+
+### Database compatibility (all included changes)
+
+New fields are strictly additive and optional — no migration script, no
+downtime, rollback-safe:
+- `Stock`: `source` (default `'unverified'`), `asOf`/`providerTime`/
+  `lastVerifiedAt` (default `null`), `stale` (default `false`).
+- `Order`/`Transaction`: `idempotencyKey` (default `undefined`, indexed).
+- `PredictionLog`: `model`/`releaseId`/`modelVersion`/`provenance`/`status`/
+  `resolutionReason`/`asOf`/`priceProvenance` (defaults `null`/`'unknown'`;
+  pre-existing rows read back as legacy/unknown, never relabeled).
+- New collection `idempotencyKey` with unique `(userId, key)` index and a
+  24h TTL (`expireAfterSeconds`) — replay windows self-clean.
+- New indexes (`Order`/`Transaction` user+symbol+createdAt,
+  `PredictionLog` status/releaseId composites, `Alert`/`PriceAlert`/
+  `AutomationRule` compounds) are created automatically by Mongoose on
+  connect; on the small MarketForge collections the build cost is negligible.
+- Backward compatibility: old documents remain valid (defaults apply on
+  read); new documents under an old app version are ignored-field-safe
+  (Mongoose strict mode neither reads nor destroys unknown fields on
+  plain reads). Rollback limitation: rolling the app back does NOT remove
+  new fields/indexes — that is intentional and harmless; re-deploying
+  forward picks them back up with zero repair.
+
+### Production smoke-test checklist (run after every deploy)
+
+Use a dedicated test account (e.g. `smoke-<date>@example.com`), never a real
+user's account. All money is virtual; ledger entries from smoke trades persist
+by design — keep quantities at 1 share.
+
+1. **Public data**: open `/` — hero ticket + fund chart render with genuine
+   values; scroll to markets/analytics sections; `GET /stock-api/stocks`
+   returns 30 symbols with fresh `asOf`.
+2. **Login/session persistence**: log in → hard-reload → still authenticated
+   (cookie `Secure` + `SameSite=None` over HTTPS; `lax` only in dev).
+   Log out → `/dashboard` redirects to `/login`.
+3. **Profile saving**: change username → reload → persisted; avatar upload
+   optional (503 without Cloudinary config is expected, not a failure).
+4. **Dedicated-account paper trade**: buy 1 share of AAPL → receipt shows →
+   `/activity` lists it → sell 1 share → balances reconcile.
+5. **Google button (if `VITE_GOOGLE_CLIENT_ID` set)**: button renders on
+   `/login`; a consent-completed sign-in lands on `/dashboard`. Requires the
+   production URL in Google Cloud Console → Credentials → OAuth client →
+   **Authorized JavaScript origins** (same client ID in backend
+   `GOOGLE_CLIENT_ID` and frontend `VITE_GOOGLE_CLIENT_ID`).
+6. **ML**: `GET /ml-api/accuracy` 200; one `/predict/AAPL` returns
+   direction + basis (never a percentage claim).
+
+The pre-redesign landing is archived byte-identical with restoration steps in
+`Frontend/src/legacy-landing/README.md` (never bundled — verified 0 bytes in
+the production build).
 
 After deploying both, update `CLIENT_URLS` in your Render backend env to include your Vercel frontend URL.
 
@@ -299,12 +420,22 @@ After deploying both, update `CLIENT_URLS` in your Render backend env to include
 | `AUTOMATION_INTERVAL_CRON` | Cron schedule for automation jobs (default: `*/15 * * * *`) |
 | `ACCURACY_RESOLVE_CRON` | Cron schedule for accuracy resolution (default: `30 21 * * 1-5`) |
 | `MAX_AUTOMATION_TRADES_PER_DAY` | Daily cap for automated trades per user |
+| `ML_DEMO_MODE` | **Never `true` in production** — demo accuracy is force-disabled when `NODE_ENV=production`, but leave it unset to avoid confusion |
+| `ML_AUTOMATION_ALLOW_HEURISTIC` | Opt-in to allow BUY/SELL on heuristic fallback (default blocked) |
+| `ML_AUTOMATION_ALLOW_EXPERIMENTAL` | Opt-in to allow BUY/SELL on experimental v2 models (default blocked) |
+| `ML_QUOTE_MAX_AGE_MINUTES` | Quote freshness for prediction-driven trades (default 5760 = 4 days) |
+| `ACCURACY_UNRESOLVABLE_AFTER_DAYS` | Zero-candle logs older than this are marked unresolvable (default 30) |
+| `AUTH_RATE_LIMIT_MAX` | Test-only escape hatch for the isolated audit backend (production default 20) — never raise in production |
+
+> Production cookies require `COOKIE_SAME_SITE=none` **plus HTTPS**; the
+> default is `lax` in development and `none` in production.
 
 ### Frontend
 
 | Variable | Description |
 |---|---|
 | `VITE_API_URL` | Backend base URL |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth client ID (optional; Google button shows a disabled notice without it) |
 
 ---
 

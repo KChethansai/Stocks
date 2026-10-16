@@ -25,18 +25,18 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center text-[#F5F7FA]">
-          <div className="w-full max-w-md bg-[#111318] border border-white/15 rounded-2xl p-8 shadow-2xl space-y-6">
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center text-[var(--ivory)]">
+          <div className="w-full max-w-md bg-[#111316] border border-white/15 rounded-2xl p-8 shadow-2xl space-y-6">
             <div className="flex justify-center">
               <Logo3D size="lg" withGlow={true} />
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2 text-[#EF4444]">
+              <div className="flex items-center justify-center gap-2 text-[var(--loss)]">
                 <AlertTriangle className="w-5 h-5" />
                 <h2 className="text-lg font-bold font-mono">Workspace Interrupted</h2>
               </div>
-              <p className="text-xs text-[#9CA3AF]">
+              <p className="text-xs text-[var(--stone)]">
                 An unexpected interface anomaly was caught. You can restore your trading workspace below.
               </p>
             </div>
@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component {
               type="button"
               variant="primary"
               onClick={this.handleReset}
-              className="w-full py-3 rounded-xl shadow-lg shadow-[#3B82F6]/25"
+              className="w-full py-3 rounded-xl shadow-lg shadow-[var(--brass)]/25"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Reload MarketForge</span>

@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils'
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/* Exclusive option group with radiogroup semantics (ranges, sides, filters).
+ * For view-switching navigation use tabs elsewhere; this control selects one
+ * value from a set. Arrow keys move between options. */
 export function SegmentedControl({
   value,
   onChange,
@@ -17,44 +20,65 @@ export function SegmentedControl({
   const uid = useId()
   const reduced = prefersReducedMotion()
 
+  const move = (dir) => {
+    const idx = options.findIndex((o) => o.value === value)
+    const nextIdx = (idx + dir + options.length) % options.length
+    const next = options[nextIdx]
+    if (!next) return
+    onChange(next.value)
+    // Roving focus follows selection so AT focus matches aria-checked.
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-seg-index="${nextIdx}"]`)
+        ?.focus()
+    })
+  }
+
   return (
     <div
-      role="tablist"
+      role="radiogroup"
       aria-label={ariaLabel}
       className={cn(
-        'inline-flex items-center rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#151820] p-0.5',
+        'inline-flex items-center rounded-lg border border-[var(--hairline)] bg-[var(--ink-800)] p-0.5',
         fullWidth && 'w-full',
         className
       )}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault()
+          move(1)
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault()
+          move(-1)
+        }
+      }}
     >
-      {options.map((opt) => {
+      {options.map((opt, optIdx) => {
         const active = opt.value === value
         const Icon = opt.icon
         return (
           <button
             key={opt.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            role="radio"
+            aria-checked={active}
+            data-seg-index={optIdx}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'relative flex items-center justify-center rounded-md font-mono transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/60',
+              'relative flex items-center justify-center rounded-md transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]',
               size === 'sm' ? 'px-2.5 py-1 text-[10px] gap-1' : 'px-3 py-1 text-xs gap-1.5',
               fullWidth && 'flex-1',
               active
-                ? opt.activeClass || 'text-[#F5F7FA] font-semibold'
-                : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
+                ? opt.activeClass || 'text-[var(--ivory)] font-semibold'
+                : 'text-[var(--stone)] hover:text-[var(--ivory)]'
             )}
           >
             {active && (
               <motion.span
                 layoutId={`${uid}-pill`}
                 className={cn('absolute inset-0 rounded-md', opt.pillClass || 'bg-white/10')}
-                transition={
-                  reduced
-                    ? { duration: 0 }
-                    : { type: 'spring', bounce: 0.18, duration: 0.45 }
-                }
+                transition={reduced ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
               />
             )}
             <span className="relative z-10 flex items-center gap-1.5">

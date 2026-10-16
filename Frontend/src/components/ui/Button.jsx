@@ -1,33 +1,34 @@
 import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 
+/* Flat button system. Primary = ivory fill / ink text. Secondary = hairline.
+ * Success/danger retained as compat names for trade surfaces only.
+ * Focus ring is always brass. Sizes keep the existing xs–lg API. */
+
 const sizes = {
-  xs: 'px-2.5 py-1 text-[11px] gap-1.5',
-  sm: 'px-3 py-1.5 text-xs gap-1.5',
-  md: 'px-4 py-2 text-xs gap-2',
-  lg: 'px-6 py-3 text-sm gap-2'
+  xs: 'px-2.5 py-1 text-[11px] gap-1.5 min-h-[28px]',
+  sm: 'px-3 py-1.5 text-xs gap-1.5 min-h-[32px]',
+  md: 'px-4 py-2 text-xs gap-2 min-h-[40px]',
+  lg: 'px-6 py-3 text-sm gap-2 min-h-[44px]'
 }
 
 const variants = {
-  primary:
-    'bg-gradient-to-b from-[#4D8EF8] to-[#2F6FE3] text-white shadow-[0_2px_14px_rgba(59,130,246,0.35)] hover:shadow-[0_4px_22px_rgba(59,130,246,0.5)] hover:brightness-110',
-  success:
-    'bg-gradient-to-b from-[#2EDB9A] to-[#1FBF82] text-[#06090F] shadow-[0_2px_14px_rgba(46,207,142,0.35)] hover:shadow-[0_4px_22px_rgba(46,207,142,0.5)] hover:brightness-110',
-  danger:
-    'bg-gradient-to-b from-[#FF5E6D] to-[#EF4444] text-white shadow-[0_2px_14px_rgba(239,68,68,0.35)] hover:shadow-[0_4px_22px_rgba(239,68,68,0.5)] hover:brightness-110',
+  primary: 'bg-[var(--ivory)] text-[#0B0C0E] font-semibold hover:brightness-95',
+  success: 'bg-[var(--gain)] text-[#0B0C0E] font-semibold hover:brightness-95',
+  danger: 'bg-[var(--loss)] text-[#0B0C0E] font-semibold hover:brightness-95',
   secondary:
-    'border border-white/10 bg-[#151820] text-[#F5F7FA] hover:bg-[#1c1b1d] hover:border-white/20 hover:text-white',
-  ghost: 'text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-white/[0.06]',
+    'border border-[var(--hairline)] bg-[var(--ink-900)] text-[var(--ivory)] hover:border-[var(--hairline-hover)] hover:bg-[var(--ink-800)]',
+  ghost: 'text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-white/[0.06]',
   'outline-danger':
-    'border border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/10 hover:border-[#EF4444]/60',
-  cell: 'bg-[#3B82F6]/10 border border-[#3B82F6]/20 text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white hover:border-[#3B82F6]',
+    'border border-[var(--loss)]/30 text-[var(--loss)] hover:bg-[var(--loss)]/10 hover:border-[var(--loss)]/60',
+  cell: 'bg-[var(--accent-subtle)] border border-[var(--brass)]/20 text-[var(--brass)] hover:bg-[var(--brass)]/25',
   'cell-danger':
-    'bg-[#EF4444]/10 border border-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:border-[#EF4444]'
+    'bg-[var(--loss)]/10 border border-[var(--loss)]/20 text-[var(--loss)] hover:bg-[var(--loss)]/20'
 }
 
 function buttonVariants({ variant = 'primary', size = 'md', className } = {}) {
   return cn(
-    'relative inline-flex items-center justify-center gap-2 font-mono font-semibold select-none rounded-lg transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] disabled:pointer-events-none disabled:opacity-40',
+    'relative inline-flex items-center justify-center gap-2 font-semibold select-none rounded-lg transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0C0E] disabled:pointer-events-none disabled:opacity-40',
     sizes[size] || sizes.md,
     variants[variant] || variants.primary,
     className
@@ -45,6 +46,7 @@ export function Button({
   onClick,
   disabled = false,
   type = 'button',
+  ref,
   ...props
 }) {
   return (
@@ -52,8 +54,9 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      whileTap={disabled || prefersReducedMotion() ? {} : { scale: 0.96 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+      ref={ref}
+      whileTap={disabled || prefersReducedMotion() ? {} : { scale: 0.97 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     >
@@ -65,18 +68,18 @@ export function Button({
 export function Chip({ active = false, onClick, children, className, tone = 'neutral', ...props }) {
   const tones = {
     neutral:
-      'border-white/10 bg-white/[0.04] text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-white/[0.08]',
+      'border-[var(--hairline)] bg-white/[0.04] text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-white/[0.08]',
     accent:
-      'border-[#3B82F6]/40 bg-[#3B82F6]/15 text-[#3B82F6] hover:bg-[#3B82F6]/25 hover:text-[#60A5FA]',
+      'border-[var(--brass)]/40 bg-[var(--accent-subtle)] text-[var(--brass)] hover:bg-[var(--brass)]/25',
     danger:
-      'border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20'
+      'border-[var(--loss)]/30 bg-[var(--loss)]/10 text-[var(--loss)] hover:bg-[var(--loss)]/20'
   }
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'px-2 py-0.5 text-[0.7rem] font-mono rounded-md border transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/60 disabled:opacity-40 disabled:pointer-events-none',
+        'px-2 py-0.5 text-[0.7rem] rounded-md border transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] disabled:opacity-40 disabled:pointer-events-none',
         active ? tones.accent : tones[tone] || tones.neutral,
         className
       )}

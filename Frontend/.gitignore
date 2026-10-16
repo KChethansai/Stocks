@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright audit artifacts (local-only)
+/playwright-report/
+/test-results/

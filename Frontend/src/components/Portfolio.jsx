@@ -22,10 +22,11 @@ import {
   summarizePortfolio
 } from '../utils/marketAnalytics'
 import { useShell } from './layout/ShellContext'
-import { NumberTicker } from './magicui/NumberTicker'
+import { LiveValue } from './LiveValue'
 import { ParticleButton } from './kokonutui/ParticleButton'
 import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
+import { Dialog } from './ui/Dialog'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
 import Reveal from './ui/Reveal'
@@ -46,14 +47,14 @@ class PortfolioErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div className="w-full px-4 sm:px-6 lg:px-8 py-12 max-w-7xl mx-auto text-center space-y-4">
-          <div className="p-8 rounded-2xl bg-[#111318] border border-[rgba(255,255,255,0.08)] max-w-md mx-auto space-y-4">
-            <h2 className="text-lg font-bold text-[#F5F7FA]">Unable to display portfolio visualization</h2>
-            <p className="text-xs text-[#9CA3AF]">
+          <div className="p-8 rounded-2xl bg-[#111316] border border-[rgba(255,255,255,0.08)] max-w-md mx-auto space-y-4">
+            <h2 className="text-lg font-bold text-[var(--ivory)]">Unable to display portfolio visualization</h2>
+            <p className="text-xs text-[var(--stone)]">
               A temporary display error occurred while rendering the 3D allocation. Your portfolio positions and balance are completely safe.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-mono font-semibold rounded-lg transition"
+              className="px-4 py-2 bg-[var(--brass)] hover:brightness-95 text-[#0B0C0E] text-xs font-mono font-semibold rounded-lg transition"
             >
               Reload Page
             </button>
@@ -149,11 +150,17 @@ function PortfolioContent() {
       totalInvested += val
     })
     if (totalInvested === 0) return []
-    return Object.entries(map).map(([name, val]) => ({
+    const sorted = Object.entries(map).map(([name, val]) => ({
       name,
+      key: name,
       value: val,
       percentage: ((val / totalInvested) * 100)
     })).sort((a, b) => b.percentage - a.percentage)
+    if (sorted.length <= 3) return sorted
+    const top = sorted.slice(0, 3)
+    const rest = sorted.slice(3)
+    const otherValue = rest.reduce((s, r) => s + r.value, 0)
+    return [...top, { name: 'Other', key: '__other', isOther: true, count: rest.length, value: otherValue, percentage: (otherValue / totalInvested) * 100 }]
   }, [holdings, stocks])
 
   // Equity vs Cash mix for Insight-3 (live)
@@ -230,14 +237,14 @@ function PortfolioContent() {
             <ShinyText>Total Portfolio Value</ShinyText>
           </h1>
           <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-4xl sm:text-5xl font-bold font-mono text-[#F5F7FA] tracking-tight whitespace-nowrap">
-              $<NumberTicker value={Number(analytics.portfolioValue || 0)} decimalPlaces={2} />
+            <span className="text-4xl sm:text-5xl font-bold font-mono text-[var(--ivory)] tracking-tight whitespace-nowrap">
+              <LiveValue value={Number(analytics.portfolioValue || 0)} format={(v) => `$${v.toFixed(2)}`} />
             </span>
             <span
               className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-md flex items-center gap-1 ${
                 isTotalPos
-                  ? 'text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/20'
-                  : 'text-[#EF4444] bg-[#EF4444]/10 border border-[#EF4444]/20'
+                  ? 'text-[var(--gain)] bg-[rgba(79,178,134,.12)] border border-[var(--gain)]/20'
+                  : 'text-[var(--loss)] bg-[rgba(217,102,122,.12)] border border-[var(--loss)]/20'
               }`}
             >
               {isTotalPos ? (
@@ -249,7 +256,7 @@ function PortfolioContent() {
               {analytics.totalPnLPercent?.toFixed(2)}%
             </span>
           </div>
-          <p className="text-xs text-[#9CA3AF] mt-1 font-mono">
+          <p className="text-xs text-[var(--stone-muted)] mt-1 font-mono">
             {isTodayPos ? '+' : ''}
             {formatCurrency(analytics.todayPnL || 0)} Today
           </p>
@@ -258,14 +265,14 @@ function PortfolioContent() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-[#111318] border border-white/8 hover:bg-[#151820] text-[#F5F7FA] rounded-xl text-xs font-mono font-medium transition flex items-center gap-2 cursor-pointer shadow-sm hover:border-white/20"
+            className="px-4 py-2 bg-[#111316] border border-white/8 hover:bg-[#181B1F] text-[var(--ivory)] rounded-xl text-xs font-mono font-medium transition flex items-center gap-2 cursor-pointer shadow-sm hover:border-white/20"
           >
-            <Download className="w-3.5 h-3.5 text-[#9CA3AF]" />
+            <Download className="w-3.5 h-3.5 text-[var(--stone)]" />
             <span>Export CSV</span>
           </button>
           <ParticleButton
             onClick={() => openTradeModal()}
-            tone="blue"
+            tone="brass"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             <PlusCircle className="w-3.5 h-3.5" />
@@ -277,34 +284,34 @@ function PortfolioContent() {
       {/* Bento Grid: 8 Cols Chart + 4 Cols Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Performance Chart */}
-        <Reveal delay={0.05} className="lg:col-span-8 bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
+        <Reveal delay={0.05} className="lg:col-span-8 bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <h2 className="mf-h2">
                 Performance
               </h2>
               <div className="h-4 w-px bg-white/8"></div>
-              <div className="flex items-center gap-3 text-xs text-[#9CA3AF] font-mono">
+              <div className="flex items-center gap-3 text-xs text-[var(--stone)] font-mono">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--brass)]"></span>
                   Portfolio
                 </span>
                 <span className="flex items-center gap-1.5 text-text-muted">
-                  <span className="w-2 h-2 rounded-full bg-[#8A93A6]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--stone-muted)]"></span>
                   S&amp;P 500
                 </span>
               </div>
             </div>
 
-            <div className="flex bg-[#151820] rounded-lg p-1 border border-white/8">
+            <div className="flex bg-[#181B1F] rounded-lg p-1 border border-white/8">
               {['1D', '1W', '1M', '3M', 'YTD', '1Y'].map((r) => (
                 <button
                   key={r}
                   onClick={() => setRange(r)}
                   className={`px-3 py-1 rounded text-xs font-mono transition cursor-pointer ${
                     range === r
-                      ? 'bg-white/10 text-[#F5F7FA] font-medium shadow-sm'
-                      : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
+                      ? 'bg-white/10 text-[var(--ivory)] font-medium shadow-sm'
+                      : 'text-[var(--stone)] hover:text-[var(--ivory)]'
                   }`}
                 >
                   {r}
@@ -316,9 +323,9 @@ function PortfolioContent() {
           <div className="min-h-[260px] w-full">
             <TerminalLineChart
               data={history}
-              color="#3B82F6"
+              label="Holdings value"
+              color="#C9A96E"
               height={260}
-              yAxisLabel="Value ($)"
               showGrid={true}
             />
           </div>
@@ -328,28 +335,28 @@ function PortfolioContent() {
         <Reveal delay={0.1} className="lg:col-span-4 flex flex-col gap-4">
           {/* Insight 1: Best Performer */}
           <SpotlightCard
-            spotlightColor="rgba(34, 197, 94, 0.15)"
+            spotlightColor="rgba(79, 178, 134, 0.15)"
             tiltIntensity={4}
-            className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 flex flex-col justify-between"
+            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 flex flex-col justify-between"
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#22C55E]" />
+                <TrendingUp className="w-4 h-4 text-[var(--gain)]" />
                 <span className="mf-label font-mono">
                   Best Performer
                 </span>
               </div>
-              <span className="text-xs font-mono bg-[#151820] px-2 py-0.5 rounded text-[#F5F7FA] border border-white/8">
+              <span className="text-xs font-mono bg-[#181B1F] px-2 py-0.5 rounded text-[var(--ivory)] border border-white/8">
                 {bestPerformer ? bestPerformer.symbol : 'N/A'}
               </span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-[#F5F7FA]">
+              <span className="text-2xl font-bold font-mono text-[var(--ivory)]">
                 {bestPerformer ? `+${(bestPerformer.pnlPercent || 0).toFixed(1)}%` : '+0.0%'}
               </span>
               <span className="text-xs text-text-muted font-mono">unrealized return</span>
             </div>
-            <p className="mt-2 text-xs text-[#9CA3AF] leading-relaxed">
+            <p className="mt-2 text-xs text-[var(--stone-muted)] leading-relaxed">
               {bestPerformer
                 ? `${bestPerformer.name || bestPerformer.symbol} leads total position returns with ${formatCurrency(bestPerformer.pnl || 0)} gains.`
                 : 'Execute your first stock trade to start generating asset insights.'}
@@ -358,26 +365,28 @@ function PortfolioContent() {
 
           {/* Insight 2: Largest Sector / Allocation */}
           <SpotlightCard
-            spotlightColor="rgba(59, 130, 246, 0.15)"
+            spotlightColor="rgba(201, 169, 110, 0.15)"
             tiltIntensity={4}
-            className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 flex flex-col justify-between"
+            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 flex flex-col justify-between"
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-[#3B82F6]" />
+                <PieChart className="w-4 h-4 text-[var(--stone)]" />
                 <span className="mf-label font-mono">
                   Sector Weight
                 </span>
               </div>
-              <span className="text-xs font-mono bg-[#151820] px-2 py-0.5 rounded text-[#F5F7FA] border border-white/8">
+              <span className="text-xs font-mono bg-[#181B1F] px-2 py-0.5 rounded text-[var(--ivory)] border border-white/8">
                 {sectorAllocation[0]?.name || 'Equities'}
               </span>
             </div>
 
             {/* Stacked Allocation Bar → shared sector donut (real data) */}
             <SectorAllocation
-              items={sectorAllocation.slice(0, 3).map((sec) => ({
-                label: sec.name,
+              items={sectorAllocation.map((sec) => ({
+                label: sec.isOther && sec.count > 0 ? `Other (${sec.count} holdings)` : sec.name,
+                key: sec.key ?? sec.name,
+                isOther: Boolean(sec.isOther),
                 value: sec.value,
                 display: `${sec.percentage.toFixed(1)}%`,
               }))}
@@ -387,12 +396,12 @@ function PortfolioContent() {
                 sectorAllocation.reduce((s, sec) => s + (sec.value || 0), 0)
               )}
               totalLabel="Invested"
-              legendLimit={3}
+              legendLimit={4}
               className="my-1"
             />
 
             <div className="flex justify-between items-baseline">
-              <span className="text-lg font-bold font-mono text-[#F5F7FA]">
+              <span className="text-lg font-bold font-mono text-[var(--ivory)]">
                 {sectorAllocation[0]?.percentage ? `${sectorAllocation[0].percentage.toFixed(1)}%` : '100%'}
               </span>
               <span className="text-xs text-text-muted font-mono">
@@ -403,34 +412,34 @@ function PortfolioContent() {
 
           {/* Insight 3: Equity vs Cash mix (replaces the removed 3D torus —
               it rendered hardcoded dummy segments; this shows live data) */}
-          <div className="bg-gradient-to-br from-[#111318] to-[#151820] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col justify-between relative overflow-hidden shadow-xl">
+          <div className="bg-gradient-to-br from-[#111316] to-[#181B1F] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 flex flex-col justify-between relative overflow-hidden shadow-xl">
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
+                <ShieldCheck className="w-4 h-4 text-[var(--stone)]" />
                 <span className="mf-label font-mono">
                   Asset Mix
                 </span>
               </div>
-              <span className="mf-badge text-[#22C55E]">Live</span>
+              <span className="mf-badge text-[var(--gain)]">Live</span>
             </div>
             <div
               className="w-full h-3 rounded-full overflow-hidden flex bg-white/[0.08]"
               role="img"
               aria-label={`Equity ${equityPct.toFixed(1)} percent, cash ${(100 - equityPct).toFixed(1)} percent`}
             >
-              <div className="h-full bg-[#3B82F6]" style={{ width: `${equityPct}%` }} />
-              <div className="h-full bg-[#22C55E]" style={{ width: `${100 - equityPct}%` }} />
+              <div className="h-full bg-[var(--brass)]" style={{ width: `${equityPct}%` }} />
+              <div className="h-full bg-[var(--gain)]" style={{ width: `${100 - equityPct}%` }} />
             </div>
             <div className="mt-3 space-y-1.5 font-mono text-xs">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full shrink-0 bg-[#3B82F6]" />
-                <span className="text-[#9CA3AF]">Equity</span>
-                <span className="text-[#F5F7FA] font-bold ml-auto">{formatCurrency(equityValue)}</span>
+                <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--brass)]" />
+                <span className="text-[var(--stone-muted)]">Equity</span>
+                <span className="text-[var(--ivory)] font-bold ml-auto">{formatCurrency(equityValue)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full shrink-0 bg-[#22C55E]" />
-                <span className="text-[#9CA3AF]">Cash</span>
-                <span className="text-[#F5F7FA] font-bold ml-auto">{formatCurrency(cashValue)}</span>
+                <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--gain)]" />
+                <span className="text-[var(--stone-muted)]">Cash</span>
+                <span className="text-[var(--ivory)] font-bold ml-auto">{formatCurrency(cashValue)}</span>
               </div>
             </div>
           </div>
@@ -438,7 +447,7 @@ function PortfolioContent() {
       </div>
 
       {/* Holdings Section & Table */}
-      <Reveal delay={0.15} as="section" className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
+      <Reveal delay={0.15} as="section" className="bg-[#111316] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         <div className="p-5 border-b border-[rgba(255,255,255,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="mf-h2">
@@ -457,7 +466,7 @@ function PortfolioContent() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search holdings..."
-              className="w-full bg-[#151820] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
+              className="w-full bg-[#181B1F] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)] transition placeholder-[var(--stone-muted)]"
             />
           </div>
         </div>
@@ -468,7 +477,7 @@ function PortfolioContent() {
             <p>No active stock positions found.</p>
             <Link
               to="/markets"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#3B82F6] hover:underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs text-[var(--brass)] hover:underline"
             >
               <span>Explore markets to buy stocks</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -496,15 +505,15 @@ function PortfolioContent() {
                     <tr
                       key={holding.symbol}
                       onClick={() => navigate(`/markets?stock=${holding.symbol}`)}
-                      className="hover:bg-[#151820] transition cursor-pointer group"
+                      className="hover:bg-[#181B1F] transition cursor-pointer group"
                     >
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-white/[0.08] border border-[rgba(255,255,255,0.08)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
+                          <div className="w-7 h-7 rounded-lg bg-white/[0.08] border border-[rgba(255,255,255,0.08)] flex items-center justify-center font-bold text-xs text-[var(--brass)]">
                             {holding.symbol[0]}
                           </div>
                           <div>
-                            <span className="font-bold text-[#F5F7FA] group-hover:text-[#3B82F6] transition block">
+                            <span className="font-bold text-[var(--ivory)] group-hover:text-[var(--brass)] transition block">
                               {holding.symbol}
                             </span>
                             <span className="mf-meta block truncate max-w-[120px]">
@@ -514,30 +523,30 @@ function PortfolioContent() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-semibold text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-semibold text-[var(--ivory)]">
                         {holding.quantity}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-medium text-[#9CA3AF]">
+                      <td className="py-3.5 px-4 text-right font-medium text-[var(--stone)]">
                         ${Number(holding.avgBuyPrice || 0).toFixed(2)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-semibold text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-semibold text-[var(--ivory)]">
                         ${Number(holding.currentPrice || 0).toFixed(2)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-medium text-[#9CA3AF]">
+                      <td className="py-3.5 px-4 text-right font-medium text-[var(--stone)]">
                         {formatCurrency(holding.invested || 0)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-semibold text-[#F5F7FA]">
+                      <td className="py-3.5 px-4 text-right font-semibold text-[var(--ivory)]">
                         {formatCurrency(holding.currentValue || 0)}
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
                         <span
                           className={`font-semibold ${
-                            isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                            isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                           }`}
                         >
                           {isPos ? '+' : ''}
@@ -566,28 +575,34 @@ function PortfolioContent() {
 
       {/* Position Liquidation Sell Modal */}
       {sellModalHolding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-[#151820]/95 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 relative overflow-hidden">
+        <Dialog
+          open={Boolean(sellModalHolding)}
+          onClose={() => setSellModalHolding(null)}
+          ariaLabel={`Liquidate ${sellModalHolding.symbol}`}
+          className="p-6"
+        >
+          <div className="text-[var(--ivory)]">
             <div className="flex items-center justify-between border-b border-white/8 pb-3">
-              <h3 className="text-sm font-bold text-[#F5F7FA]">
+              <h3 className="text-sm font-bold text-[var(--ivory)]">
                 Liquidate {sellModalHolding.symbol}
               </h3>
               <button
                 onClick={() => setSellModalHolding(null)}
-                className="text-[#9CA3AF] hover:text-[#F5F7FA] cursor-pointer"
+                aria-label="Close"
+                className="text-[var(--stone)] hover:text-[var(--ivory)] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs font-mono">
-              <div className="flex justify-between text-[#9CA3AF]">
+              <div className="flex justify-between text-[var(--stone-muted)]">
                 <span>Shares Owned</span>
-                <span className="text-[#F5F7FA] font-bold">{sellModalHolding.quantity}</span>
+                <span className="text-[var(--ivory)] font-bold">{sellModalHolding.quantity}</span>
               </div>
-              <div className="flex justify-between text-[#9CA3AF]">
+              <div className="flex justify-between text-[var(--stone-muted)]">
                 <span>Market Price</span>
-                <span className="text-[#F5F7FA]">${Number(sellModalHolding.currentPrice).toFixed(2)}</span>
+                <span className="text-[var(--ivory)]">${Number(sellModalHolding.currentPrice).toFixed(2)}</span>
               </div>
 
               <div>
@@ -603,9 +618,9 @@ function PortfolioContent() {
                 />
               </div>
 
-              <div className="p-3 bg-[#111318] rounded-lg border border-white/8 flex justify-between font-bold text-sm">
-                <span className="text-[#F5F7FA]">Estimated Payout</span>
-                <span className="text-[#22C55E]">
+              <div className="p-3 bg-[#111316] rounded-lg border border-white/8 flex justify-between font-bold text-sm">
+                <span className="text-[var(--ivory)]">Estimated Payout</span>
+                <span className="text-[var(--gain)]">
                   {formatCurrency((sellModalHolding.currentPrice || 0) * sellQty)}
                 </span>
               </div>
@@ -631,7 +646,7 @@ function PortfolioContent() {
               </ParticleButton>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   )

@@ -29,7 +29,7 @@ FEATURE_COLUMNS = [
     "rsi14",
 ]
 
-HORIZONS = (1, 2, 3, 5)
+HORIZONS = (1, 2, 3, 4, 5)
 DEADBAND = 0.001  # ±0.1% symmetric — closures below this are NEUTRAL
 
 
@@ -84,8 +84,15 @@ def compute_features(closes: np.ndarray) -> dict[str, float]:
 
     roc10 = float((window[-1] - window[-1 - ROC_PERIOD]) / window[-1 - ROC_PERIOD])
 
-    returns = np.diff(window)
-    volatility = float(returns.std(ddof=1)) if len(returns) >= 3 else 0.0
+    # Session-over-session relative returns — must match ml/features.js
+    # returnVolatility exactly (JS divides by prior close; absolute price diffs
+    # would silently change scale and break train/serve parity).
+    prev = window[:-1]
+    curr = window[1:]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        returns = np.where(prev > 0, (curr - prev) / prev, np.nan)
+    returns = returns[np.isfinite(returns)]
+    volatility = float(returns.std(ddof=1)) if len(returns) >= 2 else 0.0
 
     return {
         "sma5_rel": sma5 / last - 1,

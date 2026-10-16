@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "motion/react";
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import * as React from "react";
 function HighlightSegment({
   pathRef,
@@ -12,7 +12,24 @@ function HighlightSegment({
   width
 }) {
   const clipId = useId();
-  if (!(visible && pathRef.current)) {
+  const [pathD, setPathD] = useState("");
+  // The path `d` can change while visible (live data) without a re-render of
+  // this component carrying new props, so observe the attribute directly.
+  useEffect(() => {
+    const el = pathRef?.current;
+    if (!el) {
+      setPathD("");
+      return;
+    }
+    setPathD(el.getAttribute("d") || "");
+    if (typeof MutationObserver === "undefined") return;
+    const obs = new MutationObserver(() => {
+      setPathD(el.getAttribute("d") || "");
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ["d"] });
+    return () => obs.disconnect();
+  }, [pathRef, visible]);
+  if (!(visible && pathD)) {
     return null;
   }
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("clipPath", { id: clipId }, /* @__PURE__ */ React.createElement(motion.rect, { height, width, x, y: 0 }))), /* @__PURE__ */ React.createElement(
@@ -20,7 +37,7 @@ function HighlightSegment({
     {
       animate: { opacity: 1 },
       clipPath: `url(#${clipId})`,
-      d: pathRef.current.getAttribute("d") || "",
+      d: pathD,
       exit: { opacity: 0 },
       fill: "none",
       initial: { opacity: 0 },

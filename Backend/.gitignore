@@ -2,7 +2,19 @@ node_modules/
 .env
 *.log
 ml/models/
+# Phase 1.6: model release bundles — manifest is committed for provenance,
+# binaries travel as a checksummed tarball via `npm run release:package`.
+ml/models/.install-tmp/
+ml/models/.backup-*/
+ml/releases/*.tar.gz
+ml/releases/*.tar.gz.sha256
+ml/releases/.stage-*/
 ml/data/raw/
+ml/experiments/
+# Timestamped H5 campaign run-evidence bundles (hundreds of MB each) stay
+# local; the top-level campaign/*.md protocol docs ARE committed.
+ml/campaign/20*/
+data/raw/
 .venv/
 __pycache__/
 *.pyc

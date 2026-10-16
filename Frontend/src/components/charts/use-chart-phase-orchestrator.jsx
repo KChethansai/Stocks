@@ -23,7 +23,9 @@ function useChartPhaseOrchestrator({
   const [isLoaded, setIsLoaded] = useState(() => chartStatus === "ready");
   const prevStatusRef = useRef(chartStatus);
   const phaseRef = useRef(chartPhase);
-  phaseRef.current = chartPhase;
+  useEffect(() => {
+    phaseRef.current = chartPhase;
+  }, [chartPhase]);
   useEffect(() => {
     const prevStatus = prevStatusRef.current;
     if (prevStatus === chartStatus) {

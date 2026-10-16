@@ -40,15 +40,15 @@ check('accepts exactly MIN_CANDLES', () => {
 })
 
 check('sma5 / sma20 match hand-computed values', () => {
-  const closes = series(20, (i) => 100 + i) // 100..119
+  const closes = series(30, (i) => 100 + i) // 100..129 (MIN_CANDLES=30)
   const f = computeFeatures(candles(closes))
-  // last 5 = 115..119 -> mean 117 ; all 20 = 100..119 -> mean 109.5
-  assert.equal(f.sma5, 117)
-  assert.equal(f.sma20, 109.5)
+  // last 5 = 125..129 -> mean 127 ; last 20 = 110..129 -> mean 119.5
+  assert.equal(f.sma5, 127)
+  assert.equal(f.sma20, 119.5)
 })
 
 check('OLS slope of a perfect line is exact', () => {
-  const f = computeFeatures(candles(series(25, (i) => 50 + 2 * i)))
+  const f = computeFeatures(candles(series(30, (i) => 50 + 2 * i)))
   assert.ok(Math.abs(f.emaTrendSlope - 2) < 1e-9, `slope ${f.emaTrendSlope}`)
   assert.ok(Math.abs(f.slopeR2 - 1) < 1e-9, `r2 ${f.slopeR2}`)
 })
@@ -80,7 +80,7 @@ check('RSI needs period+1 closes', () => {
 })
 
 check('candles are sorted before use, unsorted input is safe', () => {
-  const ordered = candles(series(25, (i) => 100 + i))
+  const ordered = candles(series(30, (i) => 100 + i))
   const shuffled = [...ordered].reverse()
   assert.equal(computeFeatures(ordered).lastClose, computeFeatures(shuffled).lastClose)
 })

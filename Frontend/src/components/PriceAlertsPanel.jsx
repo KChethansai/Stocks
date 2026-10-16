@@ -76,10 +76,10 @@ export default function PriceAlertsPanel({ symbol, currentPrice }) {
   }
 
   return (
-    <div className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col shadow-xl">
+    <div className="bg-[#111316] rounded-2xl border border-[rgba(255,255,255,0.08)] p-5 sm:p-6 flex flex-col shadow-xl">
       <div className="flex items-center gap-2 mb-1">
-        <Bell className="w-4 h-4 text-[#3B82F6]" />
-        <h3 className="text-sm font-semibold text-[#F5F7FA] m-0">
+        <Bell className="w-4 h-4 text-[var(--stone)]" />
+        <h3 className="text-sm font-semibold text-[var(--ivory)] m-0">
           Price Alerts — {symbol}
         </h3>
       </div>
@@ -109,7 +109,7 @@ export default function PriceAlertsPanel({ symbol, currentPrice }) {
             value={targetPrice}
             onChange={(e) => setTargetPrice(e.target.value)}
             aria-label="Target price"
-            className="w-full bg-[#09090B] border border-[rgba(255,255,255,0.1)] rounded-lg pl-7 pr-3 py-2 text-sm font-mono text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6]"
+            className="w-full bg-[#0B0C0E] border border-[rgba(255,255,255,0.1)] rounded-lg pl-7 pr-3 py-2 text-sm font-mono text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
           />
         </div>
         <Button
@@ -136,13 +136,13 @@ export default function PriceAlertsPanel({ symbol, currentPrice }) {
           {activeAlerts.map((a) => (
             <li
               key={a._id}
-              className="flex items-center justify-between gap-2 bg-[#09090B] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2"
+              className="flex items-center justify-between gap-2 bg-[#0B0C0E] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2"
             >
-              <span className="text-xs font-mono text-[#F5F7FA] flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-mono text-[var(--ivory)] flex items-center gap-1.5 min-w-0">
                 {a.direction === 'ABOVE' ? (
-                  <ArrowUpRight className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
+                  <ArrowUpRight className="w-3.5 h-3.5 text-[var(--gain)] shrink-0" />
                 ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+                  <ArrowDownRight className="w-3.5 h-3.5 text-[var(--loss)] shrink-0" />
                 )}
                 <span className="truncate">
                   {a.direction === 'ABOVE' ? 'Above' : 'Below'} ${Number(a.targetPrice).toFixed(2)}
@@ -150,7 +150,7 @@ export default function PriceAlertsPanel({ symbol, currentPrice }) {
               </span>
               <button
                 onClick={() => handleDelete(a._id)}
-                className="text-[#9CA3AF] hover:text-[#EF4444] transition shrink-0"
+                className="text-[var(--stone)] hover:text-[var(--loss)] transition shrink-0"
                 title="Remove alert"
                 aria-label={`Remove alert ${a.direction} ${a.targetPrice}`}
               >
@@ -161,17 +161,17 @@ export default function PriceAlertsPanel({ symbol, currentPrice }) {
           {firedAlerts.map((a) => (
             <li
               key={a._id}
-              className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 border border-[rgba(59,130,246,0.25)] bg-[rgba(59,130,246,0.06)]"
+              className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 border border-[rgba(201,169,110,0.25)] bg-[rgba(201,169,110,0.06)]"
             >
-              <span className="text-xs font-mono text-[#9CA3AF] flex items-center gap-1.5 min-w-0">
-                <BellRing className="w-3.5 h-3.5 text-[#3B82F6] shrink-0" />
+              <span className="text-xs font-mono text-[var(--stone)] flex items-center gap-1.5 min-w-0">
+                <BellRing className="w-3.5 h-3.5 text-[var(--stone)] shrink-0" />
                 <span className="truncate">
                   Fired {a.direction === 'ABOVE' ? 'above' : 'below'} ${Number(a.targetPrice).toFixed(2)}
                 </span>
               </span>
               <button
                 onClick={() => handleDelete(a._id)}
-                className="text-[#9CA3AF] hover:text-[#EF4444] transition shrink-0"
+                className="text-[var(--stone)] hover:text-[var(--loss)] transition shrink-0"
                 title="Dismiss"
                 aria-label="Dismiss fired alert"
               >

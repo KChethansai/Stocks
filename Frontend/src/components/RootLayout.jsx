@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router'
+import { Outlet, useLocation, useMatches } from 'react-router'
 import { AnimatePresence, MotionConfig } from 'motion/react'
 import Footer from './Footer'
 import Header from './Header'
@@ -16,12 +16,21 @@ let landingSplashShown = false
 
 export default function RootLayout() {
   const { pathname } = useLocation()
+  const matches = useMatches()
   const { isAuthenticated } = useAuth()
   const motionMode = useUiStore((s) => s.motionMode)
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+
+  // Public-route titles (authenticated routes are titled by AppShell).
+  useEffect(() => {
+    const leaf = matches[matches.length - 1]
+    if (leaf?.handle?.title && !isAuthenticated) {
+      document.title = `${leaf.handle.title} — MarketForge`
+    }
+  }, [matches, pathname, isAuthenticated])
 
   // Couple motion preference to CSS (index.css comfort rules read this attr)
   useEffect(() => {

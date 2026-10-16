@@ -139,8 +139,9 @@ userApp
   .put(verifyToken('USER'), upload.single('profileImage'), uploadProfileImage)
   .delete(verifyToken('USER'), removeProfilePicture)
 
-//register user
-userApp.post('/register', upload.single('profileImage'), async (req, res, next) => {
+//register user (abuse-limited like login: open registration is an
+// enumeration + fake-account oracle without throttling)
+userApp.post('/register', authLimiter, upload.single('profileImage'), async (req, res, next) => {
   let uploadedImage = null
   try {
     const { username, email, password } = req.body
@@ -164,8 +165,11 @@ userApp.post('/register', upload.single('profileImage'), async (req, res, next) 
     const existingUser = await userModel.findOne({
       $or: [{ email: normalizedEmail }, { username: normalizedUsername }]
     })
+    // Generic message (same as validation failures): distinct "already
+    // exists" responses let unauthenticated callers enumerate registered
+    // emails/usernames. The frontend toasts the message without branching.
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' })
+      return res.status(400).json({ message: 'Invalid registration details' })
     }
 
     if (req.file && !validateProfileImage(req.file)) {
@@ -357,7 +361,10 @@ userApp.put('/password', verifyToken('USER'), async (req, res, next) => {
     //verify password
     const isPasswordMatched = await compare(currentPassword, foundUser.password)
     if (!isPasswordMatched) {
-      return res.status(401).json({ message: 'Current password is incorrect' })
+      // 400, not 401: the session IS authenticated — this is a field-level
+      // validation failure. A 401 would trip the global session-expiry
+      // interceptor and log the user out for a mere typo.
+      return res.status(400).json({ message: 'Current password is incorrect' })
     }
 
     //hash password

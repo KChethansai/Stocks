@@ -95,12 +95,12 @@ export default function News() {
           <div className="flex flex-wrap items-center gap-6 text-xs font-mono">
             <div className="flex items-center gap-2">
               <span className="mf-label">Headlines</span>
-              <span className="text-[#F5F7FA] font-bold">{items.length}</span>
+              <span className="text-[var(--ivory)] font-bold">{items.length}</span>
             </div>
             <div className="h-4 w-px bg-[rgba(255,255,255,0.08)]"></div>
             <div className="flex items-center gap-2">
               <span className="mf-label">Symbols</span>
-              <span className="text-[#F5F7FA] font-bold">{feedSymbols.length}</span>
+              <span className="text-[var(--ivory)] font-bold">{feedSymbols.length}</span>
             </div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function News() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search headlines..."
-            className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
+            className="w-full bg-[#111316] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)] transition placeholder-[var(--stone-muted)]"
           />
         </div>
       </Reveal>
@@ -124,8 +124,8 @@ export default function News() {
             onClick={() => setFilter(sym)}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
               filter === sym
-                ? 'bg-[#3B82F6]/15 text-[#3B82F6] border border-[#3B82F6]/30'
-                : 'bg-[#111318] text-[#9CA3AF] border border-[rgba(255,255,255,0.08)] hover:text-[#F5F7FA]'
+                ? 'bg-[var(--brass)]/15 text-[var(--brass)] border border-[var(--brass)]/30'
+                : 'bg-[#111316] text-[var(--stone)] border border-[rgba(255,255,255,0.08)] hover:text-[var(--ivory)]'
             }`}
           >
             {sym === 'ALL' ? 'All symbols' : sym}
@@ -133,7 +133,7 @@ export default function News() {
         ))}
       </Reveal>
 
-      <Reveal delay={0.05} className="bg-[#111318] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
+      <Reveal delay={0.05} className="bg-[#111316] rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden shadow-xl">
         {loading ? (
           <div className="p-5 sm:p-6 space-y-5">
             {[0, 1, 2, 3].map((i) => (
@@ -156,7 +156,7 @@ export default function News() {
                 <Link
                   to={`/markets?stock=${item.symbol}`}
                   title={`Open ${item.symbol} in Markets`}
-                  className="shrink-0 w-11 h-11 rounded-xl bg-[#151820] border border-[rgba(255,255,255,0.1)] flex items-center justify-center font-mono text-sm font-bold text-[#3B82F6] hover:border-[#3B82F6]/50 transition"
+                  className="shrink-0 w-11 h-11 rounded-xl bg-[#181B1F] border border-[rgba(255,255,255,0.1)] flex items-center justify-center font-mono text-sm font-bold text-[var(--stone)] hover:border-[var(--brass)]/50 transition"
                 >
                   {item.symbol[0]}
                 </Link>
@@ -166,17 +166,18 @@ export default function News() {
                       href={item.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group inline-flex items-start gap-1.5 text-sm font-medium text-[#F5F7FA] hover:text-[#3B82F6] transition leading-snug"
+                      className="group inline-flex items-start gap-1.5 text-sm font-medium text-[var(--ivory)] hover:text-[var(--brass)] transition leading-snug"
                     >
                       <span>{item.title}</span>
-                      <ExternalLink className="w-3.5 h-3.5 mt-0.5 shrink-0 text-text-muted group-hover:text-[#3B82F6] transition" />
+                      <ExternalLink className="w-3.5 h-3.5 mt-0.5 shrink-0 text-text-muted group-hover:text-[var(--brass)] transition" />
                     </a>
                   ) : (
-                    <p className="text-sm font-medium text-[#F5F7FA] leading-snug m-0">{item.title}</p>
+                    <p className="text-sm font-medium text-[var(--ivory)] leading-snug m-0">{item.title}</p>
                   )}
-                  <p className="text-[11px] font-mono uppercase text-text-muted mt-1.5 m-0">
-                    {item.symbol} • {item.publisher}
-                    {item.publishedAt ? ` • ${timeAgo(item.publishedAt)}` : ''}
+                  <p className="text-[11px] uppercase text-text-muted mt-1.5 m-0">
+                    <span>{item.symbol}</span>
+                    <span className="ml-2">{item.publisher}</span>
+                    {item.publishedAt && <span className="ml-2">{timeAgo(item.publishedAt)}</span>}
                   </p>
                 </div>
               </li>

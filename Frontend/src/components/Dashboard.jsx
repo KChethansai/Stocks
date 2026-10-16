@@ -3,9 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import {
   TrendingUp,
   TrendingDown,
-  Briefcase,
-  ArrowRight,
-  PieChart
+  ArrowRight
 } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import { useTrade } from '../store/tradeStore'
@@ -16,7 +14,7 @@ import {
   summarizePortfolio
 } from '../utils/marketAnalytics'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { NumberTicker } from './magicui/NumberTicker'
+import { LiveValue } from './LiveValue'
 import { ShinyText } from './reactbits/ShinyText'
 import { SegmentedControl } from './ui/SegmentedControl'
 import Reveal from './ui/Reveal'
@@ -121,15 +119,15 @@ export default function Dashboard() {
               <ShinyText>Your Portfolio</ShinyText>
             </h2>
             <div className="flex flex-wrap items-baseline gap-4">
-              <span className="text-4xl sm:text-5xl font-bold font-mono text-[#F5F7FA] tracking-tight whitespace-nowrap">
-                $<NumberTicker value={Number(analytics.portfolioValue || 0)} decimalPlaces={2} />
+              <span className="text-4xl sm:text-5xl font-bold font-mono text-[var(--ivory)] tracking-tight whitespace-nowrap">
+                <LiveValue value={Number(analytics.portfolioValue || 0)} format={(v) => `$${v.toFixed(2)}`} />
               </span>
 
               <div
                 className={`inline-flex items-center gap-1 font-mono text-sm px-2.5 py-1 rounded-md font-semibold ${
                   isTotalPos
-                    ? 'text-[#22C55E] bg-[#22C55E]/10 border border-[#22C55E]/20'
-                    : 'text-[#EF4444] bg-[#EF4444]/10 border border-[#EF4444]/20'
+                    ? 'text-[var(--gain)] bg-[rgba(79,178,134,.12)] border border-[var(--gain)]/20'
+                    : 'text-[var(--loss)] bg-[rgba(217,102,122,.12)] border border-[var(--loss)]/20'
                 }`}
               >
                 {isTotalPos ? (
@@ -152,7 +150,7 @@ export default function Dashboard() {
               <span className="text-text-muted text-xs font-mono">Today&apos;s P&amp;L</span>
               <span
                 className={`font-mono text-sm font-semibold ${
-                  isTodayPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                  isTodayPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                 }`}
               >
                 {isTodayPos ? '+' : ''}
@@ -162,14 +160,14 @@ export default function Dashboard() {
 
             <div className="flex flex-col gap-0.5">
               <span className="text-text-muted text-xs font-mono">Available Cash</span>
-              <span className="text-[#F5F7FA] font-mono text-sm font-semibold">
+              <span className="text-[var(--ivory)] font-mono text-sm font-semibold">
                 {formatCurrency(analytics.cashBalance || 0)}
               </span>
             </div>
 
             <div className="flex flex-col gap-0.5">
               <span className="text-text-muted text-xs font-mono">Invested Capital</span>
-              <span className="text-[#F5F7FA] font-mono text-sm font-semibold">
+              <span className="text-[var(--ivory)] font-mono text-sm font-semibold">
                 {formatCurrency(analytics.investedAmount || 0)}
               </span>
             </div>
@@ -182,16 +180,16 @@ export default function Dashboard() {
         {/* Left Column (8 cols): Performance Chart & Market Movers */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
-          <Reveal delay={0.05} className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
+          <Reveal delay={0.05} className="rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <h3 className="mf-h2">
                   Performance
                 </h3>
-                <div className="flex items-center gap-3 text-xs text-[#9CA3AF] font-mono">
+                <div className="flex items-center gap-3 text-xs text-[var(--stone)] font-mono">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[var(--brass)]"></span>
                     Portfolio
                   </span>
                 </div>
@@ -211,9 +209,9 @@ export default function Dashboard() {
             <div className="min-h-[300px]">
               <TerminalLineChart
                 data={portfolioHistory}
-                color="#3B82F6"
+                label="Portfolio value"
+                color="#C9A96E"
                 height={280}
-                yAxisLabel="Value ($)"
                 showGrid={true}
               />
             </div>
@@ -222,9 +220,9 @@ export default function Dashboard() {
           {/* Market Movers Module */}
           <Reveal delay={0.1}>
           <SpotlightCard
-            spotlightColor="rgba(59, 130, 246, 0.15)"
+            spotlightColor="rgba(201, 169, 110, 0.15)"
             tiltIntensity={4}
-            className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col"
+            className="rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 flex flex-col"
           >
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-5 border-b border-white/8 pb-4">
               <h3 className="mf-h2">
@@ -241,8 +239,8 @@ export default function Dashboard() {
                     onClick={() => setMoverTab(tab.id)}
                     className={`text-xs font-mono pb-1 transition cursor-pointer ${
                       moverTab === tab.id
-                        ? 'text-[#3B82F6] border-b-2 border-[#3B82F6] font-semibold'
-                        : 'text-[#9CA3AF] hover:text-[#F5F7FA]'
+                        ? 'text-[var(--brass)] border-b-2 border-[var(--brass)] font-semibold'
+                        : 'text-[var(--stone)] hover:text-[var(--ivory)]'
                     }`}
                   >
                     {tab.label}
@@ -259,15 +257,15 @@ export default function Dashboard() {
                   <div
                     key={stock.symbol}
                     onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                    className="p-4 bg-[#151820]/90 rounded-xl border border-white/5 hover:border-[#3B82F6]/40 hover:shadow-lg hover:shadow-[#3B82F6]/5 transition-all duration-200 cursor-pointer group"
+                    className="p-4 bg-[#181B1F]/90 rounded-xl border border-white/5 hover:border-[var(--brass)]/40 hover:shadow-lg hover:shadow-[var(--brass)]/5 transition-all duration-200 cursor-pointer group"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <div className="font-mono text-sm text-[#F5F7FA] font-bold group-hover:text-[#3B82F6] transition">
+                      <div className="font-mono text-sm text-[var(--ivory)] font-bold group-hover:text-[var(--brass)] transition">
                         {stock.symbol}
                       </div>
                       <div
                         className={`font-mono text-xs font-semibold ${
-                          isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                          isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                         }`}
                       >
                         {isPos ? '+' : ''}
@@ -275,7 +273,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex items-baseline justify-between mt-1">
-                      <span className="font-mono text-sm text-[#F5F7FA]">
+                      <span className="font-mono text-sm text-[var(--ivory)]">
                         ${Number(stock.price).toFixed(2)}
                       </span>
                       <span className="mf-meta truncate max-w-[90px]">
@@ -292,16 +290,16 @@ export default function Dashboard() {
 
         {/* Right Column (4 cols): Watchlist & Quick Actions */}
         <Reveal delay={0.1} className="lg:col-span-4 flex flex-col gap-6">
-          {/* AI Insights */}
+          {/* Forecasts */}
           <div className="min-h-[348px]">
             <AiInsightWidget symbols={insightSymbols} />
           </div>
 
           {/* Watchlist Module */}
           <SpotlightCard
-            spotlightColor="rgba(245, 158, 11, 0.12)"
+            spotlightColor="rgba(217, 164, 65, 0.12)"
             tiltIntensity={4}
-            className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col"
+            className="rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 flex flex-col"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="mf-h2">
@@ -309,7 +307,7 @@ export default function Dashboard() {
               </h3>
               <Link
                 to="/watchlist"
-                className="text-xs text-[#3B82F6] hover:underline flex items-center gap-1 font-mono"
+                className="text-xs text-[var(--brass)] hover:underline flex items-center gap-1 font-mono"
               >
                 View all <ArrowRight className="w-3 h-3" />
               </Link>
@@ -319,7 +317,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-white/8 text-text-muted text-[10px] uppercase font-mono tracking-wider">
               <div className="col-span-4">Symbol</div>
               <div className="col-span-4 text-right">Price</div>
-              <div className="col-span-4 text-right">24H</div>
+              <div className="col-span-4 text-right">Change</div>
             </div>
 
             {/* Watchlist Rows */}
@@ -330,10 +328,10 @@ export default function Dashboard() {
                   <div
                     key={stock.symbol}
                     onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                    className="grid grid-cols-12 gap-2 py-3 items-center hover:bg-[#151820] -mx-2 px-2 rounded-lg transition cursor-pointer group"
+                    className="grid grid-cols-12 gap-2 py-3 items-center hover:bg-[#181B1F] -mx-2 px-2 rounded-lg transition cursor-pointer group"
                   >
                     <div className="col-span-4 flex flex-col min-w-0">
-                      <span className="font-mono text-xs font-bold text-[#F5F7FA] group-hover:text-[#3B82F6] transition truncate">
+                      <span className="font-mono text-xs font-bold text-[var(--ivory)] group-hover:text-[var(--brass)] transition truncate">
                         {stock.symbol}
                       </span>
                       <span className="mf-meta truncate">
@@ -341,13 +339,13 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <div className="col-span-4 text-right font-mono text-xs font-medium text-[#F5F7FA]">
+                    <div className="col-span-4 text-right font-mono text-xs font-medium text-[var(--ivory)]">
                       ${Number(stock.price).toFixed(2)}
                     </div>
 
                     <div
                       className={`col-span-4 text-right font-mono text-xs font-semibold ${
-                        isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                        isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                       }`}
                     >
                       {isPos ? '+' : ''}
@@ -358,37 +356,6 @@ export default function Dashboard() {
               })}
             </div>
           </SpotlightCard>
-
-          {/* Quick Actions Module */}
-          <div className="rounded-2xl border border-white/8 bg-[#111318]/95 p-5 sm:p-6 flex flex-col gap-3">
-            <h3 className="mf-eyebrow mb-1">
-              Quick Actions
-            </h3>
-
-            <Link
-              to="/markets"
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#3B82F6] text-white hover:bg-[#2563EB] transition font-medium text-xs shadow-md shadow-[#3B82F6]/20 font-mono"
-            >
-              <span>Explore Markets</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <Link
-              to="/portfolio"
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-white/[0.08] text-[#F5F7FA] transition text-xs font-mono group"
-            >
-              <span>View Full Portfolio</span>
-              <Briefcase className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition" />
-            </Link>
-
-            <Link
-              to="/analytics"
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-white/8 bg-[#151820] hover:bg-white/[0.08] text-[#F5F7FA] transition text-xs font-mono group"
-            >
-              <span>Analyze Allocation &amp; Risk</span>
-              <PieChart className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition" />
-            </Link>
-          </div>
         </Reveal>
       </div>
     </div>

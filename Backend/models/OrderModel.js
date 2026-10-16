@@ -43,6 +43,12 @@ const orderSchema = new Schema(
       type: String,
       enum: ['MANUAL', 'AUTOMATION'],
       default: 'MANUAL'
+    },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      default: undefined,
+      index: true
     }
   },
   { timestamps: true, versionKey: false, strict: 'throw' }

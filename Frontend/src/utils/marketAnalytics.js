@@ -1,19 +1,10 @@
-export const formatCurrency = (value, digits = 2) => {
-  const number = Number(value || 0)
-  const sign = number < 0 ? '-' : ''
-  return `${sign}$${Math.abs(number).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits
-  })}`
-}
+import { fmtMoney as fmtMoneyDisplay, fmtCompactMoney } from './format'
 
-export const formatCompact = (value) => {
-  const number = Number(value || 0)
-  if (Math.abs(number) >= 1e12) return `$${(number / 1e12).toFixed(2)}T`
-  if (Math.abs(number) >= 1e9) return `$${(number / 1e9).toFixed(2)}B`
-  if (Math.abs(number) >= 1e6) return `$${(number / 1e6).toFixed(2)}M`
-  return formatCurrency(number, 0)
-}
+// Display delegates (compat): numeric calculations elsewhere in this file
+// stay numeric; these two wrappers preserve the existing call-site API.
+export const formatCurrency = (value, digits = 2) => fmtMoneyDisplay(value, digits)
+
+export const formatCompact = (value) => fmtCompactMoney(value)
 
 const calculateRealizedPnL = (transactions = []) => {
   const lots = new Map()
@@ -90,8 +81,8 @@ export const summarizePortfolio = (portfolio, transactions = [], stocks = []) =>
     return sum + Number(stock?.change || 0) * Number(holding.quantity || 0)
   }, 0)
 
-  const cashBalance = Number(portfolio?.user?.balance ?? 100000)
-  const portfolioValue = Number((currentValue + cashBalance).toFixed(2))
+  const cashBalance = portfolio?.user?.balance == null ? null : Number(portfolio.user.balance)
+  const portfolioValue = cashBalance == null ? Number(currentValue.toFixed(2)) : Number((currentValue + cashBalance).toFixed(2))
   const totalPnLPercent = totalInvested > 0 ? Number(((totalPnL / totalInvested) * 100).toFixed(2)) : 0
 
   const holdingValue = (holding) => Number(liveValue(holding).toFixed(2))
@@ -130,7 +121,7 @@ export const summarizePortfolio = (portfolio, transactions = [], stocks = []) =>
     sectorAllocation,
     assetAllocation: [
       { label: 'Equity', value: currentValue, percent: portfolioValue > 0 ? (currentValue / portfolioValue) * 100 : 0 },
-      { label: 'Cash', value: cashBalance, percent: portfolioValue > 0 ? (cashBalance / portfolioValue) * 100 : 100 }
+      { label: 'Cash', value: cashBalance ?? 0, percent: portfolioValue > 0 && cashBalance != null ? (cashBalance / portfolioValue) * 100 : (cashBalance == null ? 0 : 100) }
     ]
   }
 }

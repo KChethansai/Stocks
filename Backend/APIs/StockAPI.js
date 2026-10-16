@@ -21,38 +21,7 @@ const yahooFinance = new YahooFinance({
 // -----------------------------
 // Stock List
 // -----------------------------
-const baseStocks = [
-  { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology' },
-  { symbol: 'AMZN', name: 'Amazon.com, Inc.', sector: 'Consumer Cyclical' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Semiconductors' },
-  { symbol: 'TSLA', name: 'Tesla, Inc.', sector: 'Automotive' },
-  { symbol: 'META', name: 'Meta Platforms, Inc.', sector: 'Communication Services' },
-  { symbol: 'NFLX', name: 'Netflix, Inc.', sector: 'Communication Services' },
-  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Financial Services' },
-  { symbol: 'V', name: 'Visa Inc.', sector: 'Financial Services' },
-  { symbol: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare' },
-  { symbol: 'WMT', name: 'Walmart Inc.', sector: 'Consumer Defensive' },
-  { symbol: 'PG', name: 'Procter & Gamble Co.', sector: 'Consumer Defensive' },
-  { symbol: 'XOM', name: 'Exxon Mobil Corporation', sector: 'Energy' },
-  { symbol: 'UNH', name: 'UnitedHealth Group', sector: 'Healthcare' },
-  { symbol: 'MA', name: 'Mastercard Incorporated', sector: 'Financial Services' },
-  { symbol: 'HD', name: 'The Home Depot, Inc.', sector: 'Consumer Cyclical' },
-  { symbol: 'BAC', name: 'Bank of America Corp', sector: 'Financial Services' },
-  { symbol: 'DIS', name: 'The Walt Disney Company', sector: 'Communication Services' },
-  { symbol: 'CSCO', name: 'Cisco Systems, Inc.', sector: 'Technology' },
-  { symbol: 'ADBE', name: 'Adobe Inc.', sector: 'Technology' },
-  { symbol: 'CRM', name: 'Salesforce, Inc.', sector: 'Technology' },
-  { symbol: 'PEP', name: 'PepsiCo, Inc.', sector: 'Consumer Defensive' },
-  { symbol: 'KO', name: 'The Coca-Cola Company', sector: 'Consumer Defensive' },
-  { symbol: 'INTC', name: 'Intel Corporation', sector: 'Semiconductors' },
-  { symbol: 'PFE', name: 'Pfizer Inc.', sector: 'Healthcare' },
-  { symbol: 'ABT', name: 'Abbott Laboratories', sector: 'Healthcare' },
-  { symbol: 'MRK', name: 'Merck & Co., Inc.', sector: 'Healthcare' },
-  { symbol: 'T', name: 'AT&T Inc.', sector: 'Communication Services' },
-  { symbol: 'VZ', name: 'Verizon Communications', sector: 'Communication Services' }
-]
+import { baseStocks, toProviderTime } from '../config/universe.js'
 
 // -----------------------------
 // Sync Control
@@ -91,42 +60,27 @@ const syncStocksData = async (force = false) => {
     }
 
     let stocks = []
+    let quoteSource = 'yahoo'
+    let quotesAsOf = new Date()
 
     if (isFallback) {
-      console.warn('[Background Sync] Yahoo Finance unavailable. Triggering simulation fallback to prevent frozen UI.')
+      // Phase 0 correctness: NEVER synthesize prices into ordinary stock
+      // records. Preserve the last verified quote and mark it stale so the
+      // UI can show "as of {time}" instead of a fabricated live price.
+      // No consent flag may mix synthetic prices into trading records.
+      console.warn('[Background Sync] Yahoo Finance unavailable. Preserving last verified quotes as stale.')
       const existingStocks = await stockModel.find().lean()
       if (existingStocks.length > 0) {
-        stocks = existingStocks.map(s => {
-          // Small realistic price movement (-1.5% to +1.5%)
-          const changePercent = (Math.random() * 3 - 1.5)
-          const change = Number((s.price * (changePercent / 100)).toFixed(2))
-          const newPrice = Number(Math.max(0.01, s.price + change).toFixed(2))
-          return {
-            symbol: s.symbol,
-            name: s.name,
-            price: newPrice,
-            change: change,
-            changePercent: Number(changePercent.toFixed(2)),
-            volume: Math.max(100, s.volume + Math.floor(Math.random() * 1000 - 500)),
-            marketCap: Number((newPrice * (s.marketCap / s.price)).toFixed(2)),
-            sector: s.sector
-          }
-        })
-      } else {
-        console.warn('[Background Sync] No existing stocks in DB to simulate. Initializing with base list values.')
-        stocks = baseStocks.map(base => ({
-          symbol: base.symbol,
-          name: base.name,
-          price: 100.0,
-          change: 0.0,
-          changePercent: 0.0,
-          volume: 100000,
-          marketCap: 100000000,
-          sector: base.sector
-        }))
+        await stockModel.updateMany({}, { $set: { stale: true } })
+        lastSyncTime = now
+        invalidateCache('stocks-list')
+        invalidateCache('market-summary')
+        console.log(`[Background Sync] Marked ${existingStocks.length} stocks stale; prices untouched.`)
       }
+      return []
     } else {
       const quoteMap = new Map(quotes.map(q => [q.symbol, q]))
+      quotesAsOf = new Date()
       stocks = baseStocks
         .map(base => {
           const quote = quoteMap.get(base.symbol)
@@ -138,7 +92,12 @@ const syncStocksData = async (force = false) => {
             changePercent: quote?.regularMarketChangePercent || 0,
             volume: quote?.regularMarketVolume || 0,
             marketCap: quote?.marketCap || 0,
-            sector: base.sector
+            sector: base.sector,
+            source: 'yahoo',
+            asOf: quotesAsOf,
+            providerTime: toProviderTime(quote?.regularMarketTime),
+            lastVerifiedAt: quotesAsOf,
+            stale: false
           }
         })
         .filter(stock => stock.price > 0)
@@ -160,7 +119,7 @@ const syncStocksData = async (force = false) => {
       invalidateCache('stocks-list')
       invalidateCache('market-summary')
 
-      console.log(`[Background Sync] Successfully updated ${stocks.length} stocks. Source: ${isFallback ? 'Simulation' : 'Yahoo Finance'}`)
+      console.log(`[Background Sync] Successfully updated ${stocks.length} stocks. Source: Yahoo Finance`)
 
       // Fresh prices are in — evaluate price-alert thresholds on the same
       // tick (no competing poller). Fire-and-forget: a monitor failure must
@@ -215,9 +174,26 @@ stockApp.get('/stocks', async (req, res, next) => {
       stockModel.find().sort({ symbol: 1 }).lean()
     )
 
+    // Provenance summary: legacy rows without a source are treated as
+    // unverified (log windows cannot prove origin). Stale = last Yahoo sync
+    // failed or data is older than the 5-minute window.
+    const withProvenance = (stocks || []).map((s) => ({
+      ...s,
+      source: s.source || 'unverified',
+      stale: Boolean(s.stale) || !s.lastVerifiedAt
+    }))
+    const verifiedAt = withProvenance
+      .map((s) => s.lastVerifiedAt ? new Date(s.lastVerifiedAt).getTime() : 0)
+      .reduce((a, b) => Math.max(a, b), 0)
+
     return res.status(200).json({
       message: 'Stocks fetched',
-      stocks
+      stocks: withProvenance,
+      meta: {
+        source: withProvenance.every((s) => s.source === 'yahoo' && !s.stale) ? 'yahoo' : 'mixed',
+        asOf: verifiedAt ? new Date(verifiedAt).toISOString() : null,
+        stale: withProvenance.some((s) => s.stale)
+      }
     })
   } catch (err) {
     next(err)
@@ -253,7 +229,11 @@ stockApp.get('/stocks/:symbol', async (req, res, next) => {
 
     return res.status(200).json({
       message: 'Stock fetched',
-      stock
+      stock: {
+        ...stock,
+        source: stock.source || 'unverified',
+        stale: Boolean(stock.stale) || !stock.lastVerifiedAt
+      }
     })
   } catch (err) {
     next(err)
@@ -294,7 +274,18 @@ stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
 // a missing panel must not break the detail view.
 const NEWS_CACHE_TTL_MS = 30 * 60 * 1000
 const NEWS_COUNT = 8
+// Bounded LRU: the key space is attacker-influenced (any valid ticker), so
+// an unbounded Map would grow heap until entries age out. Evict oldest-first.
+const NEWS_CACHE_MAX = 200
 const newsCache = new Map()
+const setNewsCache = (symbol, entry) => {
+  if (newsCache.has(symbol)) newsCache.delete(symbol)
+  newsCache.set(symbol, entry)
+  if (newsCache.size > NEWS_CACHE_MAX) {
+    const oldest = newsCache.keys().next().value
+    newsCache.delete(oldest)
+  }
+}
 
 stockApp.get('/news/:symbol', async (req, res, next) => {
   try {
@@ -337,7 +328,7 @@ stockApp.get('/news/:symbol', async (req, res, next) => {
       })
     }
 
-    newsCache.set(symbol, { at: Date.now(), items })
+    setNewsCache(symbol, { at: Date.now(), items })
     return res.status(200).json({ message: 'News fetched (live)', symbol, news: items })
   } catch (err) {
     next(err)

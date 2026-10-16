@@ -73,22 +73,95 @@ export function sliceHistoryByRange(rawData = [], range = '1M') {
     }))
 }
 
+// ─── Chart states ─────────────────────────────────────────────────────
+// The vendored core only knows loading vs ready, so loading/empty/failed/
+// stale/insufficient/sample are resolved HERE at the adapter layer and
+// rendered as distinct accessible states around the chart. Never pass
+// 'ready' with zero plottable points; never render 'loading' for empty data.
+export const CHART_MIN_POINTS = 2
+
+function ChartMessage({ label, title, body, actionLabel, onAction, height }) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center gap-2 px-4 text-center"
+      style={{ height }}
+      role={actionLabel ? 'alert' : 'status'}
+      aria-label={label ? `${label}: ${title}` : title}
+    >
+      <p className="text-xs font-medium text-[var(--stone)]">{title}</p>
+      {body && <p className="max-w-xs text-xs text-[var(--stone-muted)]">{body}</p>}
+      {actionLabel && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-1 rounded-lg border border-[var(--hairline)] bg-[var(--ink-900)] px-3 py-1.5 text-xs font-medium text-[var(--ivory)] transition-colors hover:border-[var(--hairline-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ChartBadge({ children }) {
+  return (
+    <span className="absolute right-2 top-2 z-10 rounded-md border border-[var(--hairline)] bg-[var(--ink-900)]/90 px-2 py-0.5 text-[11px] font-medium text-[var(--stone)]">
+      {children}
+    </span>
+  )
+}
+
+function resolveStatus(explicit, rows) {
+  if (explicit) return explicit
+  if (!rows.length) return 'empty'
+  if (rows.length < CHART_MIN_POINTS) return 'insufficient'
+  return 'ready'
+}
+
 // ─── Candlestick Chart (Bklit-backed) ───────────────────────────────────
 // Same props as before; renders Bklit's candlestick system in terminal theme.
 export function CandleChart({
   data = [],
   height = 280,
-  label = 'Candlestick'
+  label = 'Candlestick',
+  status: statusProp,
+  onRetry
 }) {
   const rows = useMemo(() => normalizeOhlcRows(data), [data])
-  if (!rows.length) {
+  const status = resolveStatus(statusProp, rows)
+  if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center text-xs font-mono text-text-muted" style={{ height }} role="img" aria-label={`${label}: no data`}>
-        No chart data available
+      <div className="flex items-center justify-center text-xs text-[var(--stone)]" style={{ height }} role="status" aria-label={`${label}: loading`}>
+        Loading market data…
       </div>
     )
   }
-  return <MarketCandles data={rows} theme={CHART_THEMES.terminal} height={height} />
+  if (status === 'failed') {
+    return (
+      <ChartMessage
+        label={label}
+        height={height}
+        title="Chart unavailable"
+        body="Historical data could not be loaded. Prices above still show the latest quote."
+        actionLabel="Retry"
+        onAction={onRetry}
+      />
+    )
+  }
+  if (status === 'empty' || status === 'insufficient') {
+    return (
+      <div className="flex items-center justify-center text-xs text-[var(--stone-muted)]" style={{ height }} role="img" aria-label={`${label}: no data`}>
+        {status === 'empty' ? 'No chart data available' : 'Not enough points to draw this range'}
+      </div>
+    )
+  }
+  return (
+    <div className="relative">
+      {status === 'stale' && <ChartBadge>Stale</ChartBadge>}
+      {status === 'sample' && <ChartBadge>Sample</ChartBadge>}
+      <MarketCandles data={rows} theme={CHART_THEMES.terminal} height={height} />
+    </div>
+  )
 }
 
 // ─── Line Chart (Bklit-backed) ──────────────────────────────────────────
@@ -103,22 +176,54 @@ export function TerminalLineChart({
   color: propColor,
   label = 'Value',
   valuePrefix = '$',
-  yAxisLabel,
-  showGrid = true
+  showGrid = true,
+  status: statusProp,
+  onRetry
 }) {
   const rows = useMemo(() => normalizeSeriesRows(data, dataKey), [data, dataKey])
+  const status = resolveStatus(statusProp, rows)
   const stroke = propColor || FINANCIAL_COLORS[tone] || FINANCIAL_COLORS.positive
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center text-xs text-[var(--stone)]" style={{ height }} role="status" aria-label={`${label}: loading`}>
+        Loading market data…
+      </div>
+    )
+  }
+  if (status === 'failed') {
+    return (
+      <ChartMessage
+        label={label}
+        height={height}
+        title="Chart unavailable"
+        body="Performance data could not be loaded. Figures above use the latest portfolio snapshot."
+        actionLabel="Retry"
+        onAction={onRetry}
+      />
+    )
+  }
+  if (status === 'empty' || status === 'insufficient') {
+    return (
+      <div className="flex items-center justify-center text-xs text-[var(--stone-muted)]" style={{ height }} role="img" aria-label={`${label}: no data`}>
+        {status === 'empty' ? 'No chart data available' : 'Not enough points to draw this range'}
+      </div>
+    )
+  }
   return (
-    <PriceAreaChart
-      data={rows}
-      yKey="v"
-      theme={{ ...CHART_THEMES.terminal, stroke }}
-      height={height}
-      showAxes={showGrid !== false}
-      formatY={(v) => `${valuePrefix}${Number(v).toFixed(0)}`}
-      status={rows.length ? 'ready' : 'loading'}
-      loadingLabel="Loading market data"
-    />
+    <div className="relative">
+      {status === 'stale' && <ChartBadge>Stale</ChartBadge>}
+      {status === 'sample' && <ChartBadge>Sample</ChartBadge>}
+      <PriceAreaChart
+        data={rows}
+        yKey="v"
+        theme={{ ...CHART_THEMES.terminal, stroke }}
+        height={height}
+        showAxes={showGrid !== false}
+        formatY={(v) => `${valuePrefix}${Number(v).toFixed(0)}`}
+        status="ready"
+        loadingLabel="Loading market data"
+      />
+    </div>
   )
 }
 

@@ -7,7 +7,8 @@ import {
   formatCurrency,
   summarizePortfolio
 } from '../utils/marketAnalytics'
-import { NumberTicker } from './magicui/NumberTicker'
+import { exportToCSV } from '../utils/csvExport'
+import { LiveValue } from './LiveValue'
 import { ParticleButton } from './kokonutui/ParticleButton'
 import { SpotlightCard } from './kokonutui/SpotlightCard'
 import { SectorAllocation, SECTOR_THEMES } from './charts/sector-donut'
@@ -93,13 +94,21 @@ export default function Analytics() {
     map['Cash'] = (map['Cash'] || 0) + cash
 
     if (totalInvested === 0) return []
-    return Object.entries(map)
+    const sorted = Object.entries(map)
       .map(([name, val]) => ({
         name,
+        key: name,
         value: val,
         percentage: ((val / totalInvested) * 100)
       }))
       .sort((a, b) => b.percentage - a.percentage)
+    // Phase 0: truncated donuts must not renormalize silently. Keep top 5
+    // and fold the remainder into Other.
+    if (sorted.length <= 5) return sorted
+    const top = sorted.slice(0, 5)
+    const rest = sorted.slice(5)
+    const otherValue = rest.reduce((s, r) => s + r.value, 0)
+    return [...top, { name: 'Other', key: '__other', isOther: true, count: rest.length, value: otherValue, percentage: (otherValue / totalInvested) * 100 }]
   }, [holdings, stocks, currentUser])
 
   // Performance Movers list
@@ -112,8 +121,18 @@ export default function Analytics() {
   const isTotalPos = analytics.totalPnL >= 0
   const isTodayPos = analytics.todayPnL >= 0
 
+  // Phase 0: no toast-only report action. Export the visible equity + sector
+  // data as CSV (react-hot-toast stays the only toast system).
   const handleGenerateReport = () => {
-    toast.success('Generated institutional risk & attribution report.')
+    const headers = ['Metric', 'Value']
+    const rows = [
+      ['Range', range],
+      ['Total P&L', Number(analytics.totalPnL || 0).toFixed(2)],
+      ['Benchmark (S&P 500)', benchmarkReturn != null ? `${benchmarkReturn.toFixed(2)}%` : 'unavailable'],
+      ...sectorAllocation.map((s) => [`Sector ${s.name}`, `${s.value.toFixed(2)} (${s.percentage.toFixed(1)}%)`])
+    ]
+    exportToCSV(headers, rows, `marketforge_analytics_${range}.csv`)
+    toast.success('Analytics summary exported as CSV.')
   }
 
   return (
@@ -124,7 +143,7 @@ export default function Analytics() {
           <h1 className="mf-h1">
             <ShinyText>Portfolio Analytics</ShinyText>
           </h1>
-          <p className="text-xs sm:text-sm text-[#9CA3AF] mt-1">
+          <p className="text-xs sm:text-sm text-[var(--stone-muted)] mt-1">
             Total Return &amp; Risk Profile vs Benchmark.
           </p>
         </div>
@@ -139,7 +158,7 @@ export default function Analytics() {
 
           <ParticleButton
             onClick={handleGenerateReport}
-            tone="blue"
+            tone="brass"
             className="px-4 py-2 text-xs font-mono font-medium"
           >
             Generate Report
@@ -152,19 +171,19 @@ export default function Analytics() {
         {/* Main Visualization Area (8 cols) */}
         <Reveal delay={0.05} className="xl:col-span-8 flex flex-col gap-6">
           {/* Performance Chart Module */}
-          <div className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
+          <div className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
               <div>
                 <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-1">
                   Total Portfolio Value
                 </div>
-                <div className="text-3xl sm:text-4xl font-bold font-mono text-[#F5F7FA] whitespace-nowrap">
-                  $<NumberTicker value={Number(analytics.portfolioValue || 0)} decimalPlaces={2} />
+                <div className="text-3xl sm:text-4xl font-bold font-mono text-[var(--ivory)] whitespace-nowrap">
+                  <LiveValue value={Number(analytics.portfolioValue || 0)} format={(v) => `$${v.toFixed(2)}`} />
                 </div>
                 <div className="flex items-center gap-2 mt-1.5 font-mono text-xs">
                   <span
                     className={`font-semibold ${
-                      isTotalPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                      isTotalPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                     }`}
                   >
                     {isTotalPos ? '+' : ''}
@@ -172,22 +191,22 @@ export default function Analytics() {
                   </span>
                   <span className="text-text-muted">
                     vs S&amp;P 500{' '}
-                    <span className="text-[#9CA3AF]">
+                    <span className="text-[var(--stone-muted)]" title="Scalar benchmark over the selected window (real S&P 500 closes, 24h cached). Date-aligned series lands post-Phase 0.">
                       {benchmarkReturn != null
                         ? `${benchmarkReturn >= 0 ? '+' : ''}${benchmarkReturn.toFixed(2)}%`
-                        : '—'}
+                        : 'unavailable'}
                     </span>
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-mono text-[#9CA3AF]">
+              <div className="flex items-center gap-3 text-xs font-mono text-[var(--stone)]">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#3B82F6]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--brass)]"></span>
                   Portfolio
                 </span>
                 <span className="flex items-center gap-1.5 text-text-muted">
-                  <span className="w-2 h-2 rounded-full bg-[#8A93A6]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--stone-muted)]"></span>
                   S&amp;P 500
                 </span>
               </div>
@@ -196,9 +215,9 @@ export default function Analytics() {
             <div className="min-h-[260px] w-full">
               <TerminalLineChart
                 data={history}
-                color="#3B82F6"
+                label="Equity curve"
+                color="#C9A96E"
                 height={260}
-                yAxisLabel="Equity ($)"
                 showGrid={true}
               />
             </div>
@@ -206,13 +225,13 @@ export default function Analytics() {
 
           {/* Standardized Metrics Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-xl">
-            <div className="bg-[#111318] p-5">
+            <div className="bg-[#111316] p-5">
               <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Day Return
               </div>
               <div
                 className={`text-xl font-bold font-mono ${
-                  isTodayPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                  isTodayPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                 }`}
               >
                 {isTodayPos ? '+' : ''}
@@ -224,13 +243,13 @@ export default function Analytics() {
               </div>
             </div>
 
-            <div className="bg-[#111318] p-5">
+            <div className="bg-[#111316] p-5">
               <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Total Return
               </div>
               <div
                 className={`text-xl font-bold font-mono ${
-                  isTotalPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                  isTotalPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                 }`}
               >
                 {isTotalPos ? '+' : ''}
@@ -242,11 +261,11 @@ export default function Analytics() {
               </div>
             </div>
 
-            <div className="bg-[#111318] p-5">
+            <div className="bg-[#111316] p-5">
               <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">
                 Buying Power
               </div>
-              <div className="text-xl font-bold font-mono text-[#F5F7FA]">
+              <div className="text-xl font-bold font-mono text-[var(--ivory)]">
                 {formatCurrency(currentUser?.balance ?? 100000)}
               </div>
               <div className="text-xs text-text-muted font-mono mt-1">
@@ -262,7 +281,7 @@ export default function Analytics() {
           <SpotlightCard
             spotlightColor="rgba(59, 130, 246, 0.15)"
             tiltIntensity={4}
-            className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6"
+            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6"
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="mf-h2">
@@ -274,14 +293,17 @@ export default function Analytics() {
             </div>
 
             <SectorAllocation
-              items={sectorAllocation.slice(0, 5).map((sec) => ({
-                label: sec.name,
+              items={sectorAllocation.map((sec) => ({
+                label: sec.isOther && sec.count > 0 ? `Other (${sec.count} holdings)` : sec.name,
+                key: sec.key ?? sec.name,
+                isOther: Boolean(sec.isOther),
                 value: sec.value,
                 display: `${sec.percentage.toFixed(1)}%`,
               }))}
               palette={SECTOR_THEMES.terminal}
               size={168}
               layout="column"
+              legendLimit={6}
               totalDisplay={`${sectorAllocation.length} sectors`}
               totalLabel="Covered"
             />
@@ -291,14 +313,14 @@ export default function Analytics() {
           <SpotlightCard
             spotlightColor="rgba(34, 197, 94, 0.15)"
             tiltIntensity={4}
-            className="bg-[#111318]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex-1 flex flex-col"
+            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6 flex-1 flex flex-col"
           >
             <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest mb-3">
               Trading Activity (Ledger)
             </div>
 
             <div className="mb-5">
-              <div className="text-2xl font-bold font-mono text-[#F5F7FA]">
+              <div className="text-2xl font-bold font-mono text-[var(--ivory)]">
                 {formatCurrency(tradeStats.totalVolume)}
               </div>
               <div className="text-xs text-text-muted font-mono mt-0.5">
@@ -320,10 +342,10 @@ export default function Analytics() {
                   return (
                     <div
                       key={holding.symbol}
-                      className="flex justify-between items-center py-2.5 px-2 hover:bg-[#151820] transition rounded-lg"
+                      className="flex justify-between items-center py-2.5 px-2 hover:bg-[#181B1F] transition rounded-lg"
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-xs font-bold text-[#F5F7FA]">
+                        <span className="font-mono text-xs font-bold text-[var(--ivory)]">
                           {holding.symbol}
                         </span>
                         <span className="mf-meta truncate max-w-[80px]">
@@ -333,13 +355,13 @@ export default function Analytics() {
                       <div className="text-right font-mono">
                         <div
                           className={`text-xs font-semibold ${
-                            isPos ? 'text-[#22C55E]' : 'text-[#EF4444]'
+                            isPos ? 'text-[var(--gain)]' : 'text-[var(--loss)]'
                           }`}
                         >
                           {isPos ? '+' : ''}
                           {Number(holding.pnlPercent || 0).toFixed(2)}%
                         </div>
-                        <div className="mf-num text-xs text-[#9CA3AF]">
+                        <div className="mf-num text-xs text-[var(--stone-muted)]">
                           {isPos ? '+' : ''}
                           {formatCurrency(holding.pnl || 0)}
                         </div>

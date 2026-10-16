@@ -1,0 +1,72 @@
+{
+  "approved": true,
+  "artifacts": {
+    "h1": {
+      "data_hash": "16dc20c22fb37e2d",
+      "meta_sha256": "3f9b649abb085585284db492687e0c6b24f19c7154c93ef986656ca5fc9cbb8e",
+      "model_id": "lightgbm-onnx-1d",
+      "onnx_sha256": "90e796e1703eb566d9703310a33f4edd2cfdc06dc4b193517a6095137388df0d",
+      "trained_at": "2026-10-09T16:46:58.533525+00:00"
+    },
+    "h2": {
+      "data_hash": "c7f52dda6e4fe577",
+      "meta_sha256": "2c09cc9e65a4f5e0c0a51683e82983ffe5382c4ffbcacb42ca5327292b342cce",
+      "model_id": "lightgbm-onnx-2d",
+      "onnx_sha256": "79daa970fb87f42c5e3a3260b74ae2da6e6105d48103d4c06b403f7f4af30543",
+      "trained_at": "2026-10-09T16:45:58.999163+00:00"
+    },
+    "h3": {
+      "data_hash": "34ebcecb52d0617b",
+      "meta_sha256": "674f35c30eb73c88dff7969cd4bfa8f37d8af1a0a54d318a2f1280e73c51bbbf",
+      "model_id": "lightgbm-onnx-3d",
+      "onnx_sha256": "35d223969306f69055e193aa6b3836b1154222fc9aa8927a21f9a41c868d621a",
+      "trained_at": "2026-10-09T16:47:41.930573+00:00"
+    },
+    "h4": {
+      "data_hash": "a39eb32560a73d4b",
+      "meta_sha256": "d821af2068f9e2183871195200e669686a02b526a3af9e0804774a369bd5c65f",
+      "model_id": "lightgbm-onnx-4d",
+      "onnx_sha256": "152ff189b38e81e2d7e681d4c12338a0d7e91b3b46f6ad1fb4f19359a62f7605",
+      "trained_at": "2026-10-09T16:49:13.359288+00:00"
+    },
+    "h5": {
+      "data_hash": "66cc6a0272205bb4",
+      "meta_sha256": "6aa73ff758cf441d86b88d9b8407ff664a3c63304f51bbdb08b5eeccbce531bb",
+      "model_id": "lightgbm-onnx-5d",
+      "onnx_sha256": "aae3d1124ace22087eaca633afa42a01984965e2dbd6a4b08be399ca45d46e06",
+      "trained_at": "2026-10-09T16:50:03.043939+00:00"
+    }
+  },
+  "class_order": [
+    "DOWN",
+    "NEUTRAL",
+    "UP"
+  ],
+  "data_session": "2026-10-08",
+  "data_start": "2010-01-01",
+  "experimental_included": false,
+  "feature_schema": "features-v1.0",
+  "feature_schema_version": "features-v1.0",
+  "git_sha": "de208be",
+  "horizon_map": {
+    "1": "predictor-1d.onnx",
+    "2": "predictor-2d.onnx",
+    "3": "predictor-3d.onnx",
+    "4": "predictor-4d.onnx",
+    "5": "predictor-5d.onnx"
+  },
+  "min_node_major": 20,
+  "min_onnxruntime_node_major": 1,
+  "notes": "Phase-1 canonical LightGBM direction classifiers. Sealed-test accuracy at or below majority baselines; no predictive edge claimed. Phase-1.5 experimental models are NOT included and were not promoted (promote:false). Confidence values are raw classifier scores, not calibrated success rates.",
+  "release_id": "canonical-20261009-01",
+  "sealed_test_accuracy": {
+    "1d": 0.485,
+    "2d": 0.506,
+    "3d": 0.509,
+    "4d": 0.52,
+    "5d": 0.522
+  },
+  "status": "approved",
+  "symbols": 34,
+  "training_provenance": "Backend/ml/python/train.py on yfinance auto_adjust=True OHLCV refreshed via Backend/ml/python/refresh.py"
+}

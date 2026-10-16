@@ -4,6 +4,7 @@ import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
 import { transactionModel } from '../models/TransactionModel.js'
 import { orderModel } from '../models/OrderModel.js'
+import { idempotencyKeyModel } from '../models/IdempotencyKeyModel.js'
 
 /**
  * Single owner of paper-trade execution.
@@ -26,10 +27,13 @@ const isValidQuantity = (quantity) =>
   Number.isInteger(quantity) && quantity >= 1 && quantity <= MAX_QUANTITY
 
 /**
- * Run `workFn` inside a MongoDB transaction, falling back to a non-transactional
- * retry on standalone servers that cannot start sessions.
+ * Run `workFn` inside a MongoDB transaction. There is deliberately NO
+ * non-transactional fallback: balance, holdings, order, transaction and
+ * idempotency receipt must commit atomically, and a silent non-atomic retry
+ * on standalone servers would permit double-fills and partial writes.
+ * If the deployment cannot provide transactions, fail loudly (503) instead.
  */
-const executeWithTransactionFallback = async (workFn) => {
+const executeInTransaction = async (workFn) => {
   let session = null
   try {
     session = await startSession()
@@ -45,9 +49,10 @@ const executeWithTransactionFallback = async (workFn) => {
       err.code === 20 ||
       err.codeName === 'IllegalOperation'
     ) {
-      // ponytail: standalone MongoDB has no transactions — this retry is not atomic.
-      // Run a replica set (or Atlas) if concurrent trades per user are expected.
-      return await workFn(null)
+      throw httpError(
+        'Order service requires MongoDB transactions (replica set / Atlas). Refusing non-atomic execution.',
+        503
+      )
     }
     throw err
   } finally {
@@ -85,6 +90,7 @@ const enqueueTrade = (userId, task) => {
  * @param {'BUY'|'SELL'} params.side
  * @param {'MANUAL'|'AUTOMATION'} [params.source='MANUAL']
  * @param {object|null} [params.stock]      pre-loaded stock doc, avoids a re-read
+ * @param {string} [params.idempotencyKey]  client-generated UUID for safe retries
  * @returns {Promise<{balance: number, holdings: Array, transaction: object, price: number, total: number, quantity: number}>}
  * @throws {Error & {statusCode: number}} on validation / funds / holdings failures
  */
@@ -92,9 +98,102 @@ export function executePaperTrade(params) {
   return enqueueTrade(String(params.userId), () => executePaperTradeUnlocked(params))
 }
 
-async function executePaperTradeUnlocked({ userId, symbol, quantity, side, source = 'MANUAL', stock = null }) {
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/
+const IDEMPOTENCY_WAIT_MS = 8000
+const IDEMPOTENCY_POLL_MS = 100
+const IDEMPOTENCY_STALE_MS = 30 * 1000
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const detailsMatch = (claim, ticker, tradeSide, shares) =>
+  claim.symbol === ticker && claim.side === tradeSide && Number(claim.quantity) === shares
+
+/**
+ * Claim-first idempotency. The key is reserved atomically BEFORE any balance
+ * or holdings mutation, so a losing duplicate never executes a trade:
+ * - new key → we are the winner; caller executes exactly once, then completes.
+ * - completed key, same details → return the ORIGINAL receipt, no side effects.
+ * - completed key, different details → 409 (keys are bound to order details).
+ * - in-progress key → wait (bounded) for the winner's receipt; stale claims
+ *   recover via the linked transaction or are reclaimed.
+ */
+async function claimIdempotencyKey(userId, key, ticker, tradeSide, shares) {
+  let res
+  try {
+    res = await idempotencyKeyModel.findOneAndUpdate(
+      { userId, key },
+      {
+        $setOnInsert: {
+          userId,
+          key,
+          symbol: ticker,
+          side: tradeSide,
+          quantity: shares,
+          status: 'in-progress'
+        }
+      },
+      { upsert: true, returnDocument: 'after', includeResultMetadata: true }
+    )
+  } catch (err) {
+    if (err?.code === 11000) {
+      const loser = await idempotencyKeyModel.findOne({ userId, key }).lean()
+      return { outcome: loser?.status === 'completed' ? 'replay' : 'wait', claim: loser }
+    }
+    throw err
+  }
+  const created = res?.lastErrorObject?.updatedExisting === false
+  if (created) return { outcome: 'winner', claim: res.value }
+  const claim = res.value
+  if (claim?.status === 'completed') return { outcome: 'replay', claim }
+  return { outcome: 'wait', claim }
+}
+
+async function awaitWinnerReceipt(userId, key, ticker, tradeSide, shares) {
+  const deadline = Date.now() + IDEMPOTENCY_WAIT_MS
+  for (;;) {
+    const claim = await idempotencyKeyModel.findOne({ userId, key }).lean()
+    if (!claim) throw httpError('Order in progress — retry with the same key', 409)
+    // Fail fast on detail mismatch even while the winner is in progress —
+    // the key is bound to its order details from the claim moment.
+    if (!detailsMatch(claim, ticker, tradeSide, shares)) {
+      throw httpError('Idempotency key already used with different order details', 409)
+    }
+    if (claim.status === 'completed') {
+      return claim.response
+    }
+    // Crashed-winner recovery: a stale in-progress claim may already have a
+    // committed trade linked by key — adopt it instead of double-filling.
+    if (Date.now() - new Date(claim.createdAt).getTime() > IDEMPOTENCY_STALE_MS) {
+      const orphan = await transactionModel.findOne({ userId, idempotencyKey: key }).sort({ createdAt: -1 }).lean()
+      if (orphan) {
+        const portfolio = await portfolioModel.findOne({ userId }).lean()
+        const user = await userModel.findById(userId).select('balance').lean()
+        const receipt = {
+          balance: user?.balance,
+          holdings: portfolio?.holdings || [],
+          transaction: orphan,
+          price: orphan.price,
+          total: orphan.total,
+          quantity: orphan.quantity
+        }
+        await idempotencyKeyModel.updateOne(
+          { userId, key, status: 'in-progress' },
+          { $set: { status: 'completed', response: receipt } }
+        )
+        return receipt
+      }
+      throw httpError('Order in progress — retry with the same key', 409)
+    }
+    if (Date.now() >= deadline) throw httpError('Order in progress — retry with the same key', 409)
+    await sleep(IDEMPOTENCY_POLL_MS)
+  }
+}
+
+async function executePaperTradeUnlocked({ userId, symbol, quantity, side, source = 'MANUAL', stock = null, idempotencyKey = null }) {
   const ticker = typeof symbol === 'string' ? symbol.toUpperCase().trim() : ''
-  const shares = Number.parseInt(quantity, 10)
+  // Validate the RAW quantity: parseInt would silently coerce 1.5 → 1 and
+  // fill a fractional order as 1 share. Only whole shares ≥ 1 are accepted.
+  const shares = Number(quantity)
   const tradeSide = side === 'SELL' ? 'SELL' : 'BUY'
 
   if (!isValidSymbol(ticker) || !isValidQuantity(shares)) {
@@ -103,12 +202,47 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
 
   const stockDoc = stock || (await stockModel.findOne({ symbol: ticker }).lean())
   if (!stockDoc) throw httpError('Stock not found', 404)
+  // Quote provenance gate: unverified or stale quotes never fill silently.
+  // The caller must refresh to a verified Yahoo quote first. No synthetic
+  // price path exists — simulation writes were removed in Phase 0.
+  // Gate runs BEFORE the idempotency claim so failed validations never
+  // poison a key with a stuck in-progress claim.
+  if ((stockDoc.source && stockDoc.source !== 'yahoo') || !stockDoc.lastVerifiedAt) {
+    throw httpError('Quote unverified — refresh market data and retry', 409)
+  }
+  if (stockDoc.stale) {
+    throw httpError('Quote is stale — refresh market data and retry', 409)
+  }
   if (!(stockDoc.price > 0)) throw httpError('Stock price unavailable', 409)
+
+  // Claim-first idempotency: reserve the key BEFORE touching balances, so a
+  // concurrent duplicate or retry can never cause a second fill. Button
+  // disabling alone is insufficient; this is the durable guarantee.
+  const hasKey = typeof idempotencyKey === 'string' && IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)
+  let wonClaim = false
+  if (hasKey) {
+    const { outcome, claim } = await claimIdempotencyKey(userId, idempotencyKey, ticker, tradeSide, shares)
+    if (outcome === 'replay') {
+      if (!detailsMatch(claim, ticker, tradeSide, shares)) {
+        throw httpError('Idempotency key already used with different order details', 409)
+      }
+      return claim.response
+    }
+    if (outcome === 'wait') {
+      return awaitWinnerReceipt(userId, idempotencyKey, ticker, tradeSide, shares)
+    }
+    wonClaim = true
+  }
 
   const price = stockDoc.price
   const total = Number((price * shares).toFixed(2))
 
-  return executeWithTransactionFallback(async (session) => {
+  // A failed execution after winning the claim must release the untouched
+  // in-progress key so the same key stays retryable with the real error —
+  // never stuck behind "Order in progress". Only untouched in-progress
+  // claims are deleted; completed receipts are never removed here.
+  try {
+    return await executeInTransaction(async (session) => {
     const sessionOpt = session ? { session } : {}
     const user = await userModel.findById(userId).session(session || null)
     if (!user) throw httpError('User not found', 404)
@@ -173,7 +307,8 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
           price,
           total,
           status: 'COMPLETED',
-          source
+          source,
+          idempotencyKey: hasKey ? idempotencyKey : undefined
         }
       ],
       sessionOpt
@@ -190,13 +325,14 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
           total,
           balanceBefore,
           balanceAfter: user.balance,
-          source
+          source,
+          idempotencyKey: hasKey ? idempotencyKey : undefined
         }
       ],
       sessionOpt
     )
 
-    return {
+    const receipt = {
       balance: user.balance,
       holdings,
       transaction: createdTxs[0],
@@ -204,7 +340,26 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
       total,
       quantity: shares
     }
-  })
+
+    // Complete the claim with the original receipt. The trade already
+    // committed atomically above; a crash here is recovered via the linked
+    // transaction on retry (see awaitWinnerReceipt).
+    if (hasKey) {
+      await idempotencyKeyModel.updateOne(
+        { userId: user._id, key: idempotencyKey, status: 'in-progress' },
+        { $set: { status: 'completed', response: receipt } },
+        sessionOpt
+      )
+    }
+
+    return receipt
+    })
+  } catch (err) {
+    if (hasKey && wonClaim) {
+      await idempotencyKeyModel.deleteOne({ userId, key: idempotencyKey, status: 'in-progress' }).catch(() => {})
+    }
+    throw err
+  }
 }
 
 

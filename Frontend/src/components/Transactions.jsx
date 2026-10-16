@@ -6,7 +6,6 @@ import {
 import { useTrade } from '../store/tradeStore'
 import { formatCurrency } from '../utils/marketAnalytics'
 import { exportToCSV } from '../utils/csvExport'
-import { NumberTicker } from './magicui/NumberTicker'
 import { ShinyText } from './reactbits/ShinyText'
 import { Button } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
@@ -16,9 +15,16 @@ export default function Transactions() {
   const { transactions, fetchTransactions, fetchOrders } = useTrade()
   const [query, setQuery] = useState('')
   const [filterType, setFilterType] = useState('ALL') // 'ALL' | 'BUY' | 'SELL'
+  const [scope, setScope] = useState('latest 100')
+  const [totalCount, setTotalCount] = useState(null)
 
   useEffect(() => {
-    fetchTransactions()
+    const load = async () => {
+      const res = await fetchTransactions()
+      if (res?.scope) setScope(res.scope)
+      if (typeof res?.total === 'number') setTotalCount(res.total)
+    }
+    load()
     fetchOrders()
   }, [fetchTransactions, fetchOrders])
 
@@ -74,19 +80,21 @@ export default function Transactions() {
   }, [filteredTransactions])
 
   const handleExportCSV = useCallback(() => {
+    // Scoped export: only the currently filtered view, with scope in filename.
     const headers = ['Order ID', 'Date & Time', 'Action', 'Symbol', 'Shares', 'Execution Price', 'Total Value', 'Status']
-    const rows = transactions.map((item) => [
+    const rows = filteredTransactions.map((item) => [
       item._id,
-      new Date(item.createdAt).toLocaleString(),
+      item.createdAt ? new Date(item.createdAt).toISOString() : '',
       item.type,
       item.symbol,
       item.quantity,
       Number(item.price).toFixed(2),
       Number(item.total).toFixed(2),
-      'Completed'
+      item.status || 'Completed'
     ])
-    exportToCSV(headers, rows, 'marketforge_activity_ledger.csv')
-  }, [transactions])
+    const scopeTag = scope.replace(/\s+/g, '-')
+    exportToCSV(headers, rows, `marketforge_activity_${scopeTag}.csv`)
+  }, [filteredTransactions, scope])
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
@@ -97,30 +105,30 @@ export default function Transactions() {
             <ShinyText>Activity Ledger</ShinyText>
           </h1>
           <div className="flex flex-wrap gap-8 text-xs font-mono">
-            <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
+            <div className="flex flex-col p-3 bg-[#111316] border border-white/8 rounded-xl">
               <span className="mf-label">
-                Total Trades
+                Total Trades ({scope}{totalCount != null ? ` of ${totalCount}` : ''})
               </span>
-              <span className="text-xl font-bold text-[#F5F7FA]">
-                <NumberTicker value={stats.totalTrades} decimalPlaces={0} />
+              <span className="text-xl font-bold text-[var(--ivory)]">
+                {stats.totalTrades}
               </span>
             </div>
 
-            <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
+            <div className="flex flex-col p-3 bg-[#111316] border border-white/8 rounded-xl">
               <span className="mf-label">
                 Buys
               </span>
-              <span className="text-xl font-bold text-[#22C55E]">
-                <NumberTicker value={stats.buys} decimalPlaces={0} />
+              <span className="text-xl font-bold text-[var(--gain)]">
+                {stats.buys}
               </span>
             </div>
 
-            <div className="flex flex-col p-3 bg-[#111318] border border-white/8 rounded-xl">
+            <div className="flex flex-col p-3 bg-[#111316] border border-white/8 rounded-xl">
               <span className="mf-label">
                 Sells
               </span>
-              <span className="text-xl font-bold text-[#EF4444]">
-                <NumberTicker value={stats.sells} decimalPlaces={0} />
+              <span className="text-xl font-bold text-[var(--loss)]">
+                {stats.sells}
               </span>
             </div>
           </div>
@@ -135,7 +143,7 @@ export default function Transactions() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search symbol or action..."
-              className="w-full bg-[#111318] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#F5F7FA] focus:outline-none focus:border-[#3B82F6] transition placeholder-[#8A93A6]"
+              className="w-full bg-[#111316] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)] transition placeholder-[var(--stone-muted)]"
             />
           </div>
 
@@ -150,10 +158,11 @@ export default function Transactions() {
             variant="secondary"
             size="md"
             onClick={handleExportCSV}
-            disabled={transactions.length === 0}
+            disabled={filteredTransactions.length === 0}
             className="rounded-lg"
+            title={`Exports the current filtered view (${scope})`}
           >
-            <Download className="w-3.5 h-3.5 text-[#9CA3AF]" />
+            <Download className="w-3.5 h-3.5 text-[var(--stone)]" />
             <span>Export CSV</span>
           </Button>
         </div>
@@ -167,7 +176,7 @@ export default function Transactions() {
 
           return (
             <Reveal as="section" key={groupKey} delay={0.05} className="space-y-3">
-              <h3 className="text-xs font-mono font-semibold text-[#9CA3AF] border-b border-[rgba(255,255,255,0.08)] pb-2 flex items-center justify-between">
+              <h3 className="text-xs font-mono font-semibold text-[var(--stone)] border-b border-[rgba(255,255,255,0.08)] pb-2 flex items-center justify-between">
                 <span>{groupKey}</span>
                 <span className="mf-meta font-mono">{list.length} transactions</span>
               </h3>
@@ -187,23 +196,20 @@ export default function Transactions() {
               <div className="space-y-1.5">
                 {list.map((tx, idx) => {
                   const isBuy = tx.type === 'BUY'
-                  const txDate = tx.createdAt ? new Date(tx.createdAt) : new Date(0)
-                  const timeStr = txDate.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  })
-                  const dateStr = txDate.toLocaleDateString([], {
-                    month: 'short',
-                    day: 'numeric'
-                  })
+                  const txDate = tx.createdAt ? new Date(tx.createdAt) : null
+                  const timeStr = txDate
+                    ? new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(txDate)
+                    : '—'
+                  const dateStr = txDate
+                    ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(txDate)
+                    : '—'
 
                   return (
                     <div
                       key={tx._id || idx}
-                      className="grid grid-cols-2 md:grid-cols-[120px_80px_100px_1fr_1fr_120px_100px] gap-y-2 gap-x-4 px-4 py-3 bg-[#111318] hover:bg-[#151820] border border-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.1)] transition rounded-xl items-center font-mono text-xs"
+                      className="grid grid-cols-2 md:grid-cols-[120px_80px_100px_1fr_1fr_120px_100px] gap-y-2 gap-x-4 px-4 py-3 bg-[#111316] hover:bg-[#181B1F] border border-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.1)] transition rounded-xl items-center font-mono text-xs"
                     >
-                      <div className="text-[#9CA3AF] text-[11px]">
+                      <div className="text-[var(--stone)] text-[11px]">
                         {groupKey === 'Earlier' ? `${dateStr} ` : ''}{timeStr}
                       </div>
 
@@ -211,34 +217,34 @@ export default function Transactions() {
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${
                             isBuy
-                              ? 'bg-[#22C55E]/10 text-[#22C55E]'
-                              : 'bg-[#EF4444]/10 text-[#EF4444]'
+                              ? 'bg-[rgba(79,178,134,.12)] text-[var(--gain)]'
+                              : 'bg-[rgba(217,102,122,.12)] text-[var(--loss)]'
                           }`}
                         >
                           {tx.type}
                         </span>
                       </div>
 
-                      <div className="font-bold text-[#F5F7FA] text-sm">
+                      <div className="font-bold text-[var(--ivory)] text-sm">
                         {tx.symbol || '-'}
                       </div>
 
-                      <div className="text-[#9CA3AF] md:text-right">
+                      <div className="text-[var(--stone)] md:text-right">
                         {tx.quantity} shares
                       </div>
 
-                      <div className="text-[#9CA3AF] md:text-right">
+                      <div className="text-[var(--stone)] md:text-right">
                         ${Number(tx.price || 0).toFixed(2)}
                       </div>
 
-                      <div className="font-semibold text-[#F5F7FA] md:text-right">
+                      <div className="font-semibold text-[var(--ivory)] md:text-right">
                         {formatCurrency(tx.total || 0)}
                       </div>
 
                       <div className="md:text-right">
-                        <span className="text-[#22C55E] flex items-center md:justify-end gap-1.5 mf-badge">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                          Completed
+                        <span className="text-[var(--gain)] flex items-center md:justify-end gap-1.5 mf-badge">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--gain)]"></span>
+                          {tx.status || 'Completed'}
                         </span>
                       </div>
                     </div>
@@ -250,7 +256,7 @@ export default function Transactions() {
         })}
 
         {filteredTransactions.length === 0 && (
-          <div className="p-12 text-center text-xs font-mono text-text-muted bg-[#111318] rounded-xl border border-[rgba(255,255,255,0.06)]">
+          <div className="p-12 text-center text-xs font-mono text-text-muted bg-[#111316] rounded-xl border border-[rgba(255,255,255,0.06)]">
             No executed trades recorded in activity ledger yet.
           </div>
         )}

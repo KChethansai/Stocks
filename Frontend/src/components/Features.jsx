@@ -3,110 +3,102 @@ import {
   Activity,
   Zap,
   TrendingUp,
-  History,
+  Bookmark,
   BarChart3,
+  History,
   Lock,
   Sliders,
-  Bookmark,
-  ArrowRight
 } from 'lucide-react'
-import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { ParticleButton } from './kokonutui/ParticleButton'
-import { ShinyText } from './reactbits/ShinyText'
-import { BlurText } from './reactbits/BlurText'
-import { Aurora } from './reactbits/Aurora'
 
-const featuresList = [
+/* Verifiable claims only — every row maps to code. Alternating editorial
+ * rows replace the identical-card grid. */
+const ROWS = [
   {
     icon: Activity,
-    title: 'Real-Time Market Quotes',
-    description: 'Equities data streaming from Yahoo Finance with automatic 30s background synchronization.',
-    spotlight: 'rgba(124, 230, 255, 0.2)'
+    title: 'Real market quotes, honestly labeled',
+    body: 'Thirty US stocks from Yahoo Finance with source and age on every quote. Stale or unverified quotes are marked and never execute.',
   },
   {
     icon: Zap,
-    title: 'Instant Execution Engine',
-    description: 'Place market buy and partial sell orders with zero slippage and instantaneous balance reconciliation.',
-    spotlight: 'rgba(126, 214, 163, 0.2)'
+    title: 'Atomic virtual execution',
+    body: 'Balance, holdings, order, transaction, and idempotency receipt commit in one MongoDB transaction. Retries replay the original receipt instead of double-filling.',
   },
   {
     icon: TrendingUp,
-    title: 'Live P&L Tracking',
-    description: 'Real-time calculation of invested capital, market value, unrealized profits, and total percentage returns.',
-    spotlight: 'rgba(124, 230, 255, 0.2)'
+    title: 'Positions revalued with live prices',
+    body: 'Holdings carry weighted-average cost basis; market value, unrealized profit and loss, and day change derive from the latest quotes.',
   },
   {
     icon: Bookmark,
-    title: 'Custom Watchlist Console',
-    description: 'Pin high-conviction assets, monitor mini sparklines, and trigger rapid 1-click orders.',
-    spotlight: 'rgba(150, 205, 222, 0.2)'
+    title: 'Watchlists with 30-day context',
+    body: 'Saved symbols stay distinct from suggestions. Each row carries its 30-day close sparkline and links straight to the trade ticket.',
   },
   {
     icon: Sliders,
-    title: 'Interactive Technical Charts',
-    description: 'Toggle between line graphs and candlesticks across 1D, 1W, 1M, 3M, 6M, 1Y, and ALL time horizons.',
-    spotlight: 'rgba(232, 118, 132, 0.2)'
+    title: 'Charts with honest states',
+    body: 'Area and candlestick views across 1D to ALL, with separate loading, empty, failed, stale, and insufficient-data states — never a silent blank.',
   },
   {
     icon: BarChart3,
-    title: 'Deep Institutional Analytics',
-    description: 'Track win-rate percentages, sector concentration, asset class allocation, and return attribution.',
-    spotlight: 'rgba(124, 230, 255, 0.2)'
+    title: 'Analytics computed from your ledger',
+    body: 'Equity curves built from your actual transaction log against real closes, sector mix with an Other bucket, and an S&P 500 scalar benchmark with its window disclosed.',
   },
   {
     icon: History,
-    title: 'Immutable Activity Ledger',
-    description: 'Every filled order and cash movement is recorded in a chronological ledger with 1-click CSV export.',
-    spotlight: 'rgba(126, 214, 163, 0.2)'
+    title: 'Activity ledger with scoped export',
+    body: 'The latest 100 transactions and orders, filterable by side and symbol, grouped by day, with CSV export of exactly the filtered view.',
   },
   {
     icon: Lock,
-    title: 'Enterprise-Grade Security',
-    description: 'Encrypted passwords, protected JWT session cookies, and optional Google OAuth authentication.',
-    spotlight: 'rgba(124, 230, 255, 0.2)'
-  }
+    title: 'Sessions kept server-side honest',
+    body: 'HTTP-only cookie sessions, CORS allowlist with origin guard, rate limiting on API and sign-in routes, and per-route authentication with a real 404.',
+  },
 ]
 
 export default function Features() {
   return (
-    <div className="min-h-screen bg-[#03060b] text-[#f8fdff] py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <Aurora className="opacity-15" />
-      <div className="max-w-6xl mx-auto space-y-12 relative z-10">
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#f8fdff]">
-            <BlurText text="Platform Capabilities" delay={0.04} />
+    <div className="min-h-screen bg-[var(--ink-950)] px-4 py-16 text-[var(--ivory)] sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1
+            className="mf-landing-display leading-[1.05] tracking-[-0.02em]"
+            style={{ fontSize: 'clamp(2rem, 1.5rem + 2.5vw, 3.25rem)' }}
+          >
+            What the product does
           </h1>
-          <p className="text-sm sm:text-base text-[#b7c6cf]">
-            Everything necessary to refine your trading edge. Built with <ShinyText>fintech precision</ShinyText> and zero fluff.
+          <p className="mt-4 leading-relaxed text-[var(--stone)]">
+            Each capability below maps to behavior you can verify in the app.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {featuresList.map((feat) => {
-            const Icon = feat.icon
+        <div className="mt-12 space-y-4">
+          {ROWS.map((row, i) => {
+            const Icon = row.icon
             return (
-              <SpotlightCard
-                key={feat.title}
-                spotlightColor={feat.spotlight}
-                tiltIntensity={6}
-                className="p-6 rounded-2xl border border-white/8 bg-[#0c121b]/90 space-y-3"
+              <section
+                key={row.title}
+                className={`flex flex-col gap-4 rounded-xl border border-[var(--hairline)] bg-[var(--ink-900)] p-5 sm:p-6 sm:flex-row sm:items-start sm:gap-6 ${
+                  i % 2 === 1 ? 'sm:flex-row-reverse' : ''
+                }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-[#7ce6ff]/10 text-[#7ce6ff] flex items-center justify-center shadow-sm">
-                  <Icon className="w-5 h-5" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-[var(--brass)]">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <h3 className="text-sm font-bold text-[#f8fdff] font-mono">{feat.title}</h3>
-                <p className="text-xs text-[#b7c6cf] leading-relaxed">{feat.description}</p>
-              </SpotlightCard>
+                <div>
+                  <h2 className="text-base font-semibold">{row.title}</h2>
+                  <p className="mt-1 max-w-[70ch] text-sm leading-6 text-[var(--stone)]">{row.body}</p>
+                </div>
+              </section>
             )
           })}
         </div>
 
-        <div className="flex justify-center pt-8">
-          <Link to="/register">
-            <ParticleButton tone="cyan" className="rounded-full px-8 py-3.5 text-xs sm:text-sm font-bold font-mono">
-              <span>Get Started with $100k Virtual Balance</span>
-              <ArrowRight className="w-4 h-4" />
-            </ParticleButton>
+        <div className="mt-10 text-center">
+          <Link
+            to="/register"
+            className="inline-block rounded-lg bg-[var(--ivory)] px-5 py-2.5 text-sm font-semibold text-[#0B0C0E] transition hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0C0E]"
+          >
+            Open practice account
           </Link>
         </div>
       </div>

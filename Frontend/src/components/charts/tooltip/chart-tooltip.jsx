@@ -239,12 +239,11 @@ const ChartTooltipInner = memo(function ChartTooltipInner2({
 });
 function ChartTooltip(props) {
   const { containerRef } = useChartStable();
-  const [mounted, setMounted] = useState(false);
+  const [container, setContainer] = useState(null);
   useEffect(() => {
-    setMounted(true);
-  }, []);
-  const container = containerRef.current;
-  if (!(mounted && container)) {
+    setContainer(containerRef.current ?? null);
+  }, [containerRef]);
+  if (!container) {
     return null;
   }
   return /* @__PURE__ */ React.createElement(ChartTooltipInner, { ...props, container });
@@ -267,12 +266,9 @@ function DatePillTrackerInner({
   const { tooltipSpring } = useChartConfig();
   const effectiveSpring = springConfig ?? tooltipSpring;
   const animatedX = useSpring(xWithMargin, effectiveSpring);
-  if (!discreteInteraction) {
-    animatedX.set(xWithMargin);
-  }
   useEffect(() => {
     animatedX.set(xWithMargin);
-  }, [animatedX, visible]);
+  }, [animatedX, visible, xWithMargin, discreteInteraction]);
   return /* @__PURE__ */ React.createElement(
     motion.div,
     {

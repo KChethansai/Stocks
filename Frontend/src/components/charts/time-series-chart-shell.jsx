@@ -85,17 +85,26 @@ function collectNumericExtents(data, dataKeys) {
   }
   return { minValue, maxValue };
 }
-function resolveTimeSeriesYDomain(data, dataKeys, yScaleDomainMax) {
+function resolveTimeSeriesYDomain(data, dataKeys, yScaleDomainMax, hasBars) {
   if (yScaleDomainMax != null && yScaleDomainMax > 0) {
     return [0, yScaleDomainMax * 1.1];
   }
   const { minValue, maxValue } = collectNumericExtents(data, dataKeys);
-  if (minValue >= 0) {
+  // D1: bar/proportion series keep the zero baseline; pure price lines never
+  // force zero (a $343 stock on a $0-based axis is unreadable).
+  if (hasBars && minValue >= 0) {
     const top = maxValue <= 0 ? 100 : maxValue * 1.1;
     return [0, top];
   }
-  const padding = (maxValue - minValue) * 0.05 || 1;
-  return [minValue - padding, maxValue + padding];
+  let lo = minValue;
+  let hi = maxValue;
+  const mid = (lo + hi) / 2;
+  if (mid > 0 && hi - lo < mid * 0.005) {
+    lo = mid * 0.995;
+    hi = mid * 1.005;
+  }
+  const padding = Math.max((hi - lo) * 0.08, 0.02);
+  return [lo - padding, hi + padding];
 }
 function ensureChildKey(child, index) {
   if (child.key != null) {
@@ -149,9 +158,9 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore2({
       const axisGroups = groupLinesByYAxisId(lines);
       const usesDefaultOnly = axisGroups.size === 1 && axisGroups.has(DEFAULT_Y_AXIS_ID);
       const domainMax = usesDefaultOnly && yScaleDomainMax != null ? yScaleDomainMax : void 0;
-      return resolveTimeSeriesYDomain(sourceData, dataKeys, domainMax);
+      return resolveTimeSeriesYDomain(sourceData, dataKeys, domainMax, (composedBarDataKeys?.length ?? 0) > 0);
     },
-    [lines, yScaleDomainMax]
+    [lines, yScaleDomainMax, composedBarDataKeys]
   );
   const skeletonData = useMemo(() => {
     const primaryKey = lines[0]?.dataKey ?? "value";

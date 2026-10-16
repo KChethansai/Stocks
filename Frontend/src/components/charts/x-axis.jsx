@@ -396,12 +396,11 @@ function appendProjectionTailTicks(ticks, data, xAccessor, xScale, marginLeft, m
 }
 function XAxis(props) {
   const { containerRef } = useChartStable();
-  const [mounted, setMounted] = useState(false);
+  const [container, setContainer] = useState(null);
   useEffect(() => {
-    setMounted(true);
-  }, []);
-  const container = containerRef.current;
-  if (!(mounted && container)) {
+    setContainer(containerRef.current ?? null);
+  }, [containerRef]);
+  if (!container) {
     return null;
   }
   return /* @__PURE__ */ React.createElement(XAxisInner, { ...props, container });

@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import { useAuth } from './authStore'
+import { historyCacheKey, isHistoryFresh } from '../utils/historyCachePolicy'
 
 //base api url
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+// In-flight history requests by symbol|range key: simultaneously mounted
+// hooks share one network call instead of fanning out duplicates.
+const inflightHistory = new Map()
 
 export const useTrade = create((set) => ({
   stocks: [],
@@ -117,7 +122,7 @@ export const useTrade = create((set) => ({
         withCredentials: true
       })
       set({ transactions: response.data.transactions, loading: false })
-      return { success: true }
+      return { success: true, scope: response.data.scope, total: response.data.total }
     } catch (err) {
       set({ loading: false })
       return {
@@ -146,12 +151,13 @@ export const useTrade = create((set) => ({
   },
 
   //buy stock
-  buyStock: async (symbol, quantity) => {
+  buyStock: async (symbol, quantity, idempotencyKey) => {
     set({ loading: true })
     try {
+      const key = idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`)
       const response = await axios.post(
         `${API_BASE}/trade-api/buy`,
-        { symbol, quantity },
+        { symbol, quantity, idempotencyKey: key },
         { withCredentials: true }
       )
       const { balance, holdings, transaction } = response.data
@@ -178,7 +184,18 @@ export const useTrade = create((set) => ({
       return {
         success: true,
         message: response.data.message,
-        balance: response.data.balance
+        balance: response.data.balance,
+        transaction: response.data.transaction,
+        receipt: response.data.transaction
+          ? {
+              price: response.data.transaction.price,
+              quantity: response.data.transaction.quantity,
+              total: response.data.transaction.total,
+              id: response.data.transaction._id,
+              symbol: response.data.transaction.symbol,
+              side: response.data.transaction.type
+            }
+          : null
       }
     } catch (err) {
       set({ loading: false })
@@ -190,12 +207,13 @@ export const useTrade = create((set) => ({
   },
 
   //sell stock
-  sellStock: async (symbol, quantity) => {
+  sellStock: async (symbol, quantity, idempotencyKey) => {
     set({ loading: true })
     try {
+      const key = idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`)
       const response = await axios.post(
         `${API_BASE}/trade-api/sell`,
-        { symbol, quantity },
+        { symbol, quantity, idempotencyKey: key },
         { withCredentials: true }
       )
       const { balance, holdings, transaction } = response.data
@@ -223,7 +241,18 @@ export const useTrade = create((set) => ({
       return {
         success: true,
         message: response.data.message,
-        balance: response.data.balance
+        balance: response.data.balance,
+        transaction: response.data.transaction,
+        receipt: response.data.transaction
+          ? {
+              price: response.data.transaction.price,
+              quantity: response.data.transaction.quantity,
+              total: response.data.transaction.total,
+              id: response.data.transaction._id,
+              symbol: response.data.transaction.symbol,
+              side: response.data.transaction.type
+            }
+          : null
       }
     } catch (err) {
       set({ loading: false })
@@ -242,16 +271,44 @@ export const useTrade = create((set) => ({
   sparklineCache: {},
   performanceCache: {},
 
-  fetchHistory: async (symbol, range = 'ALL') => {
-    if (!symbol) return { success: false, data: [] }
+  fetchHistory: async (symbol, range = 'ALL', opts = {}) => {
+    if (!symbol) return { success: false, data: [], fetchedAt: 0 }
 
-    const key = `${symbol}|${range}`
-    const CACHE_TTL = range === '1D' ? 15 * 60 * 1000 : 60 * 60 * 1000
+    const key = historyCacheKey(symbol, range)
 
-    // Return cached copy if fresh
+    // Return cached copy if fresh (D10: report the entry timestamp so charts
+    // label series freshness from its own source, never from a re-render).
+    // Freshness rules (future-dated/malformed entries are never fresh) live
+    // in historyCachePolicy and are unit-tested.
     const cached = useTrade.getState().historyCache[key]
-    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
-      return { success: true, data: cached.data }
+    if (isHistoryFresh(cached, range)) {
+      return { success: true, data: cached.data, fetchedAt: cached.fetchedAt }
+    }
+
+    // Dedupe: hooks mounting together (S01 + S06 both want NVDA|ALL) share
+    // one network request. A caller with an abort signal races the shared
+    // call: aborting rejects only that caller's await (hook guards drop it),
+    // never the shared request others still need.
+    if (inflightHistory.has(key)) {
+      const shared = inflightHistory.get(key)
+      if (!opts.signal || opts.signal.aborted) {
+        if (!opts.signal) return shared
+        return shared.catch(() => ({ success: false, data: [], aborted: true, fetchedAt: 0 }))
+      }
+      const abortRejection = new Promise((_, reject) => {
+        const onAbort = () => {
+          const err = new Error('aborted')
+          err.code = 'ERR_CANCELED'
+          reject(err)
+        }
+        opts.signal.addEventListener('abort', onAbort, { once: true })
+      })
+      return Promise.race([shared, abortRejection]).catch((err) => {
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+          return { success: false, data: [], aborted: true, fetchedAt: 0 }
+        }
+        throw err
+      })
     }
 
     // Mark loading
@@ -259,32 +316,46 @@ export const useTrade = create((set) => ({
       historyLoading: { ...state.historyLoading, [key]: true }
     }))
 
-    try {
-      const url = range === '1D'
-        ? `${API_BASE}/stock-api/history/${symbol}?interval=60m`
-        : `${API_BASE}/stock-api/history/${symbol}`
-      const response = await axios.get(url, { withCredentials: true })
-      const data = response.data.data || []
+    const run = async () => {
+      try {
+        const url = range === '1D'
+          ? `${API_BASE}/stock-api/history/${symbol}?interval=60m`
+          : `${API_BASE}/stock-api/history/${symbol}`
+        const response = await axios.get(url, { withCredentials: true })
+        const data = response.data.data || []
+        const fetchedAt = Date.now()
 
-      set((state) => ({
-        historyCache: {
-          ...state.historyCache,
-          [key]: { data, fetchedAt: Date.now() }
-        },
-        historyLoading: { ...state.historyLoading, [key]: false }
-      }))
+        set((state) => ({
+          historyCache: {
+            ...state.historyCache,
+            [key]: { data, fetchedAt }
+          },
+          historyLoading: { ...state.historyLoading, [key]: false }
+        }))
 
-      return { success: true, data }
-    } catch (err) {
-      set((state) => ({
-        historyLoading: { ...state.historyLoading, [key]: false }
-      }))
-      return {
-        success: false,
-        data: [],
-        message: err.response?.data?.message || 'Failed to fetch history'
+        return { success: true, data, fetchedAt }
+      } catch (err) {
+        set((state) => ({
+          historyLoading: { ...state.historyLoading, [key]: false }
+        }))
+        // Aborted requests are not failures — the hook refetches on visibility.
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+          return { success: false, data: [], aborted: true, fetchedAt: 0 }
+        }
+        return {
+          success: false,
+          data: [],
+          fetchedAt: 0,
+          message: err.response?.data?.message || 'Failed to fetch history'
+        }
+      } finally {
+        inflightHistory.delete(key)
       }
     }
+
+    const shared = run()
+    inflightHistory.set(key, shared)
+    return shared
   },
 
   // Last 30 daily closes for sparklines (small payload via ?limit=)

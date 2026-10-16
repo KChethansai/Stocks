@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AreaChart, Area } from './area-chart'
 import { CandlestickChart } from './candlestick-chart'
 import { Candlestick } from './candlestick'
@@ -9,6 +9,7 @@ import { ChartTooltip } from './tooltip/chart-tooltip'
 import { LinearGradient } from '@visx/gradient'
 import { useChartStable } from './chart-context'
 import { useTrade } from '../../store/tradeStore'
+import { historyTtlMs } from '../../utils/historyCachePolicy'
 
 // ── MarketForge chart system ─────────────────────────────────────
 // Bklit UI chart primitives (bklit.com/r/area-chart.json,
@@ -16,20 +17,21 @@ import { useTrade } from '../../store/tradeStore'
 // themed via --chart-* tokens and wired to the app's real OHLC path.
 
 // Palette presets (explicit props beat theme vars for series colors)
+// Raw hex: visx/SVG configs can't read CSS vars — tokens: --ivory, --gain, --loss.
 export const CHART_THEMES = {
   landing: {
-    stroke: '#7ce6ff',
-    gradientFrom: 'rgba(124, 230, 255, 0.35)',
-    gradientTo: 'rgba(124, 230, 255, 0)',
-    up: '#7ed6a3',
-    down: '#e87684',
+    stroke: '#ECE9E2',
+    gradientFrom: 'rgba(201, 169, 110, 0.28)',
+    gradientTo: 'rgba(201, 169, 110, 0)',
+    up: '#4FB286',
+    down: '#D9667A',
   },
   terminal: {
-    stroke: '#3b82f6',
-    gradientFrom: 'rgba(59, 130, 246, 0.35)',
-    gradientTo: 'rgba(59, 130, 246, 0)',
-    up: '#22c55e',
-    down: '#ef4444',
+    stroke: '#ECE9E2',
+    gradientFrom: 'rgba(201, 169, 110, 0.28)',
+    gradientTo: 'rgba(201, 169, 110, 0)',
+    up: '#4FB286',
+    down: '#D9667A',
   },
 }
 
@@ -41,7 +43,9 @@ export function ReferenceArea() {
 ReferenceArea.displayName = 'ReferenceArea'
 
 // Horizontal annotation line + edge label, drawn from live scales.
-export function ChartValueLine({ value, label, color = '#7ce6ff', dashed = true, solid = false, align = 'right' }) {
+// Horizontal annotation line + edge label, drawn from live scales.
+// Default is the data-brass dashed benchmark treatment (D1).
+export function ChartValueLine({ value, label, color = '#C9A96E', dashed = true, solid = false, align = 'right' }) {
   const { yScale, innerWidth, margin } = useChartStable()
   const y = yScale(value)
   if (y == null || !isFinite(y)) return null
@@ -66,7 +70,7 @@ export function ChartValueLine({ value, label, color = '#7ce6ff', dashed = true,
           textAnchor={atRight ? 'end' : 'start'}
           fill={color}
           fontSize={10}
-          fontFamily="monospace"
+          fontFamily="'Geist Variable', 'Geist', system-ui, sans-serif"
           opacity={0.9}
         >
           {label}
@@ -74,6 +78,39 @@ export function ChartValueLine({ value, label, color = '#7ce6ff', dashed = true,
       ) : null}
     </g>
   )
+}
+
+// ── Price-domain rules (D1) ──────────────────────────────────────
+// Range-driven tick precision: decimals derive from the visible span so
+// adjacent axis labels always differ (step ≥$10 → whole dollars;
+// $1 ≤ step <$10 → 1 decimal; step <$1 → cents). Tooltips/headers always
+// show cents regardless — this is axis labels only.
+export function priceAxisFormat(lo, hi) {
+  const span = Math.max(Math.abs(hi - lo), 1e-9)
+  const step = span / 5
+  const decimals = step >= 10 ? 0 : step >= 1 ? 1 : 2
+  return (v) => `$${Number(v).toFixed(decimals)}`
+}
+
+// Compressed-scale detection: when the visible range is under 0.5% of mid,
+// the domain snaps to mid ± 0.5% and callers caption it
+// ("Compressed scale — price moved <0.5% in view"). Zero is never forced
+// into a price-line domain; bar/proportion charts keep their zero baseline
+// via the yScaleDomainMax path in the shell.
+export function priceDomain(values) {
+  const nums = values.map(Number).filter((v) => Number.isFinite(v))
+  if (!nums.length) return { lo: 0, hi: 100, compressed: false }
+  let lo = Math.min(...nums)
+  let hi = Math.max(...nums)
+  let compressed = false
+  const mid = (lo + hi) / 2
+  if (mid > 0 && hi - lo < mid * 0.005) {
+    lo = mid * 0.995
+    hi = mid * 1.005
+    compressed = true
+  }
+  const pad = Math.max((hi - lo) * 0.08, 0.02)
+  return { lo: lo - pad, hi: hi + pad, compressed }
 }
 
 // Composable price area chart. `data`: [{ date: Date, [yKey]: number }].
@@ -94,8 +131,15 @@ export function PriceAreaChart({
 }) {
   // Unique gradient id per instance — the Bklit primitives use useId() for
   // defs; a hardcoded id collides document-wide and every chart steals the
-  // first instance's colors (e.g. ReplayScene's muted theme rendered cyan).
+  // first instance's colors.
   const gradientId = `mf-area-fill-${useId().replace(/:/g, '')}`
+  // Range-driven axis labels (D1): derived from the visible values so a flat
+  // series never renders a column of identical "$23" labels.
+  const extent = useMemo(() => {
+    const vals = (data || []).map((d) => Number(d?.[yKey])).filter(Number.isFinite)
+    if (!vals.length) return null
+    return { lo: Math.min(...vals), hi: Math.max(...vals) }
+  }, [data, yKey])
   return (
     <AreaChart
       data={data}
@@ -113,7 +157,7 @@ export function PriceAreaChart({
       {showAxes ? (
         <>
           <XAxis />
-          <YAxis orientation="right" formatValue={formatY ?? ((v) => `$${Number(v).toFixed(0)}`)} />
+          <YAxis orientation="right" formatValue={formatY ?? (extent ? priceAxisFormat(extent.lo, extent.hi) : (v) => `$${Number(v).toFixed(2)}`)} />
         </>
       ) : null}
       {showTooltip ? <ChartTooltip /> : null}
@@ -131,6 +175,11 @@ export function MarketCandles({
   className = '',
   children,
 }) {
+  const extent = useMemo(() => {
+    const vals = (data || []).flatMap((d) => [Number(d?.low), Number(d?.high)]).filter(Number.isFinite)
+    if (!vals.length) return null
+    return { lo: Math.min(...vals), hi: Math.max(...vals) }
+  }, [data])
   return (
     <CandlestickChart
       data={data}
@@ -142,7 +191,7 @@ export function MarketCandles({
       <Grid vertical={false} />
       <Candlestick positiveFill={theme.up} negativeFill={theme.down} />
       <XAxis />
-      <YAxis orientation="right" formatValue={(v) => `$${Number(v).toFixed(0)}`} />
+      <YAxis orientation="right" formatValue={extent ? priceAxisFormat(extent.lo, extent.hi) : (v) => `$${Number(v).toFixed(2)}`} />
       <ChartTooltip />
       {children}
     </CandlestickChart>
@@ -205,58 +254,199 @@ function sliceRowsByRange(rows, range) {
 // Live-first OHLC hook: backend history via tradeStore, seeded fallback offline.
 // Every range yields a genuinely different window: 1D uses the 60m intraday
 // series, all other ranges are day-window slices of the daily series.
-export function useOhlcSeries(symbol, range = 'ALL', points = 90) {
+// D10 data-behavior contract:
+// - States: loading | verified | insufficient | error | sample | stale.
+//   `verified` means genuine history was fetched for this symbol|range — it
+//   does NOT claim live market delivery. Seed rows are reachable ONLY in
+//   `sample` (offline), never silently.
+// - Race-safe: a monotonic per-hook sequence drops superseded resolutions, so
+//   a slow response for symbol A never renders under symbol B's header.
+// - Symbol change clears to skeleton; same-symbol range change keeps prior
+//   rows dimmed (pending) until the new window lands, then swaps atomically.
+// - Hidden-tab: no fetch while hidden (one-shot visibility listener defers
+//   the initial fetch until visible). Superseded responses are dropped by
+//   the per-hook sequence guard; completed responses populate the shared
+//   cache. A separate TTL-gated listener refetches once on visible when the
+//   entry expired (no polling).
+// - Backward compatible: { rows, prices, live } are still returned
+//   (`live` is an alias for state === 'verified').
+// `keepPrevious` switches the symbol-change behavior to dimmed-keep. No
+// in-scope consumer uses it yet (authenticated terminals use TerminalCharts
+// directly); it is kept as a tested hook option for that future migration.
+export function useOhlcSeries(symbol, range = 'ALL', points = 90, opts = {}) {
+  const { keepPrevious = false } = opts
   const fetchHistory = useTrade((s) => s.fetchHistory)
   const [rows, setRows] = useState([])
-  const [live, setLive] = useState(false)
+  const [state, setState] = useState('loading')
+  const [seriesAsOf, setSeriesAsOf] = useState(0)
+  const [seriesStale, setSeriesStale] = useState(false)
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  const [retryNonce, setRetryNonce] = useState(0)
+  const seqRef = useRef(0)
   const key = String(range || 'ALL').toUpperCase()
 
+  const retry = useCallback(() => setRetryNonce((n) => n + 1), [])
+  // Row-count ref (review finding): the effect closure's `rows` goes stale
+  // across symbol switches (`rows` is intentionally excluded from deps), so
+  // the failure path reads this ref instead of the closure.
+  const rowsRef = useRef([])
+  const setTrackedRows = (next) => {
+    rowsRef.current = next
+    setRows(next)
+  }
+  // Freshness mirror for the revalidation listener (avoids state deps).
+  const seriesAsOfRef = useRef(0)
+  const setTrackedAsOf = (ts) => {
+    seriesAsOfRef.current = ts
+    setSeriesAsOf(ts)
+  }
+
+  // Visible revalidation: a hidden->visible transition refetches once
+  // when the entry outlived its TTL — otherwise the cached rows stand.
+  // Range TTLs mirror the store through the shared historyCachePolicy.
+  const ttlMs = historyTtlMs(key)
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      // Skip while a fetch for this key is already running — rapid tab
+      // toggles must not fan out duplicate requests.
+      const loadingMap = useTrade.getState().historyLoading || {}
+      if (loadingMap[`${symbol}|${key}`]) return
+      if (Date.now() - (seriesAsOfRef.current || 0) > ttlMs) retry()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [symbol, key, ttlMs, retry])
+
+  useEffect(() => {
+    const seq = ++seqRef.current
+    const ctrl = new AbortController()
+    let visibleListener = null
     let on = true
-    setRows([])
-    setLive(false)
-    ;(async () => {
-      const fallback = () => {
+
+    // Symbol switches clear to skeleton (landing default); same-symbol range
+    // changes keep prior rows dimmed under a pending overlay.
+    setError('')
+    setSeriesStale(false)
+    const hadRows = rowsRef.current.length > 3
+    if (!keepPrevious || !hadRows) {
+      setTrackedRows([])
+      setPending(false)
+      setState('loading')
+    } else {
+      setPending(true)
+    }
+
+    const run = async () => {
+      const fallbackSample = () => {
+        if (seq !== seqRef.current || !on) return
         const n = FALLBACK_POINTS[key] ?? points
-        setRows(seedOhlcSeries(symbol, n, key === '1D' ? 5 * 60000 : 86400000))
-        setLive(false)
+        setTrackedRows(seedOhlcSeries(symbol, n, key === '1D' ? 5 * 60000 : 86400000))
+        setTrackedAsOf(0)
+        setSeriesStale(false)
+        setPending(false)
+        setState('sample')
       }
+      let res
+      let data = []
       try {
         if (key === '1D') {
-          const res = await fetchHistory(symbol, '1D')
+          res = await fetchHistory(symbol, '1D', { signal: ctrl.signal })
           // Intraday cache holds ~6 days of 60m bars — slice to the last
           // trading day so 1D means 1D (same anchoring as Markets).
-          const data = sliceRowsByRange(normalizeHistory(res?.data), '1D')
-          if (data.length > 3) {
-            if (on) {
-              setRows(data)
-              setLive(true)
-            }
-            return
-          }
+          data = sliceRowsByRange(normalizeHistory(res?.data), '1D')
         } else {
-          const res = await fetchHistory(symbol, 'ALL')
-          const sliced = sliceRowsByRange(normalizeHistory(res?.data), key)
-          if (sliced.length > 3) {
-            if (on) {
-              setRows(sliced)
-              setLive(true)
-            }
-            return
-          }
+          res = await fetchHistory(symbol, 'ALL', { signal: ctrl.signal })
+          data = sliceRowsByRange(normalizeHistory(res?.data), key)
         }
-        if (on) fallback()
       } catch {
-        if (on) fallback()
+        if (seq !== seqRef.current || !on) return
+        // Aborted by tab-hide: stay in loading, the visible listener refetches.
+        if (ctrl.signal.aborted) return
+        // A throw is NOT proof of offline (500s, malformed payloads throw
+        // too) — sample only when the browser reports offline; otherwise
+        // fall through to the error/stale handling below with res unset.
       }
-    })()
+      if (seq !== seqRef.current || !on) return
+      if (ctrl.signal.aborted) return
+      if (res?.aborted) return
+      if (!res) {
+        // Thrown request while online: error (or stale when prior rows exist).
+        setError('Historical data temporarily unavailable')
+        if (rowsRef.current.length > 3) {
+          setSeriesStale(true)
+          setPending(false)
+          setState('stale')
+        } else if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          fallbackSample()
+        } else {
+          setTrackedRows([])
+          setPending(false)
+          setState('error')
+        }
+        return
+      }
+      if (res?.success && data.length > 3) {
+        setTrackedRows(data)
+        setTrackedAsOf(Number(res.fetchedAt) || Date.now())
+        setSeriesStale(false)
+        setPending(false)
+        setState('verified')
+        return
+      }
+      if (res?.success) {
+        // Genuine but too thin to chart — never pad with seed rows.
+        setTrackedRows(data)
+        setTrackedAsOf(Number(res.fetchedAt) || Date.now())
+        setPending(false)
+        setState('insufficient')
+        return
+      }
+      // Failed: keep prior rows as stale when we have them (ref count,
+      // not the closure — see rowsRef above).
+      setError(res?.message || 'Historical data temporarily unavailable')
+      if (rowsRef.current.length > 3) {
+        setSeriesStale(true)
+        setPending(false)
+        setState('stale')
+      } else if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        fallbackSample()
+      } else {
+        setTrackedRows([])
+        setPending(false)
+        setState('error')
+      }
+    }
+
+    // Hidden-tab pause: never fetch while hidden; fetch once on visible.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      visibleListener = () => {
+        if (document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', visibleListener)
+          run()
+        }
+      }
+      document.addEventListener('visibilitychange', visibleListener)
+    } else {
+      run()
+    }
     return () => {
       on = false
+      seqRef.current += 1
+      ctrl.abort()
+      if (visibleListener && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', visibleListener)
+      }
     }
-  }, [symbol, key, fetchHistory, points])
+    // rows intentionally excluded: switching data must not refetch
+    // (the effect reads row counts via rowsRef).
+  }, [symbol, key, fetchHistory, points, keepPrevious, retryNonce])
 
   const prices = useMemo(() => rows.map(({ date, price }) => ({ date, price })), [rows])
-  return { rows, prices, live }
+  const live = state === 'verified'
+  return { rows, prices, live, state, seriesAsOf, seriesStale, error, pending, retry }
 }
 
 function normalizeHistory(list) {

@@ -6,6 +6,7 @@ import { transactionModel } from '../models/TransactionModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
 import { executePaperTrade } from '../services/tradeService.js'
 import { predict } from './predictor.js'
+import { EXPERIMENTAL_MODEL_PATTERN } from './modelRelease.js'
 
 /**
  * ML-driven automation engine.
@@ -19,6 +20,52 @@ const DEFAULT_CRON = '*/15 * * * *'
 const DEFAULT_MAX_TRADES_PER_DAY = 10
 
 const automationCron = () => process.env.AUTOMATION_INTERVAL_CRON || DEFAULT_CRON
+
+// ── Phase 1.6 ML-boundary safeguards ─────────────────────────────────────
+// Canonical models have no demonstrated edge over trivial baselines, so
+// prediction-driven BUY/SELL is fail-closed:
+// - Heuristic fallback or missing trained output never counts as an approved
+//   signal unless ML_AUTOMATION_ALLOW_HEURISTIC=true (explicit opt-in).
+// - Experimental models (Phase 1.5 v2) never trade unless
+//   ML_AUTOMATION_ALLOW_EXPERIMENTAL=true.
+// - Stale/missing quotes never back a trade (ML_QUOTE_MAX_AGE_MINUTES).
+// ALERT rules are unaffected (no money moves); manual trading is untouched.
+const requireTrainedForTrades = () => process.env.ML_AUTOMATION_ALLOW_HEURISTIC !== 'true'
+const allowExperimentalTrades = () => process.env.ML_AUTOMATION_ALLOW_EXPERIMENTAL === 'true'
+const quoteMaxAgeMs = () => {
+  const minutes = Number(process.env.ML_QUOTE_MAX_AGE_MINUTES)
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 4 * 24 * 60) * 60_000
+}
+
+/**
+ * Pure ML-signal gate for BUY/SELL rules. ALERT rules always pass (no trade).
+ * Exported for failure-injection tests.
+ */
+export function evaluateMlGuard(prediction, rule) {
+  const isTrade = rule?.action === 'BUY' || rule?.action === 'SELL'
+  if (!isTrade) return { ok: true }
+  const modelId = String(prediction?.model || '')
+  if (EXPERIMENTAL_MODEL_PATTERN.test(modelId) && !allowExperimentalTrades()) {
+    return { ok: false, reason: 'EXPERIMENTAL_BLOCKED' }
+  }
+  if (
+    requireTrainedForTrades() &&
+    !(prediction?.trained === true && prediction?.provenance === 'trained-onnx')
+  ) {
+    return { ok: false, reason: 'MODEL_UNVERIFIED' }
+  }
+  return { ok: true }
+}
+
+/** Quote freshness gate for trades. Exported for failure-injection tests. */
+export function isQuoteFresh(stock, now = Date.now()) {
+  if (!stock || !(stock.price > 0)) return { ok: false, reason: 'PRICE_UNAVAILABLE' }
+  const updated = new Date(stock.updatedAt || 0).getTime()
+  if (!Number.isFinite(updated) || updated <= 0 || now - updated > quoteMaxAgeMs()) {
+    return { ok: false, reason: 'QUOTE_STALE' }
+  }
+  return { ok: true }
+}
 
 const maxTradesPerDay = () => {
   const parsed = Number.parseInt(process.env.MAX_AUTOMATION_TRADES_PER_DAY, 10)
@@ -129,7 +176,18 @@ export async function runAutomationPass() {
       const lastPrediction = {
         direction: prediction.direction,
         confidence: prediction.confidence,
-        predictedPrice: prediction.predictedPrice
+        predictedPrice: prediction.predictedPrice,
+        trained: prediction.trained === true,
+        model: prediction.model || 'unknown'
+      }
+
+      // Fail-closed ML boundary: unvalidated signals never reach BUY/SELL.
+      const guard = evaluateMlGuard(prediction, rule)
+      if (!guard.ok) {
+        summary.skipped += 1
+        await recordEvaluation(rule._id, guard.reason, { lastPrediction })
+        console.log(`[Automation] SKIP ${rule.action} ${rule.symbol} user=${rule.userId} — ${guard.reason}`)
+        continue
       }
 
       const directionOk = rule.direction === 'ANY' || prediction.direction === rule.direction
@@ -194,9 +252,11 @@ export async function runAutomationPass() {
       }
 
       const stock = await stockModel.findOne({ symbol: rule.symbol }).lean()
-      if (!stock || !(stock.price > 0)) {
+      const freshness = isQuoteFresh(stock)
+      if (!freshness.ok) {
         summary.skipped += 1
-        await recordEvaluation(rule._id, 'PRICE_UNAVAILABLE', { lastPrediction })
+        await recordEvaluation(rule._id, freshness.reason, { lastPrediction })
+        console.log(`[Automation] SKIP ${rule.action} ${rule.symbol} user=${rule.userId} — ${freshness.reason}`)
         continue
       }
 

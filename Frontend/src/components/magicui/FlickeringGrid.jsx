@@ -4,7 +4,7 @@ export function FlickeringGrid({
   squareSize = 4,
   gridGap = 6,
   flickerChance = 0.2,
-  color = '#3B82F6',
+  color = '#C9A96E',
   width,
   height,
   className = '',

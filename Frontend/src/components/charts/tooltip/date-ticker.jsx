@@ -1,6 +1,6 @@
 "use client";
 import { motion, useSpring } from "motion/react";
-import { memo, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import * as React from "react";
 const TICKER_ITEM_HEIGHT = 24;
 const COMPACT_TICKER_THRESHOLD = 60;
@@ -52,15 +52,15 @@ const DateTickerInner = memo(function DateTickerInner2({
   const prevMonthIndexRef = useRef(-1);
   const dayY = useSpring(0, { stiffness: 400, damping: 35 });
   const monthY = useSpring(0, { stiffness: 400, damping: 35 });
-  dayY.set(-currentIndex * TICKER_ITEM_HEIGHT);
-  if (currentMonthIndex >= 0) {
-    const isFirstRender = prevMonthIndexRef.current === -1;
-    const monthChanged = prevMonthIndexRef.current !== currentMonthIndex;
-    if (isFirstRender || monthChanged) {
+  useEffect(() => {
+    dayY.set(-currentIndex * TICKER_ITEM_HEIGHT);
+  }, [currentIndex, dayY]);
+  useEffect(() => {
+    if (currentMonthIndex >= 0 && prevMonthIndexRef.current !== currentMonthIndex) {
       monthY.set(-currentMonthIndex * TICKER_ITEM_HEIGHT);
       prevMonthIndexRef.current = currentMonthIndex;
     }
-  }
+  }, [currentMonthIndex, monthY]);
   return /* @__PURE__ */ React.createElement("div", { className: "overflow-hidden rounded-full bg-zinc-900 px-4 py-1 text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900" }, /* @__PURE__ */ React.createElement("div", { className: "relative h-6 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-center gap-1" }, /* @__PURE__ */ React.createElement("div", { className: "relative h-6 overflow-hidden" }, /* @__PURE__ */ React.createElement(motion.div, { className: "flex flex-col", style: { y: monthY } }, monthSegments.map((segment) => /* @__PURE__ */ React.createElement(
     "div",
     {

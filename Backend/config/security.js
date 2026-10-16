@@ -54,7 +54,10 @@ export const stateChangingOriginGuard = (req, res, next) => {
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  // Test-only escape hatch for the isolated audit backend (env.authRateLimitMax).
+  // Production default stays 20; the override is env-only and never committed
+  // to a production .env.
+  limit: env.authRateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many sign-in attempts, please try again later' }

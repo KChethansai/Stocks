@@ -1,0 +1,105 @@
+# WebKit (Safari-engine) browser audit — Ubuntu CI.
+#
+# STATUS: PREPARED, NOT EXECUTED. This workflow has never run green; the first
+# run that goes green is the evidence, not this file. Local WebKit remains
+# host-blocked (Arch carries libicuuc.so.78/libxml2.so.16, WebKit needs
+# libicu74-era sonames + libflite1) and Firefox is the verified second engine.
+#
+# Isolated test-database protections (do not weaken):
+# - seedPwTest.js refuses any DB URL that does not look isolated, refuses the
+#   application's own DB, and never fabricates prices. The CI secret MUST be a
+#   throwaway cluster whose database name contains "test".
+# - verifyPhase0 derives a phase0test_* database on the SAME cluster and DROPS
+#   it when done. Never point MONGO_TEST_URL at production.
+# - AUTH_RATE_LIMIT_MAX=1000 is set ONLY for the isolated audit backend job.
+#   Production Render env keeps the default (20).
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   MONGO_TEST_URL  — isolated Atlas/test-cluster URL, db name contains "test"
+#   (VITE_GOOGLE_CLIENT_ID stays blank = hermetic run, same as local runs.)
+#
+# What it proves when green: critical navigation, auth (incl. pointer-click
+# login submit paths from 11-login-submit), Trade selector, profile, and
+# public-chart journeys on the WebKit engine.
+
+name: webkit-audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  webkit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            Frontend/package-lock.json
+            Backend/package-lock.json
+
+      - name: Install Playwright (webkit + system deps)
+        run: npx playwright install webkit --with-deps
+
+      - name: Install workspace deps
+        run: |
+          npm ci --prefix ../Backend
+          npm ci
+
+      - name: Seed isolated test database (live provider, guard-enforced)
+        working-directory: Backend
+        env:
+          PWTEST_DB_URL: ${{ secrets.MONGO_TEST_URL }}
+        run: |
+          test -n "${{ secrets.MONGO_TEST_URL }}" || { echo "MONGO_TEST_URL secret is empty — set an isolated test-cluster URL and re-run."; exit 1; }
+          node scripts/seedPwTest.js
+
+      - name: Start isolated backend
+        working-directory: Backend
+        env:
+          DB_URL: ${{ secrets.MONGO_TEST_URL }}
+          PORT: 4101
+          AUTH_RATE_LIMIT_MAX: 1000
+          SECRET_KEY: ci-only-placeholder-secret
+        run: nohup node server.js > /tmp/mf-backend.log 2>&1 &
+
+      - name: Start hermetic frontend
+        env:
+          VITE_API_URL: http://localhost:4101
+          VITE_GOOGLE_CLIENT_ID: ''
+        run: nohup npx vite --port 5173 > /tmp/mf-vite.log 2>&1 &
+
+      - name: Wait for stack
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4101/stock-api/stocks >/dev/null && curl -sf http://localhost:5173/ >/dev/null && exit 0
+            sleep 10
+          done
+          echo "stack failed to come up"; tail -50 /tmp/mf-backend.log; tail -50 /tmp/mf-vite.log; exit 1
+
+      - name: Critical journeys on WebKit
+        run: >
+          sh scripts/e2e.sh
+          e2e/02-auth.journey.spec.js
+          e2e/08-trade-selector.spec.js
+          e2e/09-profile.spec.js
+          e2e/10-refinement.spec.js
+          e2e/11-login-submit.spec.js
+          e2e/12-lazy-recovery.spec.js
+          --project=webkit-desktop --reporter=line
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webkit-failure-artifacts
+          path: |
+            Frontend/test-results/
+            Frontend/playwright-report/

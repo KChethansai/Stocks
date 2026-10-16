@@ -108,6 +108,9 @@ const automationRuleSchema = new Schema(
         'NO_POSITION',
         'DAILY_CAP_REACHED',
         'PRICE_UNAVAILABLE',
+        'MODEL_UNVERIFIED',
+        'QUOTE_STALE',
+        'EXPERIMENTAL_BLOCKED',
         'ERROR'
       ],
       default: 'NONE'

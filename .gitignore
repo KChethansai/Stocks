@@ -148,9 +148,26 @@ node_modules/
 
 .vercel
 .env*
+# Phase 1.6: env template stays committable so fresh deployments see all ML
+# safety gates; real secrets (Backend/.env) remain ignored above.
+!Backend/.env.example
 
 # Local agent state (never commit)
 .opencode/
 
 # playwright MCP browser profile (local-only, recreated on each QA run)
 .playwright-mcp/
+
+# MarketForge ML — versioned, gitignored local datasets (never commit OHLCV caches)
+Backend/data/
+Backend/ml/data/
+Backend/ml/*.log
+# ONNX bundles + timestamped rollback copies stay local (see Backend/.gitignore
+# ml/models/). Deploy/train machines regenerate via `npm run train`
+# (Backend cwd). API exposes explicit trained:false heuristic fallback + model id,
+# and GET /ml-api accuracy reports byModel — no silent degradation.
+Backend/ml/models/*-20*.onnx
+Backend/ml/models/*-20*.meta.json
+.archify/
+*.parquet
+.arena

@@ -1,213 +1,206 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'motion/react'
+import { Search, ClipboardCheck, ReceiptText, LineChart } from 'lucide-react'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { TextReveal } from '../../hooks/useTextReveal'
-import {
-  DURATIONS,
-  STAGGER,
-  DELAYS,
-  EASING,
-  fadeUp,
-  staggerContainer,
-} from '../../lib/motion'
-import { gsap, canPin, refreshLandingTriggers } from '../../lib/landingGsap'
-import { SpotlightCard } from '../kokonutui/SpotlightCard'
-import { ShinyText } from '../reactbits/ShinyText'
-import { PriceAreaChart, ChartValueLine, useOhlcSeries } from '../charts/market-charts'
+import { DURATIONS, EASING } from '../../lib/motion'
+import { useTrade } from '../../store/tradeStore'
+import { QuantityStepper } from '../ui/QuantityStepper'
+import { fmtMoney, fmtPct, fmtQty } from '../../utils/format'
 
-const tickers = [
-  { symbol: 'AAPL', price: 227.14, change: +1.42 },
-  { symbol: 'NVDA', price: 942.81, change: +4.24 },
-  { symbol: 'MSFT', price: 415.10, change: -0.60 },
-  { symbol: 'GOOGL', price: 172.65, change: +0.87 },
-  { symbol: 'AMZN', price: 198.32, change: -1.23 },
-  { symbol: 'TSLA', price: 170.80, change: -2.95 },
+const STEPS = [
+  {
+    n: 1,
+    title: 'Find the stock',
+    body: 'Search 30 US stocks by symbol, company, or sector. Every quote shows its source and age.',
+    icon: Search,
+  },
+  {
+    n: 2,
+    title: 'Review the order',
+    body: 'Pick a side and quantity. The ticket shows estimated cost against your buying power before anything executes.',
+    icon: ClipboardCheck,
+  },
+  {
+    n: 3,
+    title: 'Get a fill receipt',
+    body: 'Orders execute atomically against verified quotes. The receipt shows the server fill price, quantity, total, and order id.',
+    icon: ReceiptText,
+  },
+  {
+    n: 4,
+    title: 'Track the position',
+    body: 'Holdings, average cost, and profit and loss update with live prices. Every trade lands in the activity ledger with CSV export.',
+    icon: LineChart,
+  },
 ]
 
 export default function ControlScene() {
   const isComfort = useReducedMotion()
-  const sectionRef = useRef(null)
-  const pinRef = useRef(null)
-  const [timeframe, setTimeframe] = useState('1D')
-  const { prices } = useOhlcSeries('NVDA', timeframe)
-  const entry = prices.length ? prices[0].price : null
-  const current = prices.length ? prices[prices.length - 1].price : null
+  const stocks = useTrade((s) => s.stocks)
+  const [qty, setQty] = useState(10)
+  const [active, setActive] = useState(0)
 
-  // Pinned showcase (reference controlScene: start "top top",
-  // end "+=calculated", pin + pinSpacing + anticipatePin: 1).
-  // Desktop + fine pointer + full motion only; everyone else keeps the
-  // Motion whileInView entrance below.
-  useEffect(() => {
-    if (!canPin() || !sectionRef.current || !pinRef.current) return
-    const ctx = gsap.context(() => {
-      gsap.to(pinRef.current, {
-        ease: 'none',
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: 'top top+=80',
-          end: '+=400',
-          pin: pinRef.current,
-          pinSpacing: true,
-          anticipatePin: 1,
-        },
-      })
-    }, sectionRef)
-    refreshLandingTriggers()
-    return () => ctx.revert()
-  }, [])
+  const sample = (stocks || []).find((s) => s.symbol === 'AAPL') ||
+    (stocks || [])[0] || { symbol: 'AAPL', name: 'Apple Inc.', price: 227.14, changePercent: 1.42 }
+  const price = Number(sample.price || 0)
+  const buyingPower = 100000
+  const estimated = price * qty
 
   return (
-    <section ref={sectionRef} className="relative py-24 sm:py-32 overflow-hidden">
-      {/* Atmospheric glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(124,230,255,0.05) 0%, transparent 70%)' }} />
-
+    <section className="relative overflow-hidden py-24 sm:py-32">
       <div className="mf-scene">
         <div className="mf-scene-frame">
-          {/* Eyebrow + heading */}
           <motion.div
-            className="text-center max-w-2xl mx-auto mb-16"
-            variants={staggerContainer(STAGGER.featureCards, isComfort ? 0 : 0.1)}
-            initial="hidden"
-            whileInView="visible"
+            className="mx-auto mb-16 max-w-2xl text-center"
+            initial={isComfort ? { opacity: 1 } : { opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: isComfort ? 0 : DURATIONS.content, ease: EASING.contentReveal }}
           >
-            <motion.div
-              className="mf-eyebrow w-fit mx-auto mb-6"
-              variants={fadeUp(isComfort ? 0 : DURATIONS.eyebrow, 0, EASING.contentReveal)}
+            <h2
+              className="font-display leading-[1.05] tracking-[-0.02em] text-[var(--ivory)]"
+              style={{ fontSize: 'clamp(1.75rem, 1.375rem + 2vw, 2.75rem)' }}
             >
-              <ShinyText className="text-xs font-mono uppercase font-bold">
-                Workspace
-              </ShinyText>
-            </motion.div>
-
-            <motion.h2
-              className="font-landing-display-light tracking-tight text-text-primary leading-[1.1] mb-4"
-              style={{ fontSize: 'var(--mf-font-display-lg)' }}
-              variants={fadeUp(isComfort ? 0 : DURATIONS.title, 0, EASING.textReveal)}
-            >
-              <TextReveal
-                text="One workspace for every trade."
-                duration={DURATIONS.title}
-                stagger={STAGGER.titleWords}
-                initialDelay={isComfort ? 0 : DELAYS.titleStart}
-                className="text-text-primary"
-                blur={!isComfort}
-                as="span"
-              />
-            </motion.h2>
-
-            <motion.p
-              className="text-text-secondary leading-relaxed"
-              style={{ fontSize: 'var(--mf-font-body-md)' }}
-              variants={fadeUp(isComfort ? 0 : DURATIONS.body, 0, EASING.contentReveal)}
-            >
-              Live quotes, instant simulated fills, and position tracking in
-              one place. Search 30 US stocks, place market orders, and watch
-              your portfolio update in real time.
-            </motion.p>
+              How a trade works
+            </h2>
+            <p className="mt-4 leading-relaxed text-[var(--stone)]">
+              Four steps, built from the actual order ticket. Select a step to preview it.
+            </p>
           </motion.div>
 
-          {/* Workspace showcase (GSAP pin target) */}
-          <div ref={pinRef}>
-            <motion.div
-              initial={isComfort ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 24 }}
-              whileInView={{ opacity: 1, scale: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: isComfort ? 0 : DURATIONS.card, ease: EASING.contentReveal }}
-            >
-              <SpotlightCard
-                spotlightColor="rgba(124, 230, 255, 0.12)"
-                tiltIntensity={4}
-                className="rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden bg-[var(--surface)]/95"
-              >
+          <div className="grid items-start gap-6 lg:grid-cols-12">
+            {/* Sequence (numbered because it is a real sequence) */}
+            <ol className="flex flex-col gap-2 lg:col-span-5">
+              {STEPS.map((s, i) => {
+                const Icon = s.icon
+                const selected = i === active
+                return (
+                  <li key={s.n}>
+                    <button
+                      type="button"
+                      onClick={() => setActive(i)}
+                      aria-pressed={selected}
+                      className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] ${
+                        selected
+                          ? 'border-[var(--brass)]/40 bg-white/[0.04]'
+                          : 'border-[var(--hairline)] hover:border-[var(--hairline-hover)]'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                          selected ? 'bg-[var(--brass)] text-[#0B0C0E]' : 'bg-white/[0.06] text-[var(--stone)]'
+                        }`}
+                      >
+                        {s.n}
+                      </span>
+                      <span>
+                        <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ivory)]">
+                          <Icon className="h-4 w-4 text-[var(--brass)]" aria-hidden="true" />
+                          {s.title}
+                        </span>
+                        <span className="mt-1 block text-[13px] leading-5 text-[var(--stone)]">{s.body}</span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
 
-                {/* Title bar */}
-                <div className="h-10 border-b border-[var(--border)] flex items-center justify-between px-4 bg-[var(--bg-primary)]/90 backdrop-blur-md">
-                  <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-negative/70" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-warning/70" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-positive/70" />
-                  </div>
-                  <div className="text-[10px] font-mono text-text-muted">workspace.marketforge.app</div>
-                  <div className="w-10" />
-                </div>
-
-                {/* Workspace body */}
-                <div className="flex flex-col lg:flex-row bg-[var(--bg-primary)]/80">
-                  {/* Main chart */}
-                  <div className="flex-1 p-5 flex flex-col gap-4">
-                    <div className="flex justify-between items-end">
+            {/* Live preview built from the real ticket pieces (illustrative) */}
+            <div className="lg:col-span-7">
+              <div className="rounded-xl border border-[var(--hairline)] bg-[var(--ink-900)] p-5 sm:p-6">
+                <p className="mb-3 text-xs text-[var(--stone-muted)]">
+                  Illustrative preview — buying power and receipts in your account come from your
+                  real balance and server fills.
+                </p>
+                {active === 0 && (
+                  <div>
+                    <p className="text-[13px] text-[var(--stone)]">Step 1 — Find the stock</p>
+                    <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] px-4 py-3">
                       <div>
-                        <h3 className="text-lg font-bold font-mono text-text-primary">NVDA</h3>
-                        <div className="text-sm font-mono text-text-primary flex items-center gap-2">
-                          ${current != null ? current.toFixed(2) : '—'}
-                          {entry != null && current != null ? (
-                            <span className={`text-xs font-bold ${current >= entry ? 'text-positive' : 'text-negative'}`}>
-                              {current >= entry ? '+' : ''}{(((current - entry) / entry) * 100).toFixed(2)}%
-                            </span>
-                          ) : null}
+                        <p className="text-base font-semibold tracking-wide text-[var(--ivory)]">{sample.symbol}</p>
+                        <p className="text-xs text-[var(--stone)]">{sample.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold tabular-nums text-[var(--ivory)]">{fmtMoney(price)}</p>
+                        <p className={`text-xs tabular-nums ${Number(sample.changePercent || 0) >= 0 ? 'text-[var(--gain)]' : 'text-[var(--loss)]'}`}>
+                          {fmtPct(sample.changePercent)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-[var(--stone-muted)]">
+                      {sample.lastVerifiedAt ? 'Verified Yahoo Finance quote' : 'Quote source shown before you trade'} · Unverified or stale quotes never fill.
+                    </p>
+                  </div>
+                )}
+                {active === 1 && (
+                  <div>
+                    <p className="text-[13px] text-[var(--stone)]">Step 2 — Review the order</p>
+                    <div className="mt-3">
+                      <QuantityStepper value={qty} onChange={setQty} min={1} max={Math.max(1, Math.floor(buyingPower / (price || 1)))} />
+                    </div>
+                    <dl className="mt-4 space-y-2 rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] p-4 text-[13px]">
+                      <div className="flex justify-between">
+                        <dt className="text-[var(--stone)]">Order</dt>
+                        <dd className="font-medium text-[var(--ivory)]">Buy {fmtQty(qty)} {sample.symbol}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-[var(--stone)]">Estimated cost</dt>
+                        <dd className="font-semibold tabular-nums text-[var(--ivory)]">{fmtMoney(estimated)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-[var(--stone)]">Buying power</dt>
+                        <dd className="tabular-nums text-[var(--stone)]">{fmtMoney(buyingPower)}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                )}
+                {active === 2 && (
+                  <div>
+                    <p className="text-[13px] text-[var(--stone)]">Step 3 — Get a fill receipt</p>
+                    <div className="mt-3 rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] p-4">
+                      <p className="text-sm font-semibold text-[var(--ivory)]">
+                        Bought {fmtQty(qty)} {sample.symbol} at {fmtMoney(price)}
+                      </p>
+                      <dl className="mt-3 space-y-1.5 text-[13px]">
+                        <div className="flex justify-between">
+                          <dt className="text-[var(--stone)]">Total</dt>
+                          <dd className="tabular-nums text-[var(--ivory)]">{fmtMoney(estimated)}</dd>
                         </div>
-                      </div>
-                      <div className="flex gap-1 bg-[var(--surface)] p-0.5 rounded border border-[var(--border)] font-mono text-[10px]" role="group" aria-label="Chart timeframe">
-                        {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map((tf) => (
-                          <button
-                            key={tf}
-                            onClick={() => setTimeframe(tf)}
-                            aria-pressed={timeframe === tf}
-                            className={`px-2 py-0.5 rounded ${tf === timeframe ? 'bg-[var(--surface-elevated)] text-text-primary font-medium' : 'text-text-secondary'}`}
-                          >
-                            {tf}
-                          </button>
-                        ))}
-                      </div>
+                        <div className="flex justify-between">
+                          <dt className="text-[var(--stone)]">Order</dt>
+                          <dd className="tabular-nums text-[var(--stone)]">…a3f9c21e (sample)</dd>
+                        </div>
+                      </dl>
+                      <p className="mt-3 text-xs text-[var(--stone-muted)]">
+                        Server fill values, not estimates. Retries reuse the same order key, so a double-click fills once.
+                      </p>
                     </div>
-
-                    <div className="flex-1 min-h-[220px] border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden p-2">
-                      <PriceAreaChart data={prices} height={220}>
-                        {entry != null ? (
-                          <ChartValueLine value={entry} label={`Entry $${entry.toFixed(2)}`} align="left" />
-                        ) : null}
-                        {current != null ? (
-                          <ChartValueLine value={current} label={`$${current.toFixed(2)}`} solid />
-                        ) : null}
-                      </PriceAreaChart>
-                    </div>
-
-                    {/* Position row */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
+                  </div>
+                )}
+                {active === 3 && (
+                  <div>
+                    <p className="text-[13px] text-[var(--stone)]">Step 4 — Track the position</p>
+                    <div className="mt-3 grid grid-cols-3 gap-3 text-[13px]">
                       {[
-                        { label: 'Shares', value: '50' },
-                        { label: 'Avg Cost', value: '$850.00' },
-                        { label: 'Market Value', value: '$47,140.50' },
-                        { label: 'P&L', value: '+$4,640.50', accent: true },
+                        { label: 'Shares', value: fmtQty(qty) },
+                        { label: 'Avg cost', value: fmtMoney(price) },
+                        { label: 'Market value', value: fmtMoney(estimated) },
                       ].map((item) => (
-                        <div key={item.label} className="bg-[var(--surface)]/90 border border-[var(--border)] rounded-lg p-2.5">
-                          <div className="mf-label">{item.label}</div>
-                          <div className={`font-bold ${item.accent ? 'text-positive' : 'text-text-primary'}`}>{item.value}</div>
+                        <div key={item.label} className="rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] p-3">
+                          <p className="text-xs text-[var(--stone)]">{item.label}</p>
+                          <p className="mt-1 font-semibold tabular-nums text-[var(--ivory)]">{item.value}</p>
                         </div>
                       ))}
                     </div>
+                    <p className="mt-3 text-xs text-[var(--stone-muted)]">
+                      Live prices revalue holdings. The activity ledger records every fill with CSV export.
+                    </p>
                   </div>
-
-                  {/* Sidebar: watchlist */}
-                  <div className="lg:w-56 border-t lg:border-t-0 lg:border-l border-[var(--border)] p-4 flex flex-col gap-2">
-                    <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-1">Watchlist</span>
-                    {tickers.map((t) => (
-                      <div key={t.symbol} className="flex justify-between items-center p-2 rounded-lg bg-[var(--surface)]/60 border border-[var(--border)] font-mono text-xs">
-                        <span className="font-bold text-text-primary">{t.symbol}</span>
-                        <div className="text-right">
-                          <div className="text-text-primary">${t.price.toFixed(2)}</div>
-                          <div className={`text-[10px] ${t.change >= 0 ? 'text-positive' : 'text-negative'}`}>
-                            {t.change >= 0 ? '+' : ''}{t.change}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SpotlightCard>
-            </motion.div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

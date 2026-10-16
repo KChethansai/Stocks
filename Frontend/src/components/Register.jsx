@@ -2,21 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import {
-  Lock,
-  Mail,
-  User,
-  Eye,
-  EyeOff,
-  ArrowRight
-} from 'lucide-react'
+import { Lock, Mail, User, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../store/authStore'
-import GoogleAuthButton from './GoogleAuthButton'
-import { ParticleButton } from './kokonutui/ParticleButton'
-import { SpotlightCard } from './kokonutui/SpotlightCard'
-import { ShinyText } from './reactbits/ShinyText'
-import { Aurora } from './reactbits/Aurora'
+import GoogleAuthSlot from './GoogleAuthSlot'
 import Logo3D from './Logo3D'
+import { Button } from './ui/Button'
+import { Field } from './ui/Primitives'
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
@@ -27,202 +18,114 @@ export default function Register() {
     register,
     handleSubmit,
     formState: { errors }
-  } = useForm()
+  } = useForm({ mode: 'onBlur' })
 
   const onSubmit = async (data) => {
     const result = await registerUser(data)
     if (result.success) {
-      toast.success(result.message || 'Account created successfully! Please sign in.')
+      toast.success(result.message || 'Account created. Please sign in.')
       navigate('/login')
       return
     }
-    toast.error(result.message || 'Registration failed')
+    toast.error(result.message || 'Registration failed. Check the form and try again.')
   }
 
   return (
-    <div className="flex w-full min-h-screen overflow-hidden bg-[#03060b] text-[#f8fdff]">
-      {/* Left Side: Form Area */}
-      <div className="w-full lg:w-[480px] flex-shrink-0 bg-[#07090d] flex flex-col justify-center px-8 sm:px-14 lg:px-16 border-r border-white/8 relative z-10 py-10">
-        <div className="w-full max-w-sm mx-auto">
-          {/* Brand Logo */}
-          <div className="mb-8">
-            <Link to="/" className="inline-flex items-center group">
-              <Logo3D size="md" showText={true} textClassName="text-xl" />
-            </Link>
-          </div>
-
-          {/* Welcome Text */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold tracking-tight text-[#f8fdff] mb-1.5">
-              Create Account
-            </h2>
-            <p className="text-xs text-[#b7c6cf]">
-              Start practicing with $100,000 in virtual capital.
-            </p>
-          </div>
-
-          {/* Register Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-medium text-[#b7c6cf] mb-1 font-mono">
-                Username
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-[#84949e] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="traderpro"
-                  {...register('username', { required: 'Username is required' })}
-                  className="w-full bg-[#0c121b] border border-white/8 rounded-lg py-2 pl-10 pr-3 text-xs text-[#f8fdff] placeholder-[#84949e] focus:outline-none focus:border-[#7ce6ff] transition font-mono"
-                />
-              </div>
-              {errors.username && (
-                <p className="text-[11px] text-[#e87684] mt-1">{errors.username.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#b7c6cf] mb-1 font-mono">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-[#84949e] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  placeholder="name@company.com"
-                  {...register('email', { required: 'Email is required' })}
-                  className="w-full bg-[#0c121b] border border-white/8 rounded-lg py-2 pl-10 pr-3 text-xs text-[#f8fdff] placeholder-[#84949e] focus:outline-none focus:border-[#7ce6ff] transition font-mono"
-                />
-              </div>
-              {errors.email && (
-                <p className="text-[11px] text-[#e87684] mt-1">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#b7c6cf] mb-1 font-mono">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-[#84949e] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: { value: 6, message: 'Minimum 6 characters' }
-                  })}
-                  className="w-full bg-[#0c121b] border border-white/8 rounded-lg py-2 pl-10 pr-10 text-xs text-[#f8fdff] placeholder-[#84949e] focus:outline-none focus:border-[#7ce6ff] transition font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#84949e] hover:text-[#f8fdff]"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-[11px] text-[#e87684] mt-1">{errors.password.message}</p>
-              )}
-            </div>
-
-            <ParticleButton
-              type="submit"
-              disabled={loading}
-              tone="blue"
-              className="w-full py-3 text-xs font-bold font-mono mt-3"
-            >
-              <span>{loading ? 'Creating account...' : 'Create Account & Claim $100k'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </ParticleButton>
-          </form>
-
-          {/* Divider */}
-          <div className="my-5 flex items-center">
-            <div className="flex-grow border-t border-white/8"></div>
-            <span className="flex-shrink-0 mx-3 mf-meta font-mono text-[#84949e]">
-              or continue with
-            </span>
-            <div className="flex-grow border-t border-white/8"></div>
-          </div>
-
-          {/* Google SSO Button */}
-          <GoogleAuthButton text="Sign up with Google" />
-
-          {/* Login Link */}
-          <p className="mt-6 text-center text-xs text-[#84949e]">
-            Already have an account?{' '}
-            <Link to="/login" className="text-[#7ce6ff] hover:underline font-medium">
-              Sign In
-            </Link>
-          </p>
-        </div>
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-12 sm:px-6">
+      <div className="mb-8">
+        <Link to="/" className="inline-flex items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]" aria-label="MarketForge home">
+          <Logo3D size="md" showText={true} textClassName="text-xl" />
+        </Link>
       </div>
 
-      {/* Right Side: 3D Visual Showcase Area */}
-      <div className="hidden lg:flex flex-grow bg-[#03060b] relative items-center justify-center p-12 overflow-hidden">
-        <Aurora className="opacity-15" />
+      <h1 className="text-2xl font-bold tracking-tight text-[var(--ivory)]">Create account</h1>
+      <p className="mt-1 text-sm text-[var(--stone)]">Start practicing with $100,000 in virtual capital.</p>
 
-        {/* 3D Spotlight Showcase Card */}
-        <SpotlightCard
-          spotlightColor="rgba(124, 230, 255, 0.25)"
-          tiltIntensity={7}
-          className="relative z-10 w-full max-w-2xl aspect-[16/10] bg-[#0c121b]/90 rounded-2xl border border-white/10 shadow-2xl p-0 overflow-hidden flex flex-col group"
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4" noValidate>
+        <Field label="Username" htmlFor="register-username" error={errors.username?.message}>
+          <div className="relative">
+            <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--stone-muted)]" aria-hidden="true" />
+            <input
+              id="register-username"
+              type="text"
+              autoComplete="username"
+              placeholder="traderpro"
+              {...register('username', {
+                required: 'Choose a username.',
+                minLength: { value: 3, message: 'Use at least 3 characters.' }
+              })}
+              className="w-full rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] py-2.5 pl-10 pr-3 text-sm text-[var(--ivory)] placeholder-[var(--stone-muted)] transition focus:border-[var(--brass)] focus:outline-none"
+            />
+          </div>
+        </Field>
+
+        <Field label="Email address" htmlFor="register-email" error={errors.email?.message}>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--stone-muted)]" aria-hidden="true" />
+            <input
+              id="register-email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              {...register('email', {
+                required: 'Enter your email address.',
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' }
+              })}
+              className="w-full rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] py-2.5 pl-10 pr-3 text-sm text-[var(--ivory)] placeholder-[var(--stone-muted)] transition focus:border-[var(--brass)] focus:outline-none"
+            />
+          </div>
+        </Field>
+
+        <Field
+          label="Password"
+          htmlFor="register-password"
+          hint="At least 6 characters."
+          error={errors.password?.message}
         >
-
-          {/* Top Bar Mock */}
-          <div className="h-10 bg-[#0c121b]/90 border-b border-white/8 flex items-center px-4 gap-2">
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#e87684]/70"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#96cdde]/70"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#7ed6a3]/70"></div>
-            </div>
-            <div className="ml-4 h-3.5 w-32 bg-white/5 rounded"></div>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--stone-muted)]" aria-hidden="true" />
+            <input
+              id="register-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Create a password"
+              {...register('password', {
+                required: 'Create a password.',
+                minLength: { value: 6, message: 'Use at least 6 characters.' }
+              })}
+              className="w-full rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] py-2.5 pl-10 pr-10 text-sm text-[var(--ivory)] placeholder-[var(--stone-muted)] transition focus:border-[var(--brass)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--stone-muted)] transition hover:text-[var(--ivory)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] rounded"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
+        </Field>
 
-          {/* Interface Content Mock */}
-          <div className="flex-grow p-6 flex flex-col gap-5 justify-between">
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="text-xs font-mono font-bold text-[#f8fdff]">Instant Practice Trading</span>
-                <p className="text-xl font-bold font-mono text-[#7ce6ff] mt-0.5">$100,000 Starting Balance</p>
-              </div>
-              <span className="px-2.5 py-1 rounded bg-[#7ce6ff]/10 text-[#7ce6ff] font-mono text-xs font-semibold">
-                <ShinyText>100% Risk-Free</ShinyText>
-              </span>
-            </div>
+        <Button type="submit" disabled={loading} className="w-full py-2.5">
+          {loading ? 'Creating account…' : 'Create account'}
+        </Button>
+      </form>
 
-            {/* Abstract Visual Bars */}
-            <div className="flex-1 min-h-[160px] bg-[#0e0e10]/90 rounded-xl border border-white/5 p-4 flex items-end gap-3 relative overflow-hidden">
-              {/* Decorative mock bars use fixed px heights: % heights never resolve
-                  inside this flex-grown (height:auto) container and collapse to 2px */}
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[51px] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[90px] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[70px] border-t-2 border-[#7ce6ff] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[102px] border-t-2 border-[#7ed6a3] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ce6ff]/30 to-transparent h-[77px] border-t-2 border-[#7ce6ff] rounded-t"></div>
-              <div className="w-1/6 bg-gradient-to-t from-[#7ed6a3]/30 to-transparent h-[115px] border-t-2 border-[#7ed6a3] rounded-t"></div>
-            </div>
-
-            {/* Bottom Row Chips */}
-            <div className="grid grid-cols-3 gap-3 font-mono text-xs">
-              <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="mf-label block">Virtual Currency</span>
-                <span className="font-bold text-[#7ed6a3]">No Deposit Needed</span>
-              </div>
-              <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="mf-label block">Execution</span>
-                <span className="font-bold text-[#f8fdff]">Instant Orders</span>
-              </div>
-              <div className="bg-[#0c121b]/90 p-3 rounded-lg border border-white/5">
-                <span className="mf-label block">Asset Universe</span>
-                <span className="font-bold text-[#7ce6ff]">30+ Equities</span>
-              </div>
-            </div>
-          </div>
-        </SpotlightCard>
+      <div className="my-6 flex items-center">
+        <div className="flex-grow border-t border-[var(--hairline)]" />
+        <span className="mx-3 flex-shrink-0 text-xs text-[var(--stone-muted)]">or continue with</span>
+        <div className="flex-grow border-t border-[var(--hairline)]" />
       </div>
+
+      <GoogleAuthSlot />
+
+      <p className="mt-8 text-center text-xs text-[var(--stone-muted)]">
+        Already have an account?{' '}
+        <Link to="/login" className="font-medium text-[var(--brass)] hover:underline">
+          Sign in
+        </Link>
+      </p>
     </div>
   )
 }

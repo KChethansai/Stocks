@@ -7,8 +7,8 @@ import { transitionWithDelay } from "./motion-utils";
 import * as React from "react";
 const DEFAULT_POSITIVE = "url(#candlestick-positive)";
 const DEFAULT_NEGATIVE = "url(#candlestick-negative)";
-const SOLID_POSITIVE = "var(--color-emerald-500)";
-const SOLID_NEGATIVE = "var(--color-red-500)";
+const SOLID_POSITIVE = "#4FB286"; // --gain
+const SOLID_NEGATIVE = "#D9667A"; // --loss
 const WICK_WIDTH = 1.5;
 function getSolidColor(isPositive) {
   return isPositive ? SOLID_POSITIVE : SOLID_NEGATIVE;

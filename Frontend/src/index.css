@@ -1,9 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@300;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
-@import "@fontsource/instrument-serif";
+@import "@fontsource-variable/inter-tight";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -32,8 +31,14 @@
 }
 
 @theme {
-  --font-display: 'Instrument Serif', serif;
-  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  /* App display resolves to Geist (D1: Instrument Serif removed — a literary
+     serif fights tabular financial figures; landing display is Inter Tight). */
+  --font-display: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  --font-sans: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  /* Compat: the font-mono utility name is retained until call sites migrate
+     (Phases 2-5); it resolves to Geist tabular so figures stay aligned
+     without a monospace face. */
+  --font-mono: 'Geist Variable', 'Geist', system-ui, sans-serif;
 }
 
 *, *::before, *::after {
@@ -41,36 +46,55 @@
 }
 
 :root {
-  /* MarketForge Design System Tokens — matches Dashboard / Market / Header (#3B82F6 system) */
-  --bg-primary: #09090B;
-  --surface: #111318;
-  --surface-elevated: #151820;
+  /* MarketForge token layer — Ink / Ivory / Brass (single system).
+     Legacy names below are compatibility aliases; new code uses --ink-*,
+     --ivory, --stone-*, --brass, --gain, --loss, --hairline. */
+  --ink-950: #0B0C0E;
+  --ink-900: #111316;
+  --ink-800: #181B1F;
+  --ivory: #ECE9E2;
+  --stone: #A29E96;
+  --stone-muted: #8A867E;
+  --brass: #C9A96E;
+  --gain: #4FB286;
+  --loss: #D9667A;
+  --hairline: rgba(236, 233, 226, 0.08);
+  --hairline-hover: rgba(236, 233, 226, 0.14);
 
-  --text-primary: #F5F7FA;
-  --text-secondary: #9CA3AF;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  --bg-primary: var(--ink-950);
+  --surface: var(--ink-900);
+  --surface-elevated: var(--ink-800);
+
+  --text-primary: var(--ivory);
+  --text-secondary: var(--stone);
   /* #667085 failed WCAG AA on cards (3.74:1); #8A93A6 clears it
      (6.02 card / 6.45 page) while staying visibly muted. */
-  --text-muted: #8A93A6;
+  --text-muted: var(--stone-muted);
 
-  --accent: #3B82F6;
-  --accent-hover: #2563EB;
-  --accent-subtle: rgba(59, 130, 246, 0.12);
-  --accent-glow: rgba(59, 130, 246, 0.25);
+  --accent: var(--brass);
+  --accent-hover: #B8985F;
+  --accent-subtle: rgba(201, 169, 110, 0.12);
+  --accent-glow: rgba(201, 169, 110, 0.25);
 
-  --positive: #22C55E;
-  --positive-subtle: rgba(34, 197, 94, 0.12);
-  --positive-glow: rgba(34, 197, 94, 0.25);
+  --positive: var(--gain);
+  --positive-subtle: rgba(79, 178, 134, 0.12);
+  --positive-glow: rgba(79, 178, 134, 0.25);
 
-  --negative: #EF4444;
-  --negative-subtle: rgba(239, 68, 68, 0.12);
-  --negative-glow: rgba(239, 68, 68, 0.25);
+  --negative: var(--loss);
+  --negative-subtle: rgba(217, 102, 122, 0.12);
+  --negative-glow: rgba(217, 102, 122, 0.25);
 
-  --warning: #F59E0B;
-  --warning-subtle: rgba(245, 158, 11, 0.12);
+  --warning: #D9A441;
+  --warning-subtle: rgba(217, 164, 65, 0.12);
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
-  --border-focus: rgba(59, 130, 246, 0.5);
+  --border: var(--hairline);
+  --border-hover: var(--hairline-hover);
+  --border-focus: rgba(201, 169, 110, 0.5);
 
   --surface-hover: rgba(255, 255, 255, 0.04);
   --surface-active: rgba(255, 255, 255, 0.08);
@@ -80,9 +104,9 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
 
   /* Chart & Financial Tokens */
-  --chart-profit: #22C55E;
-  --chart-loss: #EF4444;
-  --chart-primary: #3B82F6;
+  --chart-profit: var(--gain);
+  --chart-loss: var(--loss);
+  --chart-primary: var(--ivory);
   --chart-secondary: var(--text-muted);
 
   /* Deprecated aliases (old token names -> new values); removable in M4 sweep */
@@ -109,74 +133,105 @@
   --ring: var(--accent);
   --radius: 0.5rem;
 
-  /* Bklit chart theme (terminal defaults for the authenticated app) */
+  /* Bklit chart theme (single MarketForge theme, D1: ivory price line,
+     brass data accents, stone-muted axes — blue terminal theme deleted) */
   --chart-background: transparent;
-  --chart-foreground: #f8fdff;
-  --chart-foreground-muted: #9ca3af;
-  --chart-label: #9ca3af;
-  --chart-line-primary: #3b82f6;
-  --chart-line-secondary: #60a5fa;
-  --chart-crosshair: rgba(96, 165, 250, 0.5);
-  --chart-grid: rgba(255, 255, 255, 0.06);
-  --chart-indicator-color: #3b82f6;
-  --chart-indicator-secondary-color: #60a5fa;
-  --chart-marker-background: #0c121b;
-  --chart-marker-border: rgba(255, 255, 255, 0.14);
-  --chart-marker-foreground: #f8fdff;
-  --chart-marker-badge-background: rgba(59, 130, 246, 0.16);
-  --chart-marker-badge-foreground: #f8fdff;
+  --chart-foreground: #ECE9E2;
+  --chart-foreground-muted: #8A867E;
+  --chart-label: #8A867E;
+  --chart-line-primary: #ECE9E2;
+  --chart-line-secondary: #C9A96E;
+  --chart-crosshair: rgba(201, 169, 110, 0.5);
+  --chart-grid: rgba(236, 233, 226, 0.06);
+  --chart-indicator-color: #C9A96E;
+  --chart-indicator-secondary-color: #C9A96E;
+  --chart-marker-background: #181B1F;
+  --chart-marker-border: rgba(236, 233, 226, 0.14);
+  --chart-marker-foreground: #ECE9E2;
+  --chart-marker-badge-background: rgba(201, 169, 110, 0.16);
+  --chart-marker-badge-foreground: #ECE9E2;
+
+  /* Stable allocation ramp (D1: assigned by symbol hash, never by rank;
+     gain/loss hues banned here; stone hues reserved for text + Other) */
+  --alloc-1: #C9A96E;
+  --alloc-2: #ECE9E2;
+  --alloc-3: #B07D62;
+  --alloc-4: #7A8B6F;
+  --alloc-5: #9C7B8E;
+  --alloc-6: #6E7F8A;
+  --alloc-7: #C4B49A;
+  --alloc-8: #7D6B5D;
+  --alloc-other: #5C5A54;
+
+  /* Motion vocabulary (D5/champion §5) */
+  --mf-duration-fast: 120ms;
+  --mf-duration-base: 220ms;
+  --mf-duration-hero: 360ms;
+  --mf-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --mf-ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Landing token scope (cryptowl.io palette, extracted from
-   BaseDocument.B94nfTuC.css :root) ─────────────────────────────
-   Applied via data-landing on public shells in RootLayout.
-   Authenticated app keeps the :root values above — never add
-   landing overrides outside this block. */
+/* Single icon family normalization (D5: lucide-react, 1.75px stroke,
+   round caps). The CSS property overrides lucide's presentation attribute. */
+svg.lucide {
+  stroke-width: 1.75;
+}
+
+/* Landing display face (D1): Inter Tight Light 300 + Strong 900 pairing,
+   scoped to the public landing so the app stays Geist-only. */
+[data-landing] .mf-landing-display {
+  font-family: 'Inter Tight Variable', 'Inter Tight', system-ui, sans-serif;
+}
+
+/* ── Landing token scope (compat) ───────────────────────────────────
+    Phase 1: landing resolves to the SAME Ink/Ivory/Brass system as the app.
+    The [data-landing] selector is retained until marketing components
+    migrate (Phase 6); values below intentionally mirror :root. */
 [data-landing] {
-  --bg-primary: #07090d;
-  --surface: #0c121b;
-  --surface-elevated: #0c121b;
+  --bg-primary: var(--ink-950);
+  --surface: var(--ink-900);
+  --surface-elevated: var(--ink-800);
 
-  --text-primary: #f8fdff;
-  --text-secondary: #b7c6cf;
-  --text-muted: #84949e;
+  --text-primary: var(--ivory);
+  --text-secondary: var(--stone);
+  --text-muted: var(--stone-muted);
 
-  --accent: #7ce6ff;
-  --accent-hover: #2eafff;
-  --accent-subtle: rgba(124, 230, 255, 0.12);
-  --accent-glow: rgba(124, 230, 255, 0.25);
+  --accent: var(--brass);
+  --accent-hover: #B8985F;
+  --accent-subtle: rgba(201, 169, 110, 0.12);
+  --accent-glow: rgba(201, 169, 110, 0.25);
 
-  --positive: #7ed6a3;
-  --positive-subtle: rgba(126, 214, 163, 0.12);
-  --positive-glow: rgba(126, 214, 163, 0.25);
+  --positive: var(--gain);
+  --positive-subtle: rgba(79, 178, 134, 0.12);
+  --positive-glow: rgba(79, 178, 134, 0.25);
 
-  --negative: #e87684;
-  --negative-subtle: rgba(232, 118, 132, 0.12);
-  --negative-glow: rgba(232, 118, 132, 0.25);
+  --negative: var(--loss);
+  --negative-subtle: rgba(217, 102, 122, 0.12);
+  --negative-glow: rgba(217, 102, 122, 0.25);
 
-  --border: rgba(150, 205, 222, 0.12);
-  --border-hover: rgba(150, 205, 222, 0.22);
-  --border-focus: rgba(124, 230, 255, 0.5);
+  --border: var(--hairline);
+  --border-hover: var(--hairline-hover);
+  --border-focus: rgba(201, 169, 110, 0.5);
 
-  --chart-profit: #7ed6a3;
-  --chart-loss: #e87684;
-  --chart-primary: #7ee2f4;
+  --chart-profit: var(--gain);
+  --chart-loss: var(--loss);
+  --chart-primary: var(--ivory);
 
-  /* Bklit chart theme — landing cyan system */
-  --chart-foreground: #f8fdff;
-  --chart-foreground-muted: #84949e;
-  --chart-label: #b7c6cf;
-  --chart-line-primary: #7ce6ff;
-  --chart-line-secondary: #2eafff;
-  --chart-crosshair: rgba(124, 230, 255, 0.5);
-  --chart-grid: rgba(150, 205, 222, 0.08);
-  --chart-indicator-color: #7ce6ff;
-  --chart-indicator-secondary-color: #2eafff;
-  --chart-marker-background: #0c121b;
-  --chart-marker-border: rgba(150, 205, 222, 0.22);
-  --chart-marker-foreground: #f8fdff;
-  --chart-marker-badge-background: rgba(124, 230, 255, 0.14);
-  --chart-marker-badge-foreground: #f8fdff;
+  /* Bklit chart theme — unified system */
+  --chart-foreground: var(--ivory);
+  --chart-foreground-muted: var(--stone-muted);
+  --chart-label: var(--stone);
+  --chart-line-primary: var(--ivory);
+  --chart-line-secondary: var(--brass);
+  --chart-crosshair: rgba(201, 169, 110, 0.5);
+  --chart-grid: rgba(236, 233, 226, 0.04);
+  --chart-indicator-color: var(--brass);
+  --chart-indicator-secondary-color: var(--stone);
+  --chart-marker-background: var(--ink-900);
+  --chart-marker-border: var(--hairline-hover);
+  --chart-marker-foreground: var(--ivory);
+  --chart-marker-badge-background: rgba(201, 169, 110, 0.14);
+  --chart-marker-badge-foreground: var(--ivory);
 
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
@@ -213,26 +268,26 @@
 /* Reference eyebrows are bare mono caps (no pill, no dot):
    --eyebrow-size caption, --tracking-eyebrow 0, accent-muted tone */
 [data-landing] .mf-eyebrow {
-  color: #96cdde;
+  color: var(--brass);
   letter-spacing: 0;
 }
 
 [data-landing]::selection,
 [data-landing] ::selection {
-  background: rgba(124, 230, 255, 0.35);
-  color: #03060b;
+  background: rgba(201, 169, 110, 0.35);
+  color: #0B0C0E;
 }
 
-/* Landing grid lines tinted with accent-muted (reference:
-   --site-grid-line-color: rgb(accent-muted / .045)) */
+/* Landing grid lines tinted with hairline */
 [data-landing] .mf-grid-bg {
   background-image:
-    linear-gradient(to right, rgba(150, 205, 222, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(150, 205, 222, 0.045) 1px, transparent 1px);
+    linear-gradient(to right, rgba(236, 233, 226, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(236, 233, 226, 0.045) 1px, transparent 1px);
 }
 
 body {
-  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Geist Variable', 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -240,13 +295,14 @@ body {
   overflow-x: hidden;
 }
 
-/* Monospace for financial figures, codes, and tickers */
+/* Compat: monospace class names retained until call sites migrate; figures
+   render in Geist tabular (see --font-mono above). */
 .font-mono,
 .financial-num,
 .font-data,
 .terminal-mono {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  font-feature-settings: 'tnum' on, 'zero' on;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  font-feature-settings: 'tnum' on;
 }
 
 button,
@@ -257,8 +313,8 @@ textarea {
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
-  color: #FFFFFF;
+  background: rgba(201, 169, 110, 0.35);
+  color: #0B0C0E;
 }
 
 /* Custom Clean Scrollbar */
@@ -294,10 +350,6 @@ textarea {
     linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 24px 24px;
-}
-
-.hero-glow {
-  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
 }
 
 .elevated-panel {
@@ -336,16 +388,8 @@ textarea {
 @media (min-width: 640px) {
   .mf-card { padding: 1.5rem; }
 }
-.mf-eyebrow {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: var(--text-secondary);
-}
 .mf-h1 {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -369,7 +413,7 @@ textarea {
   color: var(--text-primary);
 }
 .mf-label {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -377,7 +421,7 @@ textarea {
   color: var(--text-muted);
 }
 .mf-num {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 /* ── Extended roles (full-app legibility pass) ───────────────────
@@ -402,7 +446,7 @@ textarea {
 }
 .mf-input-label {
   display: block;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: uppercase;
@@ -410,7 +454,7 @@ textarea {
   color: var(--text-secondary);
 }
 .mf-badge {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -519,7 +563,7 @@ textarea {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
 }
 
 .terminal-chart-hint {
@@ -557,7 +601,7 @@ textarea {
 .terminal-axis-label {
   fill: var(--text-muted);
   font-size: 10px;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
 }
 
 .terminal-axis-label-x {
@@ -572,7 +616,7 @@ textarea {
 }
 
 .terminal-line-path {
-  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.25));
+  filter: drop-shadow(0 2px 8px rgba(201, 169, 110, 0.25));
 }
 
 .terminal-hover-line {
@@ -584,7 +628,7 @@ textarea {
 .terminal-hover-dot {
   stroke: #ffffff;
   stroke-width: 2;
-  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.5));
+  filter: drop-shadow(0 0 6px rgba(236, 233, 226, 0.5));
 }
 
 .terminal-tooltip {
@@ -592,7 +636,7 @@ textarea {
   border: 1px solid var(--border-hover);
   border-radius: 8px;
   padding: 6px 10px;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: 11px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   display: flex;
@@ -616,7 +660,7 @@ textarea {
 .terminal-empty-chart {
   fill: var(--text-muted);
   font-size: 12px;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
 }
 
 .sparkline {
@@ -635,7 +679,7 @@ textarea {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.75rem;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
 }
 
 .allocation-row > div:first-child {
@@ -750,8 +794,9 @@ textarea {
   margin-inline: auto;
 }
 
-/* Eyebrow pattern */
+/* Eyebrow pattern (single definition; landing overrides via [data-landing]) */
 .mf-eyebrow {
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
   font-size: var(--mf-font-caption);
   font-weight: 700;
   line-height: var(--mf-lh-caption);

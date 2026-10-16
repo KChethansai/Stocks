@@ -2,64 +2,91 @@ import { Link } from 'react-router'
 import Logo3D from './Logo3D'
 import { useAuth } from '../store/authStore'
 
-// Reference footer: gradient rule element (accent-soft .075 -> .032 ->
-// transparent, origin left) + meta + underline-style link cluster.
-// Auth links mirror the header conditional (reference has no auth concept,
-// so the mirror is the product-consistent choice).
 const linkClass =
-  'relative inline-flex items-center min-h-[2.5rem] text-[0.9375rem] font-bold leading-none tracking-normal text-[#b7c6cf] transition hover:text-[#f8fdff] after:absolute after:left-0 after:bottom-[0.375rem] after:h-px after:w-full after:origin-left after:scale-x-[0.625] after:bg-current after:opacity-30 after:transition-all after:duration-200 hover:after:scale-x-100 hover:after:opacity-100 hover:after:bg-[#7ce6ff]'
+  'block py-1 text-[13px] text-[var(--stone)] transition hover:text-[var(--ivory)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] rounded'
+
+const COLUMNS = [
+  {
+    heading: 'Product',
+    links: [
+      { label: 'Features', to: '/features' },
+      { label: 'About', to: '/about' },
+    ],
+  },
+  {
+    heading: 'Account',
+    auth: true,
+  },
+  {
+    heading: 'Source',
+    links: [{ label: 'GitHub repository', to: 'https://github.com/KChethansai/Stocks', external: true }],
+  },
+]
 
 export default function Footer() {
   const { isAuthenticated } = useAuth()
 
   return (
-    <footer className="bg-[#07090d] pt-4 pb-12" aria-label="Site footer">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Gradient rule (matches reference .site-footer__rule) */}
-        <span
-          aria-hidden="true"
-          className="block h-px pointer-events-none origin-left"
-          style={{
-            background:
-              'linear-gradient(90deg, rgba(189,247,255,0.075), rgba(189,247,255,0.032) 68%, transparent)',
-          }}
-        />
-
-        <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <Link to="/" className="flex items-center group" aria-label="MarketForge home">
+    <footer className="border-t border-[var(--hairline)] bg-[var(--ink-950)]" aria-label="Site footer">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Link to="/" className="flex items-center" aria-label="MarketForge home">
               <Logo3D size="xs" showText={true} textClassName="text-sm" />
             </Link>
-            <p className="mf-meta text-center md:text-left leading-relaxed">
-              Paper trading with real market data, simulated execution, and zero real risk.
+            <p className="mt-3 max-w-xs text-[13px] leading-5 text-[var(--stone)]">
+              Paper trading with real market data and simulated execution.
             </p>
           </div>
 
-          <nav className="flex items-center gap-7" aria-label="Footer pages">
-            <Link to="/about" className={linkClass}>
-              About
-            </Link>
-            <Link to="/features" className={linkClass}>
-              Features
-            </Link>
-            {isAuthenticated ? (
-              <Link to="/dashboard" className={linkClass}>
-                Open Terminal
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className={linkClass}>
-                  Sign In
-                </Link>
-                <Link to="/register" className={linkClass}>
-                  Create Account
-                </Link>
-              </>
-            )}
-          </nav>
+          {COLUMNS.map((col) => (
+            <nav key={col.heading} aria-label={`Footer — ${col.heading}`}>
+              <p className="text-[13px] font-medium text-[var(--ivory)]">{col.heading}</p>
+              <div className="mt-2">
+                {col.auth ? (
+                  isAuthenticated ? (
+                    <>
+                      <Link to="/dashboard" className={linkClass}>
+                        Dashboard
+                      </Link>
+                      <Link to="/profile" className={linkClass}>
+                        Profile
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" className={linkClass}>
+                        Sign in
+                      </Link>
+                      <Link to="/register" className={linkClass}>
+                        Create account
+                      </Link>
+                    </>
+                  )
+                ) : (
+                  col.links.map((l) =>
+                    l.external ? (
+                      <a key={l.label} href={l.to} target="_blank" rel="noopener noreferrer" className={linkClass}>
+                        {l.label}
+                      </a>
+                    ) : (
+                      <Link key={l.label} to={l.to} className={linkClass}>
+                        {l.label}
+                      </Link>
+                    )
+                  )
+                )}
+              </div>
+            </nav>
+          ))}
+        </div>
 
-          <p className="mf-meta">
-            © {new Date().getFullYear()} MarketForge. All rights reserved.
+        <div className="mt-10 border-t border-[var(--hairline)] pt-6">
+          <p className="text-xs leading-5 text-[var(--stone-muted)]">
+            Simulated trading. Not investment advice. Quotes via Yahoo Finance and may be delayed.
+          </p>
+          <p className="mt-2 text-xs text-[var(--stone-muted)]">
+            © {new Date().getFullYear()} MarketForge. Built by K Chethan Sai.
           </p>
         </div>
       </div>

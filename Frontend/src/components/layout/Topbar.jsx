@@ -32,9 +32,8 @@ const formatAlertTime = (date) => {
 
 export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }) {
   const { currentUser, logout } = useAuth()
-  const { fetchStocks } = useTrade()
+  const { fetchStocks, stocks } = useTrade()
   const navigate = useNavigate()
-  const [clock, setClock] = useState(new Date())
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -45,11 +44,6 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   const notifRef = useRef(null)
 
   useEffect(() => {
-    const timer = setInterval(() => setClock(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setUserDropdownOpen(false)
@@ -58,11 +52,31 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
         setNotificationsOpen(false)
       }
     }
+    // D8: Escape closes open menus and returns focus to the trigger.
+    const handleEscape = (e) => {
+      if (e.key !== 'Escape') return
+      if (notificationsOpen) {
+        setNotificationsOpen(false)
+        notifRef.current?.querySelector('button')?.focus()
+      } else if (userDropdownOpen) {
+        setUserDropdownOpen(false)
+        dropdownRef.current?.querySelector('button')?.focus()
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [notificationsOpen, userDropdownOpen])
 
-  const isMarketOpen = clock.getHours() >= 9 && clock.getHours() < 16
+  // Phase 0: market status stays unknown until a verified provider/calendar
+  // ships. Show truthful quote timestamps instead of a guessed open/closed
+  // pill. Verified Yahoo rows carry lastVerifiedAt; legacy rows are unverified.
+  const verifiedTimes = (stocks || []).map((s) => s.lastVerifiedAt ? new Date(s.lastVerifiedAt).getTime() : 0).filter(Boolean)
+  const latestVerifiedAt = verifiedTimes.length ? Math.max(...verifiedTimes) : 0
+  const anyStale = (stocks || []).some((s) => s.stale || !s.lastVerifiedAt)
 
   useEffect(() => {
     if (!currentUser) {
@@ -111,11 +125,16 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   }
 
   const handleManualRefresh = async () => {
+    if (refreshing) return
     setRefreshing(true)
     await fetchStocks()
-    toast.success('Live market data refreshed')
+    toast.success('Market data refreshed')
     setTimeout(() => setRefreshing(false), 600)
   }
+
+  const quoteLabel = latestVerifiedAt
+    ? `Quotes as of ${new Date(latestVerifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${anyStale ? ' · some stale' : ''}`
+    : 'Quotes unavailable'
 
   const handleLogout = async () => {
     setUserDropdownOpen(false)
@@ -129,13 +148,13 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   }
 
   return (
-    <header className="sticky top-0 z-30 h-[56px] w-full border-b border-[rgba(255,255,255,0.08)] bg-[#09090B]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-[56px] w-full border-b border-[rgba(255,255,255,0.08)] bg-[#0B0C0E]/85 backdrop-blur-md">
       <div className="flex items-center justify-between px-4 sm:px-6 h-full">
         {/* Left: Mobile Menu & Command Palette Search Trigger */}
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleMobileNav}
-            className="md:hidden p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition"
+            className="md:hidden p-1.5 rounded-lg text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-[#181B1F] transition"
             aria-label="Toggle Navigation"
           >
             <Menu className="w-5 h-5" />
@@ -144,20 +163,21 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
           {/* Search Trigger Button */}
           <button
             onClick={onOpenCommand}
-            className="flex items-center gap-2.5 text-[#9CA3AF] hover:text-[#F5F7FA] transition-colors group bg-[#111318] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3B82F6] cursor-pointer"
+            aria-label="Search markets, symbols, and commands"
+            className="flex items-center gap-2.5 text-[var(--stone)] hover:text-[var(--ivory)] transition-colors group bg-[#111316] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)] rounded-lg px-3 py-1.5 max-[479px]:px-2 max-[479px]:min-w-[44px] max-[479px]:min-h-[44px] max-[479px]:justify-center focus:outline-none focus:border-[var(--brass)] cursor-pointer"
           >
-            <Search className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#F5F7FA] transition-colors" />
-            <span className="text-xs text-[#9CA3AF] font-normal hidden sm:inline whitespace-nowrap">
+            <Search className="w-4 h-4 text-[var(--stone)] group-hover:text-[var(--ivory)] transition-colors" aria-hidden="true" />
+            <span className="text-xs text-[var(--stone)] font-normal hidden sm:inline whitespace-nowrap">
               Search markets, symbols, commands...
             </span>
-            <span className="text-xs text-[#9CA3AF] font-normal sm:hidden whitespace-nowrap">
+            <span className="text-xs text-[var(--stone)] font-normal hidden min-[480px]:inline sm:hidden whitespace-nowrap">
               Search...
             </span>
             <div className="hidden xl:flex items-center gap-1 ml-2 opacity-60">
-              <kbd className="border border-[rgba(255,255,255,0.12)] bg-[#151820] rounded px-1 text-[10px] font-mono text-[#9CA3AF]">
+              <kbd className="border border-[rgba(255,255,255,0.12)] bg-[#181B1F] rounded px-1 text-[10px] font-mono text-[var(--stone)]">
                 ⌘
               </kbd>
-              <kbd className="border border-[rgba(255,255,255,0.12)] bg-[#151820] rounded px-1 text-[10px] font-mono text-[#9CA3AF]">
+              <kbd className="border border-[rgba(255,255,255,0.12)] bg-[#181B1F] rounded px-1 text-[10px] font-mono text-[var(--stone)]">
                 K
               </kbd>
             </div>
@@ -165,49 +185,57 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
         </div>
 
         {/* Right Section: Market Status, Cash, Trade CTA, Notifications, Profile */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          {/* Market Status Pill */}
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#111318] shrink-0">
-            <span className="relative flex h-2 w-2">
-              {isMarketOpen ? (
-                <>
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-                </>
-              ) : (
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-              )}
-            </span>
-            <span className="text-xs font-medium text-[#9CA3AF] whitespace-nowrap">
-              {isMarketOpen ? 'Market Open' : 'US Markets Live'}
-            </span>
-          </div>
-
-          {/* Quick Refresh */}
+        <div className="flex items-center gap-1.5 min-[480px]:gap-2 sm:gap-4 shrink-0 min-w-0">
+          {/* Quote status + refresh (D8): one merged button on lg+ — the pill
+              carries the timestamp label, the trailing icon is the manual
+              refresh. Never a title-only control. */}
           <button
+            type="button"
             onClick={handleManualRefresh}
-            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition hidden lg:flex"
-            title="Refresh market prices"
+            aria-label={`Refresh market prices. ${quoteLabel}`}
+            aria-disabled={refreshing}
+            title="Market status unknown until a verified exchange calendar ships — click to refresh"
+            className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#111316] shrink-0 max-w-[220px] text-[var(--stone)] hover:text-[var(--ivory)] hover:border-[rgba(255,255,255,0.16)] transition focus:outline-none focus:border-[var(--brass)] cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#3B82F6]' : ''}`} />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--stone-muted)] shrink-0" aria-hidden="true"></span>
+            <span className="text-xs font-medium whitespace-nowrap truncate">
+              {quoteLabel}
+            </span>
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin text-[var(--brass)]' : ''}`} aria-hidden="true" />
           </button>
 
-          {/* Available Cash Chip (lg+: no room at md widths) */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#111318] shrink-0">
-            <Wallet className="w-3.5 h-3.5 text-[#3B82F6]" />
-            <div className="flex flex-col text-right">
-              <span className="font-mono text-xs font-semibold text-[#F5F7FA]">
-                {formatCurrency(currentUser?.balance ?? 100000)}
-              </span>
-            </div>
+          {/* Standalone refresh 480px–lg (D8): exactly one refresh affordance
+              per viewport — merged-in-pill on lg+, this icon on 480–lg, and
+              the palette "Refresh prices" action (touch-reachable via the
+              search trigger) below 480px where every pixel is needed. */}
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            aria-label="Refresh market prices"
+            className="hidden min-[480px]:inline-flex lg:hidden p-2 min-w-[44px] min-h-[44px] items-center justify-center rounded-lg text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-[#181B1F] transition focus:outline-none focus:border-[var(--brass)]"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[var(--brass)]' : ''}`} aria-hidden="true" />
+          </button>
+
+          {/* Available Cash Chip (D8): always visible in compact form — below
+              lg the sidebar is absent and the drawer closed, so this is the
+              only balance on small phones. Same store field as sidebar card. */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 max-[479px]:px-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#111316] shrink-0 max-w-[68px] min-[480px]:max-w-[92px] sm:max-w-[132px]"
+            title={currentUser?.balance == null ? 'Balance unavailable' : `Available cash: ${formatCurrency(currentUser.balance)}`}
+          >
+            <Wallet className="w-3.5 h-3.5 text-[var(--brass)] shrink-0 max-[479px]:hidden" aria-hidden="true" />
+            <span className="font-mono text-xs font-semibold text-[var(--ivory)] tabular-nums truncate">
+              {currentUser?.balance == null ? '—' : formatCurrency(currentUser.balance)}
+            </span>
           </div>
 
-          {/* Trade CTA Button */}
+          {/* Trade CTA Button (label always visible; icon hides <480px) */}
           <Button
             onClick={onOpenTrade}
             variant="primary"
             size="sm"
-            className="rounded-lg"
+            className="rounded-lg max-[479px]:[&_svg]:hidden max-[479px]:px-3 shrink-0 min-h-[44px]"
           >
             <PlusCircle className="w-3.5 h-3.5" />
             <span>Trade</span>
@@ -217,12 +245,12 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
           <div className="relative" ref={notifRef}>
             <button
               onClick={handleNotificationOpen}
-              className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#151820] transition relative"
-              aria-label="Notifications"
+              className="p-1.5 rounded-lg text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-[#181B1F] transition relative min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
+              aria-label={unreadCount > 0 ? `${unreadCount} unread alerts. Open notifications` : 'Notifications'}
               aria-expanded={notificationsOpen}
             >
               <Bell className="w-4 h-4" />
-              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full bg-[#3B82F6] text-[10px] leading-4 text-[#09090B] font-bold font-mono ring-2 ring-[#09090B]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full bg-[var(--brass)] text-[10px] leading-4 text-[#0B0C0E] font-bold font-mono ring-2 ring-[#0B0C0E]">{unreadCount > 99 ? '99+' : unreadCount}</span>}
             </button>
 
             <AnimatePresence>
@@ -232,22 +260,22 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.97 }}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
-                  className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-3 shadow-xl z-50"
+                  className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#181B1F] p-3 shadow-xl z-50"
                 >
                 <div className="flex items-center justify-between pb-2 border-b border-[rgba(255,255,255,0.08)]">
-                  <span className="text-xs font-semibold text-[#F5F7FA]">Market Alerts</span>
-                  <span className="mf-badge text-[#22C55E] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
+                  <span className="text-xs font-semibold text-[var(--ivory)]">Market Alerts</span>
+                  <span className="mf-badge text-[var(--gain)] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
                 </div>
                 <div className="max-h-80 overflow-y-auto py-2 space-y-1 text-xs">
                   {alertsLoading && <p className="px-2 py-5 text-center mf-meta">Loading alerts…</p>}
                   {!alertsLoading && alerts.length === 0 && <p className="px-2 py-5 text-center mf-meta">No market alerts yet.</p>}
                   {!alertsLoading && alerts.map((alert) => (
-                    <button key={alert._id} type="button" onClick={() => handleMarkAlertRead(alert)} className={`w-full rounded-lg border p-2.5 text-left transition ${alert.read ? 'border-white/[0.04] bg-[#111318]/60' : 'border-[#3B82F6]/20 bg-[#111318]'}`}>
+                    <button key={alert._id} type="button" onClick={() => handleMarkAlertRead(alert)} className={`w-full rounded-lg border p-2.5 text-left transition ${alert.read ? 'border-white/[0.04] bg-[#111316]/60' : 'border-[var(--brass)]/20 bg-[#111316]'}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`font-mono font-semibold ${alert.direction === 'UP' ? 'text-[#22C55E]' : alert.direction === 'DOWN' ? 'text-[#EF4444]' : 'text-[#60A5FA]'}`}>{alert.symbol} · {alert.direction}</span>
+                        <span className={`font-mono font-semibold ${alert.direction === 'UP' ? 'text-[var(--gain)]' : alert.direction === 'DOWN' ? 'text-[var(--loss)]' : 'text-[var(--stone-muted)]'}`}>{alert.symbol} · {alert.direction}</span>
                         <span className="shrink-0 mf-meta font-mono">{formatAlertTime(alert.createdAt)}</span>
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed text-[#9CA3AF]">{alert.message}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--stone)]">{alert.message}</p>
                       <p className="mt-1 mf-meta font-mono">Confidence {Math.round((alert.confidence || 0) * 100)}%{!alert.read && ' · Click to mark read'}</p>
                     </button>
                   ))}
@@ -261,9 +289,12 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-[#3B82F6]/50 transition cursor-pointer"
+              aria-label={currentUser?.username ? `Account menu for ${currentUser.username}` : 'Account menu'}
+              aria-expanded={userDropdownOpen}
+              aria-haspopup="menu"
+              className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-[rgba(201,169,110,.5)] transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]"
             >
-              <div className="w-8 h-8 rounded-full bg-[#1c1b1d] border border-[rgba(255,255,255,0.12)] flex items-center justify-center font-bold text-xs text-[#3B82F6]">
+              <div className="w-8 h-8 rounded-full bg-[var(--ink-800)] border border-[var(--hairline)] flex items-center justify-center font-bold text-xs text-[var(--ivory)]">
                 {currentUser?.username?.[0]?.toUpperCase() || 'U'}
               </div>
             </button>
@@ -275,10 +306,10 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.97 }}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
-                  className="absolute right-0 mt-2 w-56 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#151820] p-1.5 shadow-2xl z-50"
+                  className="absolute right-0 mt-2 w-56 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#181B1F] p-1.5 shadow-2xl z-50"
                 >
                 <div className="px-3 py-2 border-b border-[rgba(255,255,255,0.08)] mb-1">
-                  <p className="text-xs font-semibold text-[#F5F7FA]">
+                  <p className="text-xs font-semibold text-[var(--ivory)]">
                     {currentUser?.username || 'Trader'}
                   </p>
                   <p className="mf-meta truncate font-mono">
@@ -289,7 +320,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                 <NavLink
                   to="/profile"
                   onClick={() => setUserDropdownOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#111318] rounded-lg transition"
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-[#111316] rounded-lg transition"
                 >
                   <User className="w-3.5 h-3.5" />
                   <span>Profile &amp; Settings</span>
@@ -297,7 +328,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                 <NavLink
                   to="/activity"
                   onClick={() => setUserDropdownOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#F5F7FA] hover:bg-[#111318] rounded-lg transition"
+                  className="flex items-center gap-2 px-3 py-2 text-xs text-[var(--stone)] hover:text-[var(--ivory)] hover:bg-[#111316] rounded-lg transition"
                 >
                   <History className="w-3.5 h-3.5" />
                   <span>Activity Ledger</span>
@@ -307,7 +338,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
 
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition text-left cursor-pointer"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--loss)] hover:bg-[var(--loss)]/10 rounded-lg transition text-left cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sign out</span>

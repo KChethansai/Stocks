@@ -58,13 +58,12 @@ export function BuyButton({
   }
 
   const getBackgroundColor = () => {
-    if (status === 'error') return '#F0656E'
-    return '#2ECF8E'
+    if (status === 'error') return 'var(--loss)'
+    return 'var(--gain)'
   }
 
   const getTextColor = () => {
-    if (status === 'error') return '#FFFFFF'
-    return '#06090F'
+    return '#0B0C0E'
   }
 
   const IconComponent = CustomIcon || TrendingUp
@@ -76,28 +75,22 @@ export function BuyButton({
       whileTap={disabled || status !== 'idle' ? {} : { scale: 0.96 }}
       onClick={handleClick}
       disabled={disabled || status !== 'idle'}
+      aria-live="polite"
+      aria-atomic="true"
       className={cn(
-        'relative inline-flex items-center justify-center font-mono font-bold rounded-xl select-none transition-shadow duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2ECF8E] focus-visible:ring-offset-2 focus-visible:ring-offset-[#06090F]',
+        'relative inline-flex items-center justify-center font-semibold rounded-lg select-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0C0E]',
         sizeClasses[size] || sizeClasses.md,
         disabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
         className
       )}
       style={{
         backgroundColor: getBackgroundColor(),
-        color: getTextColor(),
-        boxShadow:
-          status === 'success'
-            ? '0 0 24px rgba(46, 207, 142, 0.45), 0 4px 12px rgba(0, 0, 0, 0.4)'
-            : '0 2px 8px rgba(0, 0, 0, 0.25)'
+        color: getTextColor()
       }}
       animate={{
-        backgroundColor: getBackgroundColor(),
-        boxShadow:
-          status === 'success'
-            ? '0 0 24px rgba(46, 207, 142, 0.45), 0 4px 12px rgba(0, 0, 0, 0.4)'
-            : '0 2px 8px rgba(0, 0, 0, 0.25)'
+        backgroundColor: getBackgroundColor()
       }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.15 }}
     >
       <AnimatePresence mode="wait" initial={false}>
         {status === 'idle' && (
@@ -125,11 +118,11 @@ export function BuyButton({
             initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
             animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.18 }}
+            transition={{ duration: 0.15 }}
             className="inline-flex items-center gap-2"
           >
             <Loader2 className="animate-spin shrink-0" size={currentIconSize} />
-            <span>Filling Order...</span>
+            <span>Working…</span>
           </motion.span>
         )}
 
@@ -139,38 +132,25 @@ export function BuyButton({
             initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
             animate={prefersReducedMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.95, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             className="inline-flex items-center gap-2"
           >
             <Check size={currentIconSize} className="shrink-0 stroke-[3]" />
-            <span>Order Filled!</span>
+            <span>Filled</span>
           </motion.span>
         )}
 
         {status === 'error' && (
           <motion.span
             key="error"
-            initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
-            animate={
-              prefersReducedMotion
-                ? { opacity: 1 }
-                : {
-                    scale: 1,
-                    opacity: 1,
-                    x: [0, -4, 4, -4, 4, 0]
-                  }
-            }
-            exit={prefersReducedMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
-            transition={{
-              type: 'spring',
-              damping: 14,
-              stiffness: 280,
-              x: { duration: 0.4 }
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             className="inline-flex items-center gap-2"
           >
             <AlertCircle size={currentIconSize} className="shrink-0 stroke-[2.5]" />
-            <span>Order Failed</span>
+            <span>Failed</span>
           </motion.span>
         )}
       </AnimatePresence>
