@@ -5,6 +5,7 @@ import { portfolioModel } from '../models/PortfolioModel.js'
 import { transactionModel } from '../models/TransactionModel.js'
 import { orderModel } from '../models/OrderModel.js'
 import { idempotencyKeyModel } from '../models/IdempotencyKeyModel.js'
+import { isExecutableQuote } from './quotePolicy.js'
 
 /**
  * Single owner of paper-trade execution.
@@ -200,6 +201,18 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
     throw httpError('Invalid symbol or quantity', 400)
   }
 
+  const hasKey = typeof idempotencyKey === 'string' && IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)
+  if (hasKey) {
+    const existing = await idempotencyKeyModel.findOne({ userId, key: idempotencyKey }).lean()
+    if (existing) {
+      if (!detailsMatch(existing, ticker, tradeSide, shares)) {
+        throw httpError('Idempotency key already used with different order details', 409)
+      }
+      if (existing.status === 'completed') return existing.response
+      return awaitWinnerReceipt(userId, idempotencyKey, ticker, tradeSide, shares)
+    }
+  }
+
   const stockDoc = stock || (await stockModel.findOne({ symbol: ticker }).lean())
   if (!stockDoc) throw httpError('Stock not found', 404)
   // Quote provenance gate: unverified or stale quotes never fill silently.
@@ -207,18 +220,14 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
   // price path exists — simulation writes were removed in Phase 0.
   // Gate runs BEFORE the idempotency claim so failed validations never
   // poison a key with a stuck in-progress claim.
-  if ((stockDoc.source && stockDoc.source !== 'yahoo') || !stockDoc.lastVerifiedAt) {
-    throw httpError('Quote unverified — refresh market data and retry', 409)
-  }
-  if (stockDoc.stale) {
-    throw httpError('Quote is stale — refresh market data and retry', 409)
+  if (!isExecutableQuote(stockDoc, ticker)) {
+    throw httpError('Quote is stale or unverified — refresh regular-session market data and retry', 409)
   }
   if (!(stockDoc.price > 0)) throw httpError('Stock price unavailable', 409)
 
   // Claim-first idempotency: reserve the key BEFORE touching balances, so a
   // concurrent duplicate or retry can never cause a second fill. Button
   // disabling alone is insufficient; this is the durable guarantee.
-  const hasKey = typeof idempotencyKey === 'string' && IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)
   let wonClaim = false
   if (hasKey) {
     const { outcome, claim } = await claimIdempotencyKey(userId, idempotencyKey, ticker, tradeSide, shares)
@@ -361,5 +370,4 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
     throw err
   }
 }
-
 

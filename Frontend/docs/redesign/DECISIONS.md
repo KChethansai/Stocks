@@ -300,3 +300,61 @@ Task-file product truth < live code. D6 is the instance: filesystem won.
   uses it too (Enter test keeps Enter). Chromium 02+11 6/6 with new helpers.
   Steady-state remount probes show zero remounts — the trigger is a narrow
   post-navigation window; disclosed, not hand-waved.
+- **D34. Test-backend DB mixup + production cleanup (Oct 2026, self-caught).**
+  Restarting the :4101 backend after adding the quote-refresh endpoint ran
+  WITHOUT DB_URL in its environment, so dotenv loaded Backend/.env and the
+  server attached to the production `stocks` DB. Three probe users
+  (qx204788, qx785918, cyc774444, cyc430517) plus their portfolios, VZ
+  transactions, orders, and idempotency keys were written to production and
+  then surgically deleted (listed before deleting; only empty/auto-created
+  docs plus the probe writes removed; VZ row rewrites carried Yahoo-identical
+  data). Lesson enforced: after every backend (re)start, resolve the
+  LISTENING pid via ss and confirm its /proc DB_URL path before any test
+  traffic. The isolated DB URL lives in /home/chethan/.tmp/opencode/
+  pwtest_url.txt (never in the repo, never committed).
+- **D35. Stale-quote root cause, proven end-to-end (U1).** With VZ flipped
+  stale on the isolated DB: buy → 409 "Quote is stale — refresh market data
+  and retry" (reproduces the user report: the price still displays, the
+  server rejects); POST /quote/VZ/refresh → 200 refreshed; retry with the
+  SAME idempotency key → 200 fill; duplicate retry → same txn, no double
+  fill. Cause: the ticket named a refresh action it could not perform
+  (GET /stocks = background sync + 60 s cache; /stocks/seed throttled 5
+  min) and Topbar toasted unconditional success. Fix: per-symbol synchronous
+  refresh endpoint + in-ticket Refresh quote button (symbol/quantity/key
+  preserved) + truthful Topbar toasts. Validation stays intact; nothing
+  synthetic; failed refreshes never mark data fresh.
+- **D36. Notification "always unread": two mechanisms (U2).** (a) Every
+  ALERT-rule trigger minted a new inbox row with no dedup — repeat rules
+  produce endless fresh unread rows; fixed with a cooldown-windowed
+  identical-unread suppressor (genuinely new events still notify).
+  (b) The 30 s poll replaced the list wholesale and the badge came from a
+  separate counter; fixed with a confirmed-reads merge + badge derived from
+  the merged list + Mark all read. No badge-hiding, no global flag.
+- **D37. News duplication (U3):** per-symbol feeds stamped with the queried
+  symbol and merged without identity — same Yahoo article under N symbols.
+  Fixed with canonical-URL (+title fallback) dedup carrying symbol unions,
+  unique counts, and load-more pagination. No fabricated summaries/images.
+- **D38. Profile layout via Arena --quick (U4):** 16 agents, 4 rounds,
+  champion a001 (Contrarian + Write-then-restructure + Built-to-last),
+  Option B — balanced workspace: sidebar deleted, unified non-selecting
+  anchor-chip bar at all breakpoints, Account full width, Credentials 2-col
+  (password) / notice+Login bands (Google), Preferences + Data full-width
+  bands, bounded scroll-spy with focus override, unsaved dots on chips and
+  headings. Plus theme-aware autofill CSS (paint only; managers untouched).
+- **D39. Analytics/Portfolio (U5):** metric strip + activity are now
+  full-width bands under a chart+exposure row (the strip no longer ends
+  mid-column against a taller panel); Cash/Unknown/Other labeled as
+  allocation categories with a true-sector count ("N sectors"); missing
+  sector metadata is Unknown, never folded into Other.
+- **D40. Markets taxonomy + filters (U6):** frontend-only GICS-style
+  normalization (Semiconductors→Technology, Automotive→Consumer Cyclical;
+  backend universe + ML untouched), all sectors shown with counts, sort
+  control, result scope, reset, pagination with filter-change reset,
+  keyboard-operable rows, honest empty state.
+- **D41. Market Outlook removal (U7):** PredictionPanel/PredictionBadge
+  presentation deleted from Markets (no hidden panels left); automation
+  controls preserved as a neutral AutomationPanel; prediction APIs, model,
+  Forecast accuracy page, and Dashboard Forecasts untouched.
+- **D42. Number spinners (U8):** native spinners suppressed across
+  engines (paint only); stepper buttons were already type="button";
+  validation/keyboard/min-max unchanged.

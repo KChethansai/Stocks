@@ -2,6 +2,8 @@ import axios from 'axios'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/+$/, '')
 
+export { canonicalArticleKey, dedupeNews } from './newsDedupe.js'
+
 // Fail-soft by backend contract: /stock-api/news/:symbol returns 200 with
 // [] when Yahoo is unavailable, so callers only guard network errors.
 export async function fetchNews(symbol) {

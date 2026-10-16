@@ -5,6 +5,9 @@ import { stockModel } from '../models/StockModel.js'
 import { historyModel, intradayHistoryModel } from '../models/HistoryModel.js'
 import { checkPriceTriggers } from '../services/priceMonitor.js'
 import { cached, invalidateCache } from '../config/cache.js'
+import { baseStocks, toProviderTime } from '../config/universe.js'
+import { buildVerifiedQuoteRow, refreshAllowed, rememberRefresh, deduplicateQuoteRefresh } from '../services/quoteRefresh.js'
+import { isExecutableQuote } from '../services/quotePolicy.js'
 
 export const stockApp = exp.Router()
 
@@ -19,9 +22,89 @@ const yahooFinance = new YahooFinance({
 })
 
 // -----------------------------
-// Stock List
+// Per-symbol quote refresh (order-ticket recovery path)
 // -----------------------------
-import { baseStocks, toProviderTime } from '../config/universe.js'
+// Why this exists: the ticket's provenance gate blocks buys on stale or
+// unverified rows, but GET /stocks only triggers a background full-universe
+// sync (≥5 min cadence, 60 s read cache) and POST /stocks/seed is throttled
+// to once per 5 minutes — so "refresh market data and retry" named an action
+// the ticket could not perform. This endpoint force-syncs ONE symbol
+// synchronously and persists the verified row, so a subsequent order with the
+// same idempotency key can proceed. Failures never touch the stored row and
+// never mark failed data fresh: the caller gets an accurate, recoverable
+// message instead.
+//
+// Recovery requires Yahoo's explicit REGULAR state and a recent provider time.
+// Closed/unknown state fails closed, leaving the stored row unchanged. This
+// is provider-reported state, not an exchange calendar. Execution rechecks
+// the stored provider state and age using the same five-minute window.
+// Pure helpers live in services/quoteRefresh.js (side-effect free, unit
+// tested); the route below only wires transport + persistence.
+
+stockApp.post('/quote/:symbol/refresh', verifyToken('USER'), async (req, res, next) => {
+  try {
+    const symbol = req.params.symbol?.toUpperCase()?.trim()
+    if (!symbol || !/^[A-Z.]{1,10}$/.test(symbol)) {
+      return res.status(400).json({ message: 'Invalid stock symbol' })
+    }
+
+    const base = baseStocks.find((s) => s.symbol === symbol)
+    const existing = await stockModel.findOne({ symbol }).lean()
+    if (!base && !existing) {
+      return res.status(404).json({ message: 'Stock not found' })
+    }
+    // Sector/name truth comes from the tracked universe; an existing row
+    // outside the universe keeps its stored sector.
+    const baseLike = base || { symbol, name: existing.name, sector: existing.sector }
+
+    const throttleKey = `${req.user.id}:${symbol}`
+    const allowed = refreshAllowed(throttleKey)
+    if (!allowed.ok) {
+      return res.status(429).json({
+        message: 'Quote refresh throttled — retry shortly, then retry the order with the same order key',
+        retryAfterMs: allowed.retryAfterMs
+      })
+    }
+    rememberRefresh(throttleKey)
+
+    let quotes
+    try {
+      quotes = await deduplicateQuoteRefresh(symbol, () => yahooFinance.quote(symbol))
+    } catch (err) {
+      console.error(`[Quote Refresh] Yahoo request failed for ${symbol}:`, err.message)
+      return res.status(502).json({
+        message: 'Live market data is unavailable right now — the stored quote is unchanged. Retry shortly; the symbol and quantity are preserved.',
+        symbol,
+        refreshed: false
+      })
+    }
+
+    const list = Array.isArray(quotes) ? quotes : [quotes]
+    const quote = list.find((q) => q?.symbol === symbol)
+    const row = buildVerifiedQuoteRow(baseLike, quote)
+    if (!row) {
+      return res.status(502).json({
+        message: 'No recent regular-session quote could be verified (market closed, unknown, or invalid data). The stored quote is unchanged.',
+        symbol,
+        refreshed: false
+      })
+    }
+
+    row.marketState = quote.marketState
+    await stockModel.updateOne({ symbol }, { $set: row }, { upsert: true })
+    invalidateCache('stocks-list')
+    invalidateCache('market-summary')
+
+    return res.status(200).json({
+      message: 'Quote refreshed',
+      refreshed: true,
+      stock: { ...row, stale: false },
+      meta: { asOf: row.asOf.toISOString(), source: 'yahoo' }
+    })
+  } catch (err) {
+    next(err)
+  }
+})
 
 // -----------------------------
 // Sync Control
@@ -96,11 +179,13 @@ const syncStocksData = async (force = false) => {
             source: 'yahoo',
             asOf: quotesAsOf,
             providerTime: toProviderTime(quote?.regularMarketTime),
+            marketState: quote?.marketState || null,
             lastVerifiedAt: quotesAsOf,
             stale: false
           }
         })
-        .filter(stock => stock.price > 0)
+        .filter(stock => Number.isFinite(stock.price) && stock.price > 0)
+        .map(stock => ({ ...stock, stale: !isExecutableQuote(stock) }))
     }
 
     if (stocks.length > 0) {
@@ -180,7 +265,7 @@ stockApp.get('/stocks', async (req, res, next) => {
     const withProvenance = (stocks || []).map((s) => ({
       ...s,
       source: s.source || 'unverified',
-      stale: Boolean(s.stale) || !s.lastVerifiedAt
+      stale: !isExecutableQuote(s)
     }))
     const verifiedAt = withProvenance
       .map((s) => s.lastVerifiedAt ? new Date(s.lastVerifiedAt).getTime() : 0)
@@ -232,7 +317,7 @@ stockApp.get('/stocks/:symbol', async (req, res, next) => {
       stock: {
         ...stock,
         source: stock.source || 'unverified',
-        stale: Boolean(stock.stale) || !stock.lastVerifiedAt
+        stale: !isExecutableQuote(stock)
       }
     })
   } catch (err) {

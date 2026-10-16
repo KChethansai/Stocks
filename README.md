@@ -277,6 +277,12 @@ real credentials or database URLs belong in logs or committed artifacts.
 | GET | `/stocks/:symbol` | ✅ | Single stock details |
 | GET | `/history/:symbol?interval=1d\|60m` | — | OHLC candles (24h / 15m cache) |
 | POST | `/stocks/seed` | ✅ | Manual Yahoo sync (throttled to 5 min) |
+| POST | `/quote/:symbol/refresh` | ✅ | Force-sync ONE symbol now (30 s per-user throttle); persists the verified row so a blocked ticket can retry with the same order key. Failures leave the stored row untouched and return 502 with a recoverable message |
+
+### Quote freshness & execution policy (paper trading)
+- A new fill requires Yahoo provenance, the exact requested symbol, a finite positive price, explicit provider `REGULAR` market state, and valid nonfuture provider and verification timestamps no older than five minutes. Unknown or closed states and stale/unverified quotes remain blocked; legacy rows need a successful refresh.
+- Provider time identifies the price observation; verification time identifies the fetch. Previous-session closes remain available for display but are not executable intraday quotes. No exchange calendar is inferred. A completed idempotent order still replays its original receipt even after its quote expires.
+- `GET /stocks` triggers only a background full-universe sync (≥5 min cadence, 60 s read cache); the ticket-level `POST /quote/:symbol/refresh` is the synchronous recovery path. Symbol, quantity, and the draft's idempotency key survive refresh — retries cannot duplicate a fill.
 
 ### Trade (`/trade-api`)
 | Method | Endpoint | Auth | Description |

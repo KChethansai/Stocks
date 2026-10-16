@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../store/authStore'
 import { useTrade } from '../../store/tradeStore'
 import { formatCurrency } from '../../utils/marketAnalytics'
+import { mergeAlertsWithConfirmed } from '../../utils/alertMerge'
 import toast from 'react-hot-toast'
 import { Button } from '../ui/Button'
 
@@ -40,6 +41,14 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   const [alerts, setAlerts] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [alertsLoading, setAlertsLoading] = useState(false)
+  const [markingAllRead, setMarkingAllRead] = useState(false)
+  // Locally-confirmed reads: the 30 s poll replaces the list wholesale, so
+  // without this a confirmed read could flip back to unread on the next poll.
+  // Pruned on every poll to rows that still exist server-side.
+  const confirmedReads = useRef(new Set())
+  const pendingReads = useRef(new Set())
+  const accountId = currentUser?._id || currentUser?.id || null
+  const activeAccount = useRef(accountId)
   const dropdownRef = useRef(null)
   const notifRef = useRef(null)
 
@@ -79,9 +88,13 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
   const anyStale = (stocks || []).some((s) => s.stale || !s.lastVerifiedAt)
 
   useEffect(() => {
-    if (!currentUser) {
-      setAlerts([])
-      setUnreadCount(0)
+    activeAccount.current = accountId
+    confirmedReads.current = new Set()
+    pendingReads.current = new Set()
+    setMarkingAllRead(false)
+    setAlerts([])
+    setUnreadCount(0)
+    if (!accountId) {
       return undefined
     }
 
@@ -91,11 +104,14 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
       try {
         const { data } = await axios.get(`${API_BASE}/ml-api/alerts?includeRead=true`, { withCredentials: true })
         if (!cancelled) {
-          setAlerts(data.alerts || [])
-          setUnreadCount(data.unreadCount || 0)
+          const merged = mergeAlertsWithConfirmed(data.alerts || [], confirmedReads.current, data.unreadCount)
+          confirmedReads.current = merged.liveConfirmedIds
+          setAlerts(merged.alerts)
+          // Global unread count includes events outside the latest-50 window.
+          setUnreadCount(merged.unreadCount)
         }
       } catch {
-        if (!cancelled) setAlerts([])
+        // Keep the last confirmed inbox on transient poll failure.
       } finally {
         if (!cancelled) setAlertsLoading(false)
       }
@@ -107,7 +123,7 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
       cancelled = true
       clearInterval(timer)
     }
-  }, [currentUser])
+  }, [accountId])
 
   const handleNotificationOpen = () => {
     setNotificationsOpen((open) => !open)
@@ -115,20 +131,67 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
 
   const handleMarkAlertRead = async (alert) => {
     if (alert.read) return
+    const id = String(alert._id)
+    if (pendingReads.current.has(id)) return
+    const owner = accountId
+    pendingReads.current.add(id)
+    // Confirm locally first so the next poll cannot resurrect the row; the
+    // server PATCH below is the durable write (ownership-enforced).
+    confirmedReads.current = new Set(confirmedReads.current).add(id)
+    setAlerts((items) => items.map((item) => String(item._id) === id ? { ...item, read: true } : item))
+    setUnreadCount((count) => Math.max(0, count - 1))
     try {
       await axios.patch(`${API_BASE}/ml-api/alerts/${alert._id}/read`, {}, { withCredentials: true })
-      setAlerts((items) => items.map((item) => item._id === alert._id ? { ...item, read: true } : item))
-      setUnreadCount((count) => Math.max(0, count - 1))
     } catch {
+      if (activeAccount.current !== owner) return
+      confirmedReads.current = new Set([...confirmedReads.current].filter((x) => x !== id))
+      setAlerts((items) => items.map((item) => String(item._id) === id ? { ...item, read: false } : item))
+      setUnreadCount((count) => count + 1)
       toast.error('Unable to update notification')
+    } finally {
+      if (activeAccount.current === owner) pendingReads.current.delete(id)
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    const unread = alerts.filter((a) => !a.read && !pendingReads.current.has(String(a._id)))
+    if (!unread.length || markingAllRead) return
+    const owner = accountId
+    setMarkingAllRead(true)
+    unread.forEach((a) => pendingReads.current.add(String(a._id)))
+    try {
+      const results = await Promise.allSettled(
+        unread.map((alert) =>
+          axios.patch(`${API_BASE}/ml-api/alerts/${alert._id}/read`, {}, { withCredentials: true })
+        )
+      )
+      if (activeAccount.current !== owner) return
+      const ids = new Set(unread.filter((_, i) => results[i].status === 'fulfilled').map((a) => String(a._id)))
+      confirmedReads.current = new Set([...confirmedReads.current, ...ids])
+      setAlerts((items) => items.map((item) => (ids.has(String(item._id)) ? { ...item, read: true } : item)))
+      setUnreadCount((count) => Math.max(0, count - ids.size))
+      if (ids.size !== unread.length) toast.error('Some notifications could not be marked read. Retry the remaining alerts.')
+    } catch {
+      toast.error('Unable to mark all notifications read')
+    } finally {
+      if (activeAccount.current === owner) {
+        unread.forEach((a) => pendingReads.current.delete(String(a._id)))
+        setMarkingAllRead(false)
+      }
     }
   }
 
   const handleManualRefresh = async () => {
     if (refreshing) return
     setRefreshing(true)
-    await fetchStocks()
-    toast.success('Market data refreshed')
+    const result = await fetchStocks()
+    if (result?.success && result?.stale) {
+      toast('Market data is stale — quotes show their as-of time.', { icon: '⚠' })
+    } else if (result?.success) {
+      toast.success('Market data refreshed')
+    } else {
+      toast.error(result?.message || 'Market data refresh failed')
+    }
     setTimeout(() => setRefreshing(false), 600)
   }
 
@@ -266,6 +329,16 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
                   <span className="text-xs font-semibold text-[var(--ivory)]">Market Alerts</span>
                   <span className="mf-badge text-[var(--gain)] font-mono">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
                 </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    disabled={markingAllRead}
+                    className="mt-2 w-full rounded-lg border border-[rgba(255,255,255,0.08)] px-2 py-1.5 text-[11px] font-mono text-[var(--stone)] transition hover:text-[var(--ivory)] disabled:opacity-40"
+                  >
+                    {markingAllRead ? 'Marking read…' : 'Mark displayed alerts read'}
+                  </button>
+                )}
                 <div className="max-h-80 overflow-y-auto py-2 space-y-1 text-xs">
                   {alertsLoading && <p className="px-2 py-5 text-center mf-meta">Loading alerts…</p>}
                   {!alertsLoading && alerts.length === 0 && <p className="px-2 py-5 text-center mf-meta">No market alerts yet.</p>}

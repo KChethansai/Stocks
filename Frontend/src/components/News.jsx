@@ -5,13 +5,19 @@ import { useTrade } from '../store/tradeStore'
 import { useAuth } from '../store/authStore'
 import Reveal from './ui/Reveal'
 import { ShinyText } from './reactbits/ShinyText'
-import { fetchNews, timeAgo } from './newsApi'
+import { fetchNews, timeAgo, dedupeNews } from './newsApi'
 
 // Aggregate feed: watchlist → holdings → fallback trio. Each symbol is one
 // cached backend call (30-min server TTL), fetched in parallel with
 // per-symbol fail-soft so one bad symbol never empties the feed.
+// Per-symbol feeds overlap (Yahoo returns the same article for every symbol
+// it mentions), so the merge deduplicates on canonical URL with a
+// title+publisher fallback — survivors carry the union of their symbols.
+// Coverage is bounded at MAX_FEED_SYMBOLS concurrent calls and labeled
+// honestly in the header (unique headlines across N symbols).
 const FALLBACK_SYMBOLS = ['AAPL', 'NVDA', 'MSFT']
 const MAX_FEED_SYMBOLS = 8
+const PAGE_SIZE = 20
 
 export default function News() {
   const { stocks, fetchStocks, fetchPortfolio, portfolio, startPolling, stopPolling } = useTrade()
@@ -22,6 +28,7 @@ export default function News() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('ALL')
   const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   useEffect(() => {
     fetchStocks()
@@ -60,10 +67,9 @@ export default function News() {
       )
     ).then((groups) => {
       if (cancelled) return
-      const merged = groups
-        .flat()
-        .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-      setItems(merged)
+      const merged = groups.flat()
+      setItems(dedupeNews(merged))
+      setVisibleCount(PAGE_SIZE)
       setLoading(false)
     })
     return () => {
@@ -74,7 +80,8 @@ export default function News() {
   const visibleItems = useMemo(() => {
     const q = query.toLowerCase().trim()
     return items.filter((item) => {
-      if (filter !== 'ALL' && item.symbol !== filter) return false
+      const symbols = item.symbols || [item.symbol].filter(Boolean)
+      if (filter !== 'ALL' && !symbols.includes(filter)) return false
       if (!q) return true
       return (
         item.title?.toLowerCase().includes(q) ||
@@ -82,6 +89,14 @@ export default function News() {
       )
     })
   }, [items, filter, query])
+
+  // Pagination resets whenever the result set changes.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [items, filter, query])
+
+  const shownItems = useMemo(() => visibleItems.slice(0, visibleCount), [visibleItems, visibleCount])
+  const remaining = visibleItems.length - shownItems.length
 
   const chips = useMemo(() => ['ALL', ...feedSymbols], [feedSymbols])
 
@@ -96,6 +111,7 @@ export default function News() {
             <div className="flex items-center gap-2">
               <span className="mf-label">Headlines</span>
               <span className="text-[var(--ivory)] font-bold">{items.length}</span>
+              <span className="text-text-muted">unique</span>
             </div>
             <div className="h-4 w-px bg-[rgba(255,255,255,0.08)]"></div>
             <div className="flex items-center gap-2">
@@ -150,15 +166,18 @@ export default function News() {
               : 'No headlines match this filter.'}
           </p>
         ) : (
+          <>
           <ul className="m-0 p-0 list-none divide-y divide-[rgba(255,255,255,0.04)]">
-            {visibleItems.map((item, i) => (
-              <li key={`${item.symbol}-${item.link || item.title}-${i}`} className="p-5 sm:p-6 flex gap-4">
+            {shownItems.map((item) => {
+              const symbols = item.symbols || [item.symbol].filter(Boolean)
+              return (
+              <li key={`${symbols.join('+')}-${item.link || item.title}`} className="p-5 sm:p-6 flex gap-4">
                 <Link
-                  to={`/markets?stock=${item.symbol}`}
-                  title={`Open ${item.symbol} in Markets`}
+                  to={`/markets?stock=${symbols[0]}`}
+                  title={`Open ${symbols[0]} in Markets`}
                   className="shrink-0 w-11 h-11 rounded-xl bg-[#181B1F] border border-[rgba(255,255,255,0.1)] flex items-center justify-center font-mono text-sm font-bold text-[var(--stone)] hover:border-[var(--brass)]/50 transition"
                 >
-                  {item.symbol[0]}
+                  {(symbols[0] || '?')[0]}
                 </Link>
                 <div className="min-w-0">
                   {item.link ? (
@@ -175,14 +194,27 @@ export default function News() {
                     <p className="text-sm font-medium text-[var(--ivory)] leading-snug m-0">{item.title}</p>
                   )}
                   <p className="text-[11px] uppercase text-text-muted mt-1.5 m-0">
-                    <span>{item.symbol}</span>
-                    <span className="ml-2">{item.publisher}</span>
+                    <span>{symbols.join(' · ')}</span>
+                    <span className="ml-2">{item.publisher || 'Unknown publisher'}</span>
                     {item.publishedAt && <span className="ml-2">{timeAgo(item.publishedAt)}</span>}
                   </p>
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
+          {remaining > 0 && (
+            <div className="p-4 border-t border-[rgba(255,255,255,0.04)] text-center">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#181B1F] px-4 py-2 text-xs font-mono text-[var(--stone)] transition hover:text-[var(--ivory)] hover:border-[var(--brass)]/40"
+              >
+                Show more ({remaining} remaining)
+              </button>
+            </div>
+          )}
+          </>
         )}
       </Reveal>
 

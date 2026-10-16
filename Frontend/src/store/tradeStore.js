@@ -64,12 +64,37 @@ export const useTrade = create((set) => ({
         withCredentials: true
       })
       set({ stocks: response.data.stocks, loading: false })
-      return { success: true }
+      return { success: true, stale: Boolean(response.data?.meta?.stale) }
     } catch (err) {
       set({ loading: false })
       return {
         success: false,
         message: err.response?.data?.message || 'Failed to fetch stocks'
+      }
+    }
+  },
+
+  // Refresh ONE symbol's quote synchronously (order-ticket recovery path).
+  // On success the store row is replaced with the verified row so gates
+  // recompute; on failure the stored row is untouched (server guarantee) and
+  // the caller gets the accurate message. Never synthesizes.
+  refreshQuote: async (symbol) => {
+    try {
+      const response = await axios.post(`${API_BASE}/stock-api/quote/${symbol}/refresh`, {}, {
+        withCredentials: true
+      })
+      const fresh = response.data?.stock
+      if (response.data?.refreshed && fresh) {
+        set((state) => ({
+          stocks: (state.stocks || []).map((s) => s.symbol === fresh.symbol ? { ...s, ...fresh } : s)
+        }))
+        return { success: true, stock: fresh }
+      }
+      return { success: false, message: response.data?.message || 'Quote refresh failed' }
+    } catch (err) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Live market data is unavailable right now'
       }
     }
   },

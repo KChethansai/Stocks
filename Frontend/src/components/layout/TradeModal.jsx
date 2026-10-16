@@ -36,13 +36,14 @@ function ProvenanceDot({ state }) {
 // stock-specific entries open the ticket prefilled (step 'ticket'). No caller
 // may silently force a symbol — a null stock means "choose", never stocks[0].
 export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY' }) {
-  const { buyStock, sellStock, portfolio, stocks } = useTrade()
+  const { buyStock, sellStock, refreshQuote, portfolio, stocks } = useTrade()
   const { currentUser, patchBalance } = useAuth()
   const [step, setStep] = useState(stock ? 'ticket' : 'select')
   const [selected, setSelected] = useState(stock || null)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [orderKey, setOrderKey] = useState(null)
   const [gateMessage, setGateMessage] = useState('')
@@ -210,6 +211,28 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
   const handleMax = () => {
     const maxQty = isBuy ? maxBuyQty : maxSellQty
     setValue('quantity', Math.max(1, maxQty), { shouldValidate: true })
+  }
+
+  // Ticket-level quote refresh (stale/unverified recovery). The selected
+  // symbol, entered quantity, side, and the draft's idempotency key are all
+  // preserved: a retry after refresh reuses the same logical order, so a
+  // refresh can never duplicate a fill. Failed refreshes leave everything
+  // untouched and surface the accurate message.
+  const handleRefreshQuote = async () => {
+    if (refreshing || !selected?.symbol) return
+    setRefreshing(true)
+    try {
+      const result = await refreshQuote(selected.symbol)
+      if (result.success && result.stock) {
+        setSelected((prev) => (prev ? { ...prev, ...result.stock } : prev))
+        setGateMessage('')
+        toast.success(`Quote refreshed — ${selected.symbol} verified as of now.`)
+      } else {
+        setGateMessage(result.message || 'Live market data is unavailable right now.')
+      }
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   // Ticket submit → review sheet (never executes directly: opening the
@@ -468,7 +491,17 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
               {gateMessage && (
                 <div className="flex items-center gap-1.5 text-xs text-[var(--loss)] pt-1">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{gateMessage}</span>
+                  <span className="flex-1">{gateMessage}</span>
+                  {(quote.state === 'stale' || quote.state === 'unverified') && (
+                    <button
+                      type="button"
+                      onClick={handleRefreshQuote}
+                      disabled={refreshing}
+                      className="shrink-0 rounded-lg border border-[var(--brass)]/40 px-2 py-1 font-mono text-[11px] font-semibold text-[var(--brass)] transition hover:bg-[var(--brass)]/10 disabled:opacity-40"
+                    >
+                      {refreshing ? 'Refreshing…' : 'Refresh quote'}
+                    </button>
+                  )}
                 </div>
               )}
               {!gateMessage && isBuy && totalCost > cashBalance && (

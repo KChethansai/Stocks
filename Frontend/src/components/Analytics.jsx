@@ -77,13 +77,16 @@ export default function Analytics() {
     }
   }, [transactions])
 
-  // Sector Exposure breakdown (live prices — consistent with summarizePortfolio)
+  // Sector Exposure breakdown (live prices — consistent with summarizePortfolio).
+  // Cash is an allocation category, not a sector; Unknown marks holdings
+  // whose stock row carries no sector (never silently dropped, never counted
+  // as a sector). The folded remainder is Other.
   const sectorAllocation = useMemo(() => {
     const map = {}
     let totalInvested = 0
     holdings.forEach((h) => {
       const stock = stocks.find((s) => s.symbol === h.symbol)
-      const sec = stock?.sector || 'Other'
+      const sec = stock?.sector || 'Unknown'
       const val = (h.quantity * (stock?.price ?? h.currentPrice ?? h.avgBuyPrice)) || 0
       map[sec] = (map[sec] || 0) + val
       totalInvested += val
@@ -111,6 +114,13 @@ export default function Analytics() {
     return [...top, { name: 'Other', key: '__other', isOther: true, count: rest.length, value: otherValue, percentage: (otherValue / totalInvested) * 100 }]
   }, [holdings, stocks, currentUser])
 
+  // True sector count: Cash, the folded Other bucket, and Unknown metadata
+  // gaps are allocation categories, not industry sectors.
+  const trueSectorCount = useMemo(
+    () => sectorAllocation.filter((s) => s.name !== 'Cash' && !s.isOther && s.name !== 'Unknown').length,
+    [sectorAllocation]
+  )
+
   // Performance Movers list
   const performanceMovers = useMemo(() => {
     return [...holdings]
@@ -122,14 +132,18 @@ export default function Analytics() {
   const isTodayPos = analytics.todayPnL >= 0
 
   // Phase 0: no toast-only report action. Export the visible equity + sector
-  // data as CSV (react-hot-toast stays the only toast system).
+  // data as CSV (react-hot-toast stays the only toast system). Rows are
+  // labeled by what they are: sectors as Sector, Cash as Cash, the folded
+  // remainder as Other, metadata gaps as Unknown.
   const handleGenerateReport = () => {
     const headers = ['Metric', 'Value']
+    const categoryLabel = (s) =>
+      s.name === 'Cash' ? 'Cash' : s.isOther ? 'Other (folded)' : s.name === 'Unknown' ? 'Unknown sector' : `Sector ${s.name}`
     const rows = [
       ['Range', range],
       ['Total P&L', Number(analytics.totalPnL || 0).toFixed(2)],
       ['Benchmark (S&P 500)', benchmarkReturn != null ? `${benchmarkReturn.toFixed(2)}%` : 'unavailable'],
-      ...sectorAllocation.map((s) => [`Sector ${s.name}`, `${s.value.toFixed(2)} (${s.percentage.toFixed(1)}%)`])
+      ...sectorAllocation.map((s) => [categoryLabel(s), `${s.value.toFixed(2)} (${s.percentage.toFixed(1)}%)`])
     ]
     exportToCSV(headers, rows, `marketforge_analytics_${range}.csv`)
     toast.success('Analytics summary exported as CSV.')
@@ -166,7 +180,7 @@ export default function Analytics() {
         </div>
       </Reveal>
 
-      {/* Main Grid: 8 Cols Chart + 4 Cols Secondary Modules */}
+      {/* Row 1: chart (8 cols) + sector exposure (4 cols) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Main Visualization Area (8 cols) */}
         <Reveal delay={0.05} className="xl:col-span-8 flex flex-col gap-6">
@@ -222,7 +236,47 @@ export default function Analytics() {
               />
             </div>
           </div>
+        </Reveal>
 
+        {/* Secondary Module (4 cols): Sector Exposure */}
+        <Reveal delay={0.1} className="xl:col-span-4 flex flex-col gap-6">
+          {/* Sector Exposure Module */}
+          <SpotlightCard
+            spotlightColor="rgba(59, 130, 246, 0.15)"
+            tiltIntensity={4}
+            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="mf-h2">
+                Sector Exposure
+              </h2>
+              <span className="text-[10px] font-mono text-text-muted uppercase">
+                Weights
+              </span>
+            </div>
+
+            <SectorAllocation
+              items={sectorAllocation.map((sec) => ({
+                label: sec.isOther && sec.count > 0 ? `Other (${sec.count} holdings)` : sec.name,
+                key: sec.key ?? sec.name,
+                isOther: Boolean(sec.isOther),
+                value: sec.value,
+                display: `${sec.percentage.toFixed(1)}%`,
+              }))}
+              palette={SECTOR_THEMES.terminal}
+              size={168}
+              layout="column"
+              legendLimit={6}
+              totalDisplay={`${trueSectorCount} sector${trueSectorCount === 1 ? '' : 's'}`}
+              totalLabel="Covered"
+            />
+          </SpotlightCard>
+
+        </Reveal>
+      </div>
+
+      {/* Key metrics strip: full-width band so no void opens beside the activity panel */}
+      <Reveal delay={0.06}>
           {/* Standardized Metrics Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] shadow-xl">
             <div className="bg-[#111316] p-5">
@@ -272,43 +326,12 @@ export default function Analytics() {
                 Available to trade
               </div>
             </div>
+
           </div>
-        </Reveal>
+      </Reveal>
 
-        {/* Secondary Modules (4 cols) */}
-        <Reveal delay={0.1} className="xl:col-span-4 flex flex-col gap-6">
-          {/* Sector Exposure Module */}
-          <SpotlightCard
-            spotlightColor="rgba(59, 130, 246, 0.15)"
-            tiltIntensity={4}
-            className="bg-[#111316]/95 rounded-2xl border border-white/8 p-5 sm:p-6"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="mf-h2">
-                Sector Exposure
-              </h2>
-              <span className="text-[10px] font-mono text-text-muted uppercase">
-                Weights
-              </span>
-            </div>
-
-            <SectorAllocation
-              items={sectorAllocation.map((sec) => ({
-                label: sec.isOther && sec.count > 0 ? `Other (${sec.count} holdings)` : sec.name,
-                key: sec.key ?? sec.name,
-                isOther: Boolean(sec.isOther),
-                value: sec.value,
-                display: `${sec.percentage.toFixed(1)}%`,
-              }))}
-              palette={SECTOR_THEMES.terminal}
-              size={168}
-              layout="column"
-              legendLimit={6}
-              totalDisplay={`${sectorAllocation.length} sectors`}
-              totalLabel="Covered"
-            />
-          </SpotlightCard>
-
+      {/* Trading activity: full-width ledger band with a two-column movers interior */}
+      <Reveal delay={0.12}>
           {/* Trading Activity (30D) Module */}
           <SpotlightCard
             spotlightColor="rgba(34, 197, 94, 0.15)"
@@ -333,7 +356,7 @@ export default function Analytics() {
             </div>
 
             {/* Position Movers List */}
-            <div className="flex flex-col -mx-2 divide-y divide-white/5">
+            <div className="flex flex-col gap-1 -mx-2 lg:grid lg:grid-cols-2 lg:gap-x-6">
               {performanceMovers.length === 0 ? (
                 <p className="text-xs text-text-muted px-2 py-3">No active positions yet.</p>
               ) : (
@@ -372,8 +395,7 @@ export default function Analytics() {
               )}
             </div>
           </SpotlightCard>
-        </Reveal>
-      </div>
+      </Reveal>
     </div>
   )
 }

@@ -138,13 +138,15 @@ function PortfolioContent() {
   }, [holdings])
 
   // Sector breakdown (live prices — same derivation as summarizePortfolio,
-  // so Insight-2 stays consistent with the fixed portfolio totals)
+  // so Insight-2 stays consistent with the fixed portfolio totals).
+  // Missing sector metadata is Unknown (honest gap, never dropped); the
+  // folded remainder bucket is Other. The two never share a label.
   const sectorAllocation = useMemo(() => {
     const map = {}
     let totalInvested = 0
     holdings.forEach((h) => {
       const stock = stocks.find((s) => s.symbol === h.symbol)
-      const sec = stock?.sector || 'Other'
+      const sec = stock?.sector || 'Unknown'
       const val = (h.quantity * (stock?.price ?? h.currentPrice ?? h.avgBuyPrice)) || 0
       map[sec] = (map[sec] || 0) + val
       totalInvested += val

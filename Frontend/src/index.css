@@ -312,6 +312,43 @@ textarea {
   font: inherit;
 }
 
+/* Browser autofill on the dark theme: Chrome/WebKit paint a pale-yellow
+ * internal background that clashes with ivory-on-ink inputs (seen on the
+ * Profile password field). Recolor through the standard long-transition
+ * override plus explicit text fill so autofilled values keep accessible
+ * contrast and the brass focus ring. Password-manager behavior (detection,
+ * fill, offer-to-save) is untouched — this is paint only. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ivory, #ECE9E2);
+  caret-color: var(--ivory, #ECE9E2);
+  -webkit-box-shadow: 0 0 0 1000px #14171B inset;
+  box-shadow: 0 0 0 1000px #14171B inset;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+input:autofill {
+  color: var(--ivory, #ECE9E2);
+  background-color: #14171B;
+}
+
+/* Custom stepper controls own their increment/decrement UI (QuantityStepper
+ * and siblings), so the browser's native number spinners are removed
+ * everywhere they would duplicate: Chromium/WebKit inner+outer buttons, and
+ * Firefox via -moz-appearance:textfield. Validation, keyboard operation
+ * (including ArrowUp/ArrowDown handling), accessible labels, and min/max/step
+ * rules are unaffected — this is paint only. */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 ::selection {
   background: rgba(201, 169, 110, 0.35);
   color: #0B0C0E;

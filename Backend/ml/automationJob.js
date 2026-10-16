@@ -7,6 +7,7 @@ import { portfolioModel } from '../models/PortfolioModel.js'
 import { executePaperTrade } from '../services/tradeService.js'
 import { predict } from './predictor.js'
 import { EXPERIMENTAL_MODEL_PATTERN } from './modelRelease.js'
+import { predictionEventKey, writeAlertOnce } from '../services/alertDedupe.js'
 
 /**
  * ML-driven automation engine.
@@ -210,13 +211,19 @@ export async function runAutomationPass() {
 
       // ── ALERT: notify, never trade ────────────────────────────────
       if (rule.action === 'ALERT') {
-        await alertModel.create({
+        const inserted = await writeAlertOnce(alertModel, {
+          eventKey: predictionEventKey(rule, prediction),
           userId: rule.userId,
           symbol: rule.symbol,
           direction: prediction.direction,
           confidence: prediction.confidence,
           message: `${rule.symbol} forecast ${prediction.direction} at ${prediction.confidencePct}% confidence — target ${prediction.predictedPrice} (range ${prediction.predictedRange.low}–${prediction.predictedRange.high})`
         })
+        if (!inserted) {
+          summary.skipped += 1
+          await recordEvaluation(rule._id, 'NONE', { lastPrediction })
+          continue
+        }
 
         await automationRuleModel.updateOne(
           { _id: rule._id },

@@ -37,6 +37,11 @@ const alertSchema = new Schema(
       max: 1,
       default: 0
     },
+    eventKey: {
+      type: String,
+      trim: true,
+      maxlength: 256
+    },
     read: {
       type: Boolean,
       default: false
@@ -46,5 +51,9 @@ const alertSchema = new Schema(
 )
 
 alertSchema.index({ userId: 1, read: 1, createdAt: -1 })
+alertSchema.index({ userId: 1, eventKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { eventKey: { $type: 'string' } }
+})
 
 export const alertModel = model('alert', alertSchema)

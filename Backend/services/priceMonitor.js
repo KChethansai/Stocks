@@ -1,6 +1,7 @@
 import { stockModel } from '../models/StockModel.js'
 import { priceAlertModel } from '../models/PriceAlertModel.js'
 import { alertModel } from '../models/AlertModel.js'
+import { writeAlertOnce } from './alertDedupe.js'
 
 /**
  * Shared price-trigger evaluator. Reads the already-cached StockModel prices
@@ -11,10 +12,9 @@ import { alertModel } from '../models/AlertModel.js'
  * Defensive by design:
  * - Restart-safe: pending state is the `triggered` flag in Mongo, nothing
  *   in memory. A missed tick while the server sleeps just evaluates late on
- *   wake; a crossed alert fires once, never lost, never duplicated (the flag
- *   flip and inbox write happen per-alert, and a crash between them can at
- *   worst produce a duplicate inbox row on the next tick — accepted, since
- *   the flag check runs first and inbox rows are idempotent-ish reads).
+ *   wake. Inbox writes use the alert definition's one-shot event identity.
+ *   A failed write releases its claim; a process crash after claiming still
+ *   requires recovery of that definition (the two writes are not transactional).
  * - One bad alert row can never kill the cycle: per-alert try/catch.
  */
 export const checkPriceTriggers = async () => {
@@ -67,13 +67,22 @@ export const checkPriceTriggers = async () => {
       if (!claimed) continue
 
       const verb = alert.direction === 'ABOVE' ? 'rose above' : 'fell below'
-      await alertModel.create({
-        userId: alert.userId,
-        symbol: alert.symbol,
-        message: `${alert.symbol} ${verb} $${Number(alert.targetPrice).toFixed(2)} (now $${price.toFixed(2)})`,
-        direction: alert.direction === 'ABOVE' ? 'UP' : 'DOWN',
-        confidence: 1
-      })
+      try {
+        await writeAlertOnce(alertModel, {
+          eventKey: `price:${alert._id}`,
+          userId: alert.userId,
+          symbol: alert.symbol,
+          message: `${alert.symbol} ${verb} $${Number(alert.targetPrice).toFixed(2)} (now $${price.toFixed(2)})`,
+          direction: alert.direction === 'ABOVE' ? 'UP' : 'DOWN',
+          confidence: 1
+        })
+      } catch (err) {
+        await priceAlertModel.updateOne(
+          { _id: alert._id, triggered: true, triggeredAt: claimed.triggeredAt },
+          { $set: { triggered: false, triggeredAt: null } }
+        )
+        throw err
+      }
       fired += 1
     } catch (err) {
       console.error(`[PriceMonitor] Skipping alert ${alert._id}:`, err.message)

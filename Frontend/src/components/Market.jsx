@@ -27,13 +27,13 @@ import { ParticleButton } from './kokonutui/ParticleButton'
 import { LiveValue } from './LiveValue'
 import { Button, Chip } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
+import { Select } from './ui/Select'
+import { normalizeSector } from '../utils/sectorTaxonomy'
 import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
-import { PredictionPanel, PredictionBadge } from './ml/PredictionWidgets'
+import { AutomationPanel } from './ml/PredictionWidgets'
 import PriceAlertsPanel from './PriceAlertsPanel'
 import {
-  fetchAccuracy,
-  fetchPrediction,
   fetchAutomationRules,
   saveAutomationRule,
   patchAutomationRule
@@ -47,6 +47,7 @@ export default function Market() {
     fetchMarketSummary,
     buyStock,
     sellStock,
+    refreshQuote,
     fetchHistory,
     fetchPortfolio,
     startPolling,
@@ -59,6 +60,9 @@ export default function Market() {
   const [query, setQuery] = useState('')
   const [selectedSector, setSelectedSector] = useState('ALL')
   const [selectedStockSymbol, setSelectedStockSymbol] = useState(null)
+  const [sort, setSort] = useState('symbol')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 15
   const [pendingOrder, setPendingOrder] = useState(null)
   const confirmBtnRef = useRef(null)
   const [range, setRange] = useState('1M')
@@ -69,13 +73,10 @@ export default function Market() {
   const [historyError, setHistoryError] = useState(false)
   const [historyAttempt, setHistoryAttempt] = useState(0)
   const [submittingTrade, setSubmittingTrade] = useState(false)
+  const [quoteRefreshing, setQuoteRefreshing] = useState(false)
   const [orderSide, setOrderSide] = useState('BUY') // 'BUY' | 'SELL'
   const [orderQuantity, setOrderQuantity] = useState(1)
-  const [prediction, setPrediction] = useState(null)
-  const [predictionLoading, setPredictionLoading] = useState(false)
   const [automationRule, setAutomationRule] = useState(null)
-  const [predictionHorizon, setPredictionHorizon] = useState(1)
-  const [predictionAccuracy, setPredictionAccuracy] = useState(null)
 
   // Confirm dialog keyboard contract: Escape cancels (unless executing),
   // focus lands on Confirm when the dialog opens.
@@ -110,29 +111,58 @@ export default function Market() {
     return () => stopPolling()
   }, [fetchStocks, fetchMarketSummary, fetchPortfolio, startPolling, stopPolling])
 
-  // Extract unique sectors
+  // Canonical sectors with counts (labels + identifiers normalized through
+  // the shared taxonomy; raw universe strings never leak into chips).
   const sectors = useMemo(() => {
-    const set = new Set(['ALL'])
+    const counts = new Map()
     stocks.forEach((s) => {
-      if (s.sector) set.add(s.sector)
+      const sec = normalizeSector(s.sector)
+      counts.set(sec, (counts.get(sec) || 0) + 1)
     })
-    return Array.from(set)
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
   }, [stocks])
 
-  // Filter stocks list
+  const hasActiveFilters = query.trim() !== '' || selectedSector !== 'ALL' || sort !== 'symbol'
+
+  const clearFilters = () => {
+    setQuery('')
+    setSelectedSector('ALL')
+    setSort('symbol')
+    setPage(1)
+  }
+
+  // Filter + sort (one dataset drives the list, the count, and the detail).
   const filteredStocks = useMemo(() => {
     const normalized = query.toLowerCase().trim()
-    return stocks.filter((item) => {
+    const rows = stocks.filter((item) => {
+      const sec = normalizeSector(item.sector)
       const matchesQuery =
         !normalized ||
         item.symbol.toLowerCase().includes(normalized) ||
         item.name.toLowerCase().includes(normalized) ||
-        item.sector?.toLowerCase().includes(normalized)
+        sec.toLowerCase().includes(normalized)
       const matchesSector =
-        selectedSector === 'ALL' || item.sector === selectedSector
+        selectedSector === 'ALL' || sec === selectedSector
       return matchesQuery && matchesSector
     })
-  }, [stocks, query, selectedSector])
+    const by = {
+      'symbol': (a, b) => a.symbol.localeCompare(b.symbol),
+      'price-desc': (a, b) => (b.price || 0) - (a.price || 0),
+      'price-asc': (a, b) => (a.price || 0) - (b.price || 0),
+      'change-desc': (a, b) => (b.changePercent || 0) - (a.changePercent || 0),
+      'marketcap-desc': (a, b) => (b.marketCap || 0) - (a.marketCap || 0)
+    }[sort] || ((a, b) => a.symbol.localeCompare(b.symbol))
+    return [...rows].sort(by)
+  }, [stocks, query, selectedSector, sort])
+
+  // Invalid pagination never survives a filter change.
+  useEffect(() => {
+    setPage(1)
+  }, [query, selectedSector, sort])
+
+  const pageCount = Math.max(1, Math.ceil(filteredStocks.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const pagedStocks = filteredStocks.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   // Active selected stock
   const selectedStock = useMemo(() => {
@@ -199,29 +229,23 @@ export default function Market() {
     return portfolio.holdings.find((h) => h.symbol === selectedStock.symbol)
   }, [portfolio, selectedStock])
 
-  // ML prediction + automation rule for selected symbol
+  // Automation rule for the selected symbol (paper automation controls).
+  // Forecast presentation was removed from Markets; prediction APIs, the
+  // model, and the dedicated Forecast accuracy page are untouched.
   useEffect(() => {
     if (!selectedStock?.symbol) return
     let cancelled = false
-    setPredictionLoading(true)
-    setPrediction(null)
+    setAutomationRule(null)
 
-    Promise.all([
-      fetchPrediction(selectedStock.symbol, predictionHorizon).catch(() => null),
-      fetchAutomationRules().catch(() => []),
-      fetchAccuracy(selectedStock.symbol).catch(() => null)
-    ]).then(([pred, rules, accuracy]) => {
+    fetchAutomationRules().then((rules) => {
       if (cancelled) return
-      setPrediction(pred)
       setAutomationRule((rules || []).find((r) => r.symbol === selectedStock.symbol) || null)
-      setPredictionAccuracy(accuracy)
-      setPredictionLoading(false)
-    })
+    }).catch(() => [])
 
     return () => {
       cancelled = true
     }
-  }, [selectedStock?.symbol, predictionHorizon])
+  }, [selectedStock?.symbol])
 
   const handleSaveAutomation = async (payload) => {
     try {
@@ -267,6 +291,32 @@ export default function Market() {
       const res = await addToWatchlist(target)
       if (res.success) toast.success(`Added ${target} to watchlist`)
       else toast.error(res.message || 'Error updating watchlist')
+    }
+  }
+
+  // Quote provenance for the inline ticket (mirrors the server gate). When
+  // blocked, the ticket offers the synchronous per-symbol refresh inline —
+  // symbol, quantity, side, and any later retry key are preserved.
+  const quoteBlocked = Boolean(
+    selectedStock &&
+    (!(Number(selectedStock.price) > 0) ||
+      !selectedStock.lastVerifiedAt ||
+      (selectedStock.source && selectedStock.source !== 'yahoo') ||
+      selectedStock.stale)
+  )
+
+  const handleRefreshQuote = async () => {
+    if (quoteRefreshing || !selectedStock?.symbol) return
+    setQuoteRefreshing(true)
+    try {
+      const result = await refreshQuote(selectedStock.symbol)
+      if (result.success) {
+        toast.success(`Quote refreshed — ${selectedStock.symbol} verified as of now.`)
+      } else {
+        toast.error(result.message || 'Live market data is unavailable right now')
+      }
+    } finally {
+      setQuoteRefreshing(false)
     }
   }
 
@@ -384,29 +434,86 @@ export default function Market() {
             />
           </div>
 
-          {/* Sector Filter Chips */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {sectors.slice(0, 5).map((sec) => (
+          {/* Sector Filter Chips (all canonical sectors, with counts) */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="Filter by sector">
+            <Chip
+              active={selectedSector === 'ALL'}
+              onClick={() => setSelectedSector('ALL')}
+              className="whitespace-nowrap px-2.5 py-1 text-[11px]"
+            >
+              All · {stocks.length}
+            </Chip>
+            {sectors.map(([sec, count]) => (
               <Chip
                 key={sec}
                 active={selectedSector === sec}
                 onClick={() => setSelectedSector(sec)}
                 className="whitespace-nowrap px-2.5 py-1 text-[11px]"
               >
-                {sec}
+                {sec} · {count}
               </Chip>
             ))}
           </div>
 
+          {/* Sort + result scope + reset */}
+          <div className="flex items-center gap-2">
+            <Select
+              value={sort}
+              onChange={setSort}
+              ariaLabel="Sort stocks"
+              className="flex-1 min-w-0"
+              options={[
+                { value: 'symbol', label: 'Symbol A–Z' },
+                { value: 'price-desc', label: 'Price high→low' },
+                { value: 'price-asc', label: 'Price low→high' },
+                { value: 'change-desc', label: 'Top movers' },
+                { value: 'marketcap-desc', label: 'Market cap' }
+              ]}
+            />
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="shrink-0 rounded-lg border border-[rgba(255,255,255,0.08)] px-2.5 py-1.5 text-[11px] font-mono text-[var(--stone)] transition hover:text-[var(--ivory)] min-h-[36px]"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <p className="mf-meta font-mono px-1" aria-live="polite">
+            {filteredStocks.length} of {stocks.length} listed{pageCount > 1 ? ` · page ${safePage} of ${pageCount}` : ''}
+          </p>
+
           {/* Stock List */}
           <div className="flex flex-col gap-1.5 flex-1">
-            {filteredStocks.map((stock) => {
+            {pagedStocks.length === 0 && (
+              <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#111316] p-5 text-center">
+                <p className="text-xs text-[var(--stone)]">No stocks match these filters.</p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-2 text-[11px] font-mono text-[var(--brass)] hover:underline min-h-[36px]"
+                >
+                  Clear search and filters
+                </button>
+              </div>
+            )}
+            {pagedStocks.map((stock) => {
               const isSelected = selectedStock?.symbol === stock.symbol
               const isPos = stock.changePercent >= 0
               return (
                 <div
                   key={stock.symbol}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${stock.symbol}, ${stock.name}, $${Number(stock.price).toFixed(2)}`}
                   onClick={() => setSelectedStockSymbol(stock.symbol)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setSelectedStockSymbol(stock.symbol)
+                    }
+                  }}
                   className={`p-3 rounded-lg border transition-all cursor-pointer flex flex-col gap-2 ${
                     isSelected
                       ? 'bg-[#181B1F] border-[var(--brass)]/50 shadow-sm'
@@ -445,6 +552,27 @@ export default function Market() {
                 </div>
               )
             })}
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-[11px] font-mono text-[var(--stone)] transition hover:text-[var(--ivory)] disabled:opacity-40 min-h-[36px]"
+                >
+                  ← Prev
+                </button>
+                <span className="mf-meta font-mono">Page {safePage} of {pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={safePage >= pageCount}
+                  className="rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-[11px] font-mono text-[var(--stone)] transition hover:text-[var(--ivory)] disabled:opacity-40 min-h-[36px]"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
         </Reveal>
 
@@ -474,14 +602,11 @@ export default function Market() {
                           }`}
                         />
                       </button>
-                      {!predictionLoading && prediction?.ok && (
-                        <PredictionBadge prediction={prediction} compact />
-                      )}
                     </div>
                     <p className="text-xs text-[var(--stone-muted)] mt-1.5 flex items-center gap-2">
                       <span className="truncate">{selectedStock.name}</span>
                       <span>•</span>
-                      <span className="text-text-muted font-mono">{selectedStock.sector || 'US Equity'}</span>
+                      <span className="text-text-muted font-mono">{normalizeSector(selectedStock.sector)}</span>
                     </p>
                   </div>
                 </div>
@@ -613,16 +738,11 @@ export default function Market() {
         {/* Right Column: AI + Trade Ticket */}
         <Reveal as="aside" delay={0.1} className="w-full xl:w-80 shrink-0 flex flex-col gap-4 h-fit max-h-full overflow-y-auto">
           {selectedStock && (
-            <PredictionPanel
+            <AutomationPanel
               symbol={selectedStock.symbol}
-              prediction={prediction}
-              loading={predictionLoading}
               automationRule={automationRule}
               onSaveAutomation={handleSaveAutomation}
               onToggleAutomation={handleToggleAutomation}
-              horizon={predictionHorizon}
-              onHorizonChange={setPredictionHorizon}
-              accuracy={predictionAccuracy}
             />
           )}
 
@@ -711,6 +831,24 @@ export default function Market() {
                 <span className="text-[var(--stone-muted)]">{formatCurrency(userBalance)}</span>
               </div>
             </div>
+
+            {quoteBlocked && (
+              <div className="flex items-center gap-2 rounded-xl border border-[#D9A441]/30 bg-[#D9A441]/5 px-3 py-2.5 text-xs">
+                <span className="flex-1 text-[var(--stone)]">
+                  {selectedStock.stale
+                    ? 'Quote is stale — refresh to verify before ordering.'
+                    : 'Quote unverified — refresh to verify before ordering.'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRefreshQuote}
+                  disabled={quoteRefreshing}
+                  className="shrink-0 rounded-lg border border-[var(--brass)]/40 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-[var(--brass)] transition hover:bg-[var(--brass)]/10 disabled:opacity-40 min-h-[36px]"
+                >
+                  {quoteRefreshing ? 'Refreshing…' : 'Refresh quote'}
+                </button>
+              </div>
+            )}
 
             {orderSide === 'BUY' ? (
               <Button

@@ -63,6 +63,10 @@ const stockSchema = new Schema(
       type: Date,
       default: null
     },
+    marketState: {
+      type: String,
+      default: null
+    },
     lastVerifiedAt: {
       type: Date,
       default: null

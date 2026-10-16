@@ -6,15 +6,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import toast from 'react-hot-toast'
 import {
-  User as UserIcon,
-  Lock,
-  SlidersHorizontal,
-  Database,
-  LayoutDashboard,
   Camera,
   Trash2,
   Eye,
   EyeOff,
+  LayoutDashboard,
 } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import { useTrade } from '../store/tradeStore'
@@ -24,11 +20,11 @@ import { Field } from './ui/Primitives'
 import MotionToggle from './layout/MotionToggle'
 
 const SECTIONS = [
-  { id: 'account', label: 'Account', Icon: UserIcon },
-  { id: 'login', label: 'Login', Icon: UserIcon },
-  { id: 'security', label: 'Security', Icon: Lock },
-  { id: 'preferences', label: 'Preferences', Icon: SlidersHorizontal },
-  { id: 'data', label: 'Data', Icon: Database },
+  { id: 'account', label: 'Account' },
+  { id: 'login', label: 'Login' },
+  { id: 'security', label: 'Security' },
+  { id: 'preferences', label: 'Preferences' },
+  { id: 'data', label: 'Data' },
 ]
 
 function monogram(name) {
@@ -89,15 +85,50 @@ export default function Profile() {
     }
   }, [currentUser?.username, currentUser?.email]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Section spy (scroll-margin anchors; segmented control under lg).
+  // Section spy: a retained entry map plus a deterministic winner rule.
+  // The default last-wins observer breaks for side-by-side cards (identical
+  // tops, both fully visible): ties resolve by keyboard-focus override, then
+  // geometry (stacked → top closest below the chip bar; side-by-side →
+  // document order). Display-only location state — never draft/visibility.
   useEffect(() => {
+    const order = new Map(SECTIONS.map((s, i) => [`profile-${s.id}`, i]))
+    const seen = new Map()
+    const pick = () => {
+      const visible = [...seen.values()].filter((e) => e.isIntersecting)
+      if (!visible.length) return
+      let best = visible[0]
+      for (const e of visible.slice(1)) {
+        if (e.intersectionRatio - best.intersectionRatio > 0.05) {
+          best = e
+          continue
+        }
+        if (Math.abs(e.intersectionRatio - best.intersectionRatio) <= 0.05) {
+          const ae = document.activeElement
+          const inE = e.target.contains(ae)
+          const inB = best.target.contains(ae)
+          if (inE && !inB) {
+            best = e
+            continue
+          }
+          if (!inE && !inB) {
+            const topE = e.boundingClientRect?.top ?? 0
+            const topB = best.boundingClientRect?.top ?? 0
+            if (Math.abs(topE - topB) > 8) {
+              if (topE < topB) best = e
+              continue
+            }
+            if ((order.get(e.target.id) ?? 99) < (order.get(best.target.id) ?? 99)) best = e
+          }
+        }
+      }
+      setActive(best.target.id.replace('profile-', ''))
+    }
     const obs = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) setActive(e.target.id.replace('profile-', ''))
-        }
+        for (const e of entries) seen.set(e.target.id, e)
+        pick()
       },
-      { rootMargin: '-96px 0px -70% 0px' }
+      { rootMargin: '-120px 0px -60% 0px', threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] }
     )
     SECTIONS.forEach(({ id }) => {
       const el = document.getElementById(`profile-${id}`)
@@ -231,6 +262,21 @@ export default function Profile() {
   const strength = passwordScore(newPw)
   const strengthLabel = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'][strength]
 
+  // When a section turns dirty, bring its chip into view once (page never
+  // moves: block/inline nearest). The owning card's heading dot is the
+  // primary narrow-viewport signal; this keeps the strip's dot visible too.
+  const prevDirtyRef = useRef({})
+  useEffect(() => {
+    for (const id of Object.keys(dirtySections)) {
+      if (dirtySections[id] && !prevDirtyRef.current[id]) {
+        document
+          .querySelector(`a[href="#profile-${id}"]`)
+          ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      }
+    }
+    prevDirtyRef.current = dirtySections
+  }, [dirtySections])
+
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
       <p className="mf-label text-[var(--brass)] text-xs font-bold tracking-[0.14em] uppercase">Account workspace</p>
@@ -240,16 +286,19 @@ export default function Profile() {
       {/* polite status for form outcomes (mirrors toasts for SR users) */}
       <div aria-live="polite" className="sr-only">{status}</div>
 
-      {/* Mobile section nav */}
-      <div className="lg:hidden sticky top-14 z-20 -mx-4 px-4 py-2 bg-[#0B0C0E]/95 backdrop-blur mt-6" role="group" aria-label="Profile sections">
+      {/* Unified section nav: one non-selecting anchor-chip bar at every
+          breakpoint. Chips are plain #profile-* jumps (location indicator
+          only via aria-current="location") — they never filter or hide. */}
+      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 bg-[#0B0C0E]/95 backdrop-blur mt-6" role="group" aria-label="Profile sections">
         <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/8 bg-[#111316] p-1">
           {SECTIONS.map(({ id, label }) => (
             <a
               key={id}
               href={`#profile-${id}`}
-              aria-current={active === id ? 'true' : undefined}
+              aria-label={dirtySections[id] ? `${label} — unsaved changes` : label}
+              aria-current={active === id ? 'location' : undefined}
               className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 min-h-[44px] inline-flex items-center justify-center text-xs font-semibold transition ${
-                active === id ? 'bg-white/[0.07] text-[var(--ivory)]' : 'text-[var(--stone)]'
+                active === id ? 'bg-white/[0.07] text-[var(--ivory)]' : 'text-[var(--stone)] hover:text-[var(--ivory)]'
               }`}
             >
               {label}
@@ -259,34 +308,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="mt-6 flex gap-8">
-        {/* Desktop sub-nav */}
-        <nav aria-label="Profile sections" className="hidden lg:block w-60 shrink-0">
-          <div className="sticky top-20 rounded-2xl border border-white/8 bg-[#111316] p-2">
-            {SECTIONS.map(({ id, label, Icon }) => (
-              <a
-                key={id}
-                href={`#profile-${id}`}
-                aria-label={dirtySections[id] ? `${label} — unsaved changes` : label}
-                aria-current={active === id ? 'true' : undefined}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-h-[44px] text-sm transition ${
-                  active === id ? 'bg-white/[0.06] text-[var(--ivory)]' : 'text-[var(--stone)] hover:text-[var(--ivory)]'
-                }`}
-              >
-                <Icon className="w-4 h-4" aria-hidden="true" />
-                <span className="flex-1">{label}</span>
-                {dirtySections[id] ? (
-                  <span className="flex items-center gap-1.5 text-xs text-[var(--stone)]">
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#D9A441]" />
-                    Unsaved
-                  </span>
-                ) : null}
-              </a>
-            ))}
-          </div>
-        </nav>
-
-        <div className="flex-1 min-w-0 space-y-4">
+      <div className="mt-6 min-w-0 space-y-4">
           {/* Account summary header (D9): compact identity row + capital strip.
               Full width; the four control cards below share a 2-col grid. */}
           <section id="profile-account" aria-labelledby="profile-account-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-5">
@@ -336,12 +358,74 @@ export default function Profile() {
             <p className="mf-meta mt-2">JPG, PNG, or WEBP under 5MB.</p>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-2 items-start">
+          {/* Credentials region. Password users get a 2-col Login|Security
+              row of intrinsically near-equal forms (bottom-aligned actions);
+              Google users get a full-width Security notice band (keeps the
+              profile-security anchor) followed by a full-width Login band
+              with a 2-col field interior. No short card is ever stretched
+              beside a tall one. */}
+          {isGoogle ? (
+            <>
+            <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] px-6 py-4">
+              <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">Security</h2>
+              <p className="mt-1.5 text-sm text-[var(--stone)]">Signed in with Google — there is no MarketForge password to change. Manage credentials with your Google account.</p>
+            </section>
+
+            <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+              <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">
+                Login details
+                {dirtySections.login && (
+                  <><span aria-hidden="true" className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-[#D9A441]" /><span className="sr-only"> — unsaved changes</span></>
+                )}
+              </h2>
+              <form onSubmit={saveLogin} className="mt-4" noValidate>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <Field label="Username" htmlFor="profile-username" error={loginErrors.username} hint="3–30 characters.">
+                    <input
+                      id="profile-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      data-login-error={loginErrors.username ? 'true' : undefined}
+                      aria-invalid={Boolean(loginErrors.username)}
+                      className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                    />
+                  </Field>
+                  <Field label="Email address" htmlFor="profile-email" error={loginErrors.email} hint="Used for sign-in.">
+                    <input
+                      id="profile-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      data-login-error={loginErrors.email ? 'true' : undefined}
+                      aria-invalid={Boolean(loginErrors.email)}
+                      className="w-full rounded-xl border border-white/8 bg-[#0B0C0E] px-3.5 py-2.5 min-h-[44px] text-sm text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)]"
+                    />
+                  </Field>
+                </div>
+                {loginErrors.form && <p className="mt-3 text-xs text-[var(--loss)]" data-login-error="true">{loginErrors.form}</p>}
+                <div className="mt-3">
+                  <Button type="submit" variant="primary" disabled={!loginDirty || loginSaving} className="min-h-[44px]">
+                    {loginSaving ? 'Saving…' : 'Save login details'}
+                  </Button>
+                </div>
+              </form>
+            </section>
+            </>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2 items-stretch">
 
           {/* Login details (editable) */}
-          <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
-            <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">Login details</h2>
-            <form onSubmit={saveLogin} className="mt-4 space-y-3" noValidate>
+          <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
+            <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">
+              Login details
+              {dirtySections.login && (
+                <><span aria-hidden="true" className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-[#D9A441]" /><span className="sr-only"> — unsaved changes</span></>
+              )}
+            </h2>
+            <form onSubmit={saveLogin} className="mt-4 space-y-3 flex flex-col flex-1" noValidate>
               <Field label="Username" htmlFor="profile-username" error={loginErrors.username} hint="3–30 characters.">
                 <input
                   id="profile-username"
@@ -367,19 +451,23 @@ export default function Profile() {
                 />
               </Field>
               {loginErrors.form && <p className="text-xs text-[var(--loss)]" data-login-error="true">{loginErrors.form}</p>}
-              <Button type="submit" variant="primary" disabled={!loginDirty || loginSaving} className="min-h-[44px]">
-                {loginSaving ? 'Saving…' : 'Save login details'}
-              </Button>
+              <div className="mt-auto pt-1">
+                <Button type="submit" variant="primary" disabled={!loginDirty || loginSaving} className="min-h-[44px]">
+                  {loginSaving ? 'Saving…' : 'Save login details'}
+                </Button>
+              </div>
             </form>
           </section>
 
-          {/* Security (editable unless Google provider) */}
-          <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
-            <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">Security</h2>
-            {isGoogle ? (
-              <p className="mt-3 text-sm text-[var(--stone)]">Signed in with Google — there is no MarketForge password to change. Manage credentials with your Google account.</p>
-            ) : (
-              <form onSubmit={savePassword} className="mt-4 space-y-3" noValidate>
+          {/* Security (password users) */}
+          <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
+            <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">
+              Security
+              {dirtySections.security && (
+                <><span aria-hidden="true" className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-[#D9A441]" /><span className="sr-only"> — unsaved changes</span></>
+              )}
+            </h2>
+            <form onSubmit={savePassword} className="mt-4 space-y-3 flex flex-col flex-1" noValidate>
                 <Field label="Current password" htmlFor="profile-current-pw" error={pwErrors.current}>
                   <div className="relative">
                     <input
@@ -422,29 +510,34 @@ export default function Profile() {
                     <span className="text-xs text-[var(--stone)]">{strengthLabel}</span>
                   </div>
                 )}
-                <Button type="submit" variant="primary" disabled={!pwDirty || pwSaving} className="min-h-[44px]">
-                  {pwSaving ? 'Updating…' : 'Update password'}
-                </Button>
+                <div className="mt-auto pt-1">
+                  <Button type="submit" variant="primary" disabled={!pwDirty || pwSaving} className="min-h-[44px]">
+                    {pwSaving ? 'Updating…' : 'Update password'}
+                  </Button>
+                </div>
               </form>
-            )}
-          </section>
+            </section>
+            </div>
+          )}
 
-          {/* Preferences */}
+          {/* Preferences: full-width horizontal band (wraps only when 360px forces it) */}
           <section id="profile-preferences" aria-labelledby="profile-preferences-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
             <h2 id="profile-preferences-h" className="text-base font-bold text-[var(--ivory)]">Preferences</h2>
-            <div className="mt-4 flex items-center justify-between gap-4">
-              <div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-[var(--ivory)]">Motion</p>
                 <p className="mf-meta mt-0.5">Full plays reveals and chart draws. Comfort renders everything statically. Saved on this device.</p>
               </div>
-              <MotionToggle />
+              <div className="shrink-0">
+                <MotionToggle />
+              </div>
             </div>
           </section>
 
-          {/* Data & activity */}
+          {/* Data & activity: full-width band, 3-up interior at lg (items-start: no forced stretch) */}
           <section id="profile-data" aria-labelledby="profile-data-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
             <h2 id="profile-data-h" className="text-base font-bold text-[var(--ivory)]">Data &amp; activity</h2>
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 space-y-2 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0 items-start">
               {[
                 { to: '/activity', label: 'Activity ledger', desc: `Every fill with its order key${Number.isFinite(holdingsCount) ? ` · ${holdingsCount} open positions` : ''}` },
                 { to: '/activity', label: 'Export CSV', desc: 'Filtered view, latest 100 rows, from the ledger' },
@@ -462,13 +555,11 @@ export default function Profile() {
               ))}
             </ul>
           </section>
-          </div>{/* /grid */}
 
           <p className="flex items-center gap-2 text-sm text-[var(--stone)]">
             <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
             Signed in as {currentUser?.email || 'your account'}. Balances change only through fills.
           </p>
-        </div>
       </div>
     </div>
   )
