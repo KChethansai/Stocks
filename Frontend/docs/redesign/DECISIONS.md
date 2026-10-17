@@ -358,3 +358,27 @@ Task-file product truth < live code. D6 is the instance: filesystem won.
 - **D42. Number spinners (U8):** native spinners suppressed across
   engines (paint only); stepper buttons were already type="button";
   validation/keyboard/min-max unchanged.
+- **D43. Provider resilience (Oct 2026 production incident):** production
+  quotes were 18h stale with no `marketState` because the 60s background sync
+  retried every 60s against a rejecting provider, and each failure ran
+  `updateMany({}, {stale:true})`. Three root causes fixed:
+  (1) *Unbounded retry loop* — a shared circuit breaker
+  (`services/providerBudget.js`) opens after 3 consecutive failures, makes **no
+  provider call** during the cooldown, and admits exactly one half-open probe;
+  exponential backoff to a 15min ceiling. Used by the sync, the manual
+  refresh, and the execution-path refresh.
+  (2) *`stale` conflated two facts* — a provider outage no longer invalidates
+  data. `stale` now means only "not valid for its own session" (computed with
+  the same `isExecutableQuote` gate that guards execution), so Friday's close
+  stays usable on Saturday. The outage is recorded separately as
+  `providerUnavailableAt` so the UI can say so. Rows with no session state
+  still fail closed — never inferred.
+  (3) *Fixed 60s cadence* — now adaptive from what the provider last
+  reported: 60s in a regular session, 15min while closed, since a closed
+  market's data cannot change. Never assumes the market is open.
+  Also: the manual-refresh throttle no longer returns a user-facing 429 —
+  if a refresh for that symbol already ran inside the window, the verified
+  stored row is returned as 200 (`cachedWithinThrottle`); if the provider is
+  unreachable but the stored quote is still valid, it is returned as a
+  degraded 200. Genuine failures stay 429/502/503 with the real cause. No
+  refresh path returns 429 for a request that never needed to be made.

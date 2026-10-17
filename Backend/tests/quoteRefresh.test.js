@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { buildVerifiedQuoteRow, refreshAllowed, rememberRefresh, deduplicateQuoteRefresh, QUOTE_REFRESH_THROTTLE_MS } from '../services/quoteRefresh.js'
+import { isExecutableQuote } from '../services/quotePolicy.js'
 
 const base = { symbol: 'TST', name: 'Test Inc.', sector: 'Technology' }
 const liveQuote = (over = {}) => ({
@@ -149,6 +150,17 @@ describe('quote recovery route persistence', () => {
         refreshAllowed: () => ({ ok: true }), rememberRefresh: () => {},
         deduplicateQuoteRefresh, yahooFinance: { quote: async () => quote },
         buildVerifiedQuoteRow: (b, q) => buildVerifiedQuoteRow(b, q, now),
+        // The route now runs the provider call under the shared budget and
+        // re-checks the stored row before reporting a failure, so it needs
+        // the real policy and a passthrough budget in scope.
+        withProviderBudget: async (attempt) => {
+          try {
+            return { ok: true, value: await attempt() }
+          } catch (error) {
+            return { ok: false, reason: 'provider-error', error }
+          }
+        },
+        isExecutableQuote,
         invalidateCache: () => {}, console
       }
       vm.runInNewContext(route, context)

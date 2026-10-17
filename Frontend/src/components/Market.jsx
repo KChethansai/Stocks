@@ -311,7 +311,17 @@ export default function Market() {
     try {
       const result = await refreshQuote(selectedStock.symbol)
       if (result.success) {
-        toast.success(`Quote refreshed — ${selectedStock.symbol} verified against the latest provider close.`)
+        // Three truthful outcomes, all usable — none of them a red error:
+        // a fresh provider row, the same verified row served from inside the
+        // throttle window, or the last verified close while the provider is
+        // unreachable.
+        if (result.degraded) {
+          toast(result.message || `Data provider unreachable — showing ${selectedStock.symbol}'s last verified close.`, { icon: '⚠' })
+        } else if (result.cached) {
+          toast(result.message || `${selectedStock.symbol} was verified moments ago.`)
+        } else {
+          toast.success(`Quote refreshed — ${selectedStock.symbol} verified against the latest provider close.`)
+        }
       } else {
         toast.error(result.message || 'Live market data is unavailable right now')
       }

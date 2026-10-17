@@ -64,7 +64,17 @@ export const useTrade = create((set) => ({
         withCredentials: true
       })
       set({ stocks: response.data.stocks, loading: false })
-      return { success: true, stale: Boolean(response.data?.meta?.stale) }
+      const meta = response.data?.meta || {}
+      return {
+        success: true,
+        stale: Boolean(meta.stale),
+        // The provider being unreachable is a different fact from data being
+        // unusable: the first is transient and self-healing, the second needs
+        // new data. Callers must not conflate them.
+        providerUnavailableAt: meta.providerUnavailableAt || null,
+        usableCount: meta.usableCount ?? null,
+        totalCount: meta.totalCount ?? null
+      }
     } catch (err) {
       set({ loading: false })
       return {
@@ -84,11 +94,25 @@ export const useTrade = create((set) => ({
         withCredentials: true
       })
       const fresh = response.data?.stock
-      if (response.data?.refreshed && fresh) {
+      // `refreshed: false` + a verified row means the provider was unreachable
+      // but the stored quote is still genuinely valid for its session. That is
+      // a usable answer, not a failure, so it must not render as an error.
+      if (fresh && (response.data?.refreshed || response.data?.degraded)) {
         set((state) => ({
           stocks: (state.stocks || []).map((s) => s.symbol === fresh.symbol ? { ...s, ...fresh } : s)
         }))
-        return { success: true, stock: fresh }
+        return {
+          success: true,
+          stock: fresh,
+          degraded: Boolean(response.data?.degraded),
+          message: response.data?.message
+        }
+      }
+      if (fresh && response.data?.cachedWithinThrottle) {
+        set((state) => ({
+          stocks: (state.stocks || []).map((s) => s.symbol === fresh.symbol ? { ...s, ...fresh } : s)
+        }))
+        return { success: true, stock: fresh, cached: true, message: response.data?.message }
       }
       return { success: false, message: response.data?.message || 'Quote refresh failed' }
     } catch (err) {

@@ -213,7 +213,15 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
       if (result.success && result.stock) {
         setSelected((prev) => (prev ? { ...prev, ...result.stock } : prev))
         setGateMessage('')
-        toast.success(`Quote refreshed — ${selected.symbol} verified against the latest provider close.`)
+        if (result.degraded) {
+          // The provider is unreachable, but this quote is still genuinely
+          // valid for its session. That is information, not a failure.
+          toast(result.message || `Data provider unreachable — showing ${selected.symbol}'s last verified close.`, { icon: '⚠' })
+        } else if (result.cached) {
+          toast(result.message || `${selected.symbol} was verified moments ago.`)
+        } else {
+          toast.success(`Quote refreshed — ${selected.symbol} verified against the latest provider close.`)
+        }
       } else {
         // A throttle is not a dead end: the order itself refreshes the quote
         // server-side, so tell the user that instead of implying failure.

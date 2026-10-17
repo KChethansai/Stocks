@@ -8,6 +8,7 @@ import { orderModel } from '../models/OrderModel.js'
 import { idempotencyKeyModel } from '../models/IdempotencyKeyModel.js'
 import { isExecutableQuote } from './quotePolicy.js'
 import { refreshSymbolForExecution } from './quoteRefresh.js'
+import { withProviderBudget } from './providerBudget.js'
 import { invalidateCache } from '../config/cache.js'
 
 /**
@@ -258,7 +259,11 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
     // caller's back — only a doc we loaded ourselves may be refreshed.
     const refreshed = stock
       ? null
-      : await refreshSymbolForExecution(stockDoc, fetchYahooQuote)
+      // Under the shared provider budget: when the circuit is open this fails
+      // immediately instead of joining the provider stampede that caused the
+      // outage. The order is then rejected truthfully, which is correct — we
+      // cannot verify a quote we are not allowed to fetch.
+      : (await withProviderBudget(() => refreshSymbolForExecution(stockDoc, fetchYahooQuote))).value ?? null
     if (refreshed) {
       stockDoc = (await persistVerifiedQuote(refreshed)) || refreshed
     }

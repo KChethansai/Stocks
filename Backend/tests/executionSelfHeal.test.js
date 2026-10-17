@@ -22,6 +22,7 @@ import {
   rememberExecutionRefresh,
   EXECUTION_REFRESH_COOLDOWN_MS
 } from '../services/quoteRefresh.js'
+import { withProviderBudget, resetProviderCircuit } from '../services/providerBudget.js'
 
 const now = Date.now()
 const fresh = {
@@ -37,6 +38,7 @@ const fresh = {
 // Load tradeService with every import stripped and injectable doubles, the
 // same isolation the existing execution tests use.
 function service({ claim = null, stored, providerQuote = null } = {}) {
+  resetProviderCircuit()
   const state = {
     stored: { ...stored },
     lookups: 0,
@@ -62,6 +64,9 @@ function service({ claim = null, stored, providerQuote = null } = {}) {
       return refreshSymbolForExecution(...args)
     },
     setTimeout,
+    // The execution refresh runs under the shared provider budget now, so the
+    // VM needs the real one rather than a passthrough that hides the path.
+    withProviderBudget: (attempt) => withProviderBudget(attempt),
     stockModel: {
       findOne: () => { state.lookups++; return { lean: async () => state.stored } },
       updateOne: async (_f, u) => { state.stored = { ...u.$set } }

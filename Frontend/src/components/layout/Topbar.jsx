@@ -186,7 +186,14 @@ export default function Topbar({ onOpenCommand, onOpenTrade, onToggleMobileNav }
     setRefreshing(true)
     const result = await fetchStocks()
     if (result?.success && result?.stale) {
-      toast('Market data is stale — quotes show their as-of time.', { icon: '⚠' })
+      // Distinguish "the provider is unreachable" (transient, prices are
+      // still the last genuine close) from "this data is not usable".
+      toast(
+        result.providerUnavailableAt
+          ? 'Data provider unreachable — showing the last verified close, with its as-of time.'
+          : `Some quotes are not usable${result.usableCount != null ? ` (${result.usableCount}/${result.totalCount} verified)` : ''} — each shows its as-of time.`,
+        { icon: '⚠' }
+      )
     } else if (result?.success) {
       toast.success('Market data refreshed')
     } else {
