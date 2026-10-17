@@ -72,7 +72,7 @@ export default function S06Analytics() {
         />
       </LReveal>
       <LReveal delay={0.08}>
-        <Illustrative caption="Example allocation — not your portfolio. Fund and benchmark from genuine daily history.">
+        <Illustrative className="mt-8" caption="Example allocation — not your portfolio. Fund and benchmark from genuine daily history.">
           <div className="rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-5 sm:p-6">
             <div role="img" aria-label={`Example three-stock fund vs S&P 500, past three months, ${loading ? 'loading' : composite ? 'genuine history' : 'unavailable'}`}>
               {loading ? (

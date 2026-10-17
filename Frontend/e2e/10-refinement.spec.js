@@ -53,7 +53,7 @@ test('profile compact workspace preserves every section', async ({ page }) => {
   const errors = []
   collectPageErrors(page, errors)
   await gotoAuthenticated(page, entry, '/profile')
-  for (const id of ['profile-account', 'profile-login', 'profile-security', 'profile-preferences', 'profile-data']) {
+  for (const id of ['profile-account', 'profile-login', 'profile-security', 'profile-data']) {
     await expect(page.locator(`#${id}`)).toBeAttached({ timeout: 15000 })
   }
   await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible()
@@ -95,7 +95,7 @@ test('public charts use genuine symbol history with honest labels', async ({ pag
     const out = {}
     for (const id of ids) out[id] = document.querySelectorAll(`#${CSS.escape(id)}`).length
     return out
-  }, ['how', 'markets', 'ticket', 'portfolio', 'analytics', 'alerts', 'forecasts', 'activity', 'news', 'workspace', 'craft'])
+  }, ['how', 'markets', 'ticket', 'portfolio', 'analytics', 'alerts', 'forecasts', 'activity', 'news', 'workspace'])
   for (const [id, n] of Object.entries(idCounts)) {
     expect(n, `anchor #${id} count`).toBe(1)
   }

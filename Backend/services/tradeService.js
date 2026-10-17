@@ -1,4 +1,5 @@
 import { startSession } from 'mongoose'
+import YahooFinance from 'yahoo-finance2'
 import { stockModel } from '../models/StockModel.js'
 import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
@@ -6,6 +7,8 @@ import { transactionModel } from '../models/TransactionModel.js'
 import { orderModel } from '../models/OrderModel.js'
 import { idempotencyKeyModel } from '../models/IdempotencyKeyModel.js'
 import { isExecutableQuote } from './quotePolicy.js'
+import { refreshSymbolForExecution } from './quoteRefresh.js'
+import { invalidateCache } from '../config/cache.js'
 
 /**
  * Single owner of paper-trade execution.
@@ -21,6 +24,30 @@ export const SYMBOL_PATTERN = /^[A-Z.]{1,10}$/
 const MAX_QUANTITY = 100000
 
 const httpError = (message, statusCode) => Object.assign(new Error(message), { statusCode })
+
+// Execution-path provider access. The background sync owns the long-lived
+// Yahoo client; this one is for the bounded single-symbol refresh that runs
+// when an order meets a non-executable cached quote. Failures are reported by
+// the caller, never silently substituted with a fabricated price.
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
+
+const fetchYahooQuote = (symbol) => yahooFinance.quote(symbol)
+
+const invalidateQuoteCaches = () => {
+  invalidateCache('stocks-list')
+  invalidateCache('market-summary')
+}
+
+// Persist a freshly verified row. The row already passed the same gate that
+// guards every quote write, so this stores genuine provider data only.
+const persistVerifiedQuote = async (row) => {
+  await stockModel.updateOne({ symbol: row.symbol }, { $set: row }, { upsert: true })
+  // Drop the read caches, exactly as the manual refresh route does. Without
+  // this the list keeps serving the pre-refresh price for up to the cache TTL,
+  // so the UI can disagree with the price the order just filled against.
+  invalidateQuoteCaches()
+  return stockModel.findOne({ symbol: row.symbol }).lean()
+}
 
 const isValidSymbol = (symbol) => SYMBOL_PATTERN.test(symbol || '')
 
@@ -213,17 +240,37 @@ async function executePaperTradeUnlocked({ userId, symbol, quantity, side, sourc
     }
   }
 
-  const stockDoc = stock || (await stockModel.findOne({ symbol: ticker }).lean())
+  let stockDoc = stock || (await stockModel.findOne({ symbol: ticker }).lean())
   if (!stockDoc) throw httpError('Stock not found', 404)
   // Quote provenance gate: unverified or stale quotes never fill silently.
-  // The caller must refresh to a verified Yahoo quote first. No synthetic
-  // price path exists — simulation writes were removed in Phase 0.
+  // No synthetic price path exists — simulation writes were removed in Phase 0.
   // Gate runs BEFORE the idempotency claim so failed validations never
   // poison a key with a stuck in-progress claim.
+  //
+  // Self-healing: when the cached quote no longer passes, refresh this one
+  // symbol from the provider and re-check. This replaces the old flow that
+  // rejected the order and told the user to click Refresh and retry — which
+  // dead-ended on a client-side throttle. Every rule still applies: if the
+  // refreshed row is not genuinely executable the order is rejected exactly
+  // as before.
   if (!isExecutableQuote(stockDoc, ticker)) {
-    throw httpError('Quote is stale or unverified — refresh regular-session market data and retry', 409)
+    // A caller-supplied doc is validated but never replaced behind the
+    // caller's back — only a doc we loaded ourselves may be refreshed.
+    const refreshed = stock
+      ? null
+      : await refreshSymbolForExecution(stockDoc, fetchYahooQuote)
+    if (refreshed) {
+      stockDoc = (await persistVerifiedQuote(refreshed)) || refreshed
+    }
+    if (!isExecutableQuote(stockDoc, ticker)) {
+      throw httpError(
+        'Quote is stale or unverified — the latest market data could not be verified for this order. Retry shortly.',
+        409
+      )
+    }
   }
-  if (!(stockDoc.price > 0)) throw httpError('Stock price unavailable', 409)
+  // `isExecutableQuote` above already requires a finite positive price, so
+  // there is no separate price guard here to fall through to.
 
   // Claim-first idempotency: reserve the key BEFORE touching balances, so a
   // concurrent duplicate or retry can never cause a second fill. Button

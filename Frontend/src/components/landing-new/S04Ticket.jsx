@@ -44,7 +44,7 @@ export default function S04Ticket() {
         />
       </LReveal>
       <LReveal delay={0.08}>
-        <Illustrative>
+        <Illustrative className="mt-8">
           <div className="relative">
             <div
               aria-hidden="true"

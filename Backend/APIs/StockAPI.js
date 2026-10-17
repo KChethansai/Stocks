@@ -11,8 +11,16 @@ import { isExecutableQuote } from '../services/quotePolicy.js'
 
 export const stockApp = exp.Router()
 
-// Stock list is re-synced every 5 minutes, so a 60s in-memory read cache is safe.
+// Stock list is re-synced on the cadence below, so a 60s in-memory read cache is safe.
 const STOCKS_LIST_CACHE_TTL_MS = 60 * 1000
+
+// Sync cadence. The execution gate fills only against a quote verified
+// within the freshness window (5 min), so the sync must run comfortably
+// inside it — a 5-minute cadence left quotes expiring at almost exactly the
+// moment the next sync was due, which is what made orders fail
+// intermittently. A 60-second cadence keeps genuine quotes fresh without
+// loosening the gate.
+const SYNC_INTERVAL_MS = 60 * 1000
 
 // -----------------------------
 // Yahoo Finance Setup
@@ -84,13 +92,12 @@ stockApp.post('/quote/:symbol/refresh', verifyToken('USER'), async (req, res, ne
     const row = buildVerifiedQuoteRow(baseLike, quote)
     if (!row) {
       return res.status(502).json({
-        message: 'No recent regular-session quote could be verified (market closed, unknown, or invalid data). The stored quote is unchanged.',
+        message: 'No usable quote could be verified from the provider (unknown session state, mismatched symbol, or invalid price). The stored quote is unchanged.',
         symbol,
         refreshed: false
       })
     }
 
-    row.marketState = quote.marketState
     await stockModel.updateOne({ symbol }, { $set: row }, { upsert: true })
     invalidateCache('stocks-list')
     invalidateCache('market-summary')
@@ -116,8 +123,8 @@ const syncStocksData = async (force = false) => {
   try {
     const now = Date.now()
 
-    // Skip if synced in last 5 minutes
-    if (!force && now - lastSyncTime < 5 * 60 * 1000) {
+    // Skip if synced within the cadence window (see SYNC_INTERVAL_MS).
+    if (!force && now - lastSyncTime < SYNC_INTERVAL_MS) {
       return
     }
 
@@ -229,10 +236,9 @@ const syncStocksData = async (force = false) => {
 // -----------------------------
 syncStocksData(true)
 
-// Sync every 5 minutes
 setInterval(() => {
   syncStocksData()
-}, 5 * 60 * 1000)
+}, SYNC_INTERVAL_MS)
 
 // -----------------------------
 // Routes
@@ -249,7 +255,7 @@ stockApp.get('/stocks', async (req, res, next) => {
     if (count === 0) {
       console.log('[On-Demand Sync] Database empty. Syncing stocks synchronously...')
       await syncStocksData(true)
-    } else if (Date.now() - lastSyncTime >= 5 * 60 * 1000) {
+    } else if (Date.now() - lastSyncTime >= SYNC_INTERVAL_MS) {
       console.log('[On-Demand Sync] Stale stock data detected (>= 5 minutes). Syncing stocks in background...')
       // Trigger background sync, catch error to prevent blocking request
       syncStocksData().catch(err => console.error('[Background Sync Error]', err.message))
@@ -299,7 +305,7 @@ stockApp.get('/stocks/:symbol', async (req, res, next) => {
     }
 
     // Trigger background sync if last updated is older than 5 mins
-    if (Date.now() - lastSyncTime >= 5 * 60 * 1000) {
+    if (Date.now() - lastSyncTime >= SYNC_INTERVAL_MS) {
       console.log('[On-Demand Sync] Stale stock data detected on individual fetch. Syncing stocks in background...')
       syncStocksData().catch(err => console.error('[Background Sync Error]', err.message))
     }

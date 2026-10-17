@@ -43,9 +43,6 @@ export default function Header() {
             <NavLink to="/features" className={linkClass}>
               Features
             </NavLink>
-            <a href="/#how" className="rounded-md px-3 py-2 text-sm font-medium text-[var(--stone)] transition hover:text-[var(--ivory)]">
-              How it works
-            </a>
           </nav>
         </div>
 
@@ -90,9 +87,6 @@ export default function Header() {
             <NavLink to="/features" onClick={() => setMobileMenuOpen(false)} className={linkClass}>
               Features
             </NavLink>
-            <a href="/#how" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--stone)] transition hover:text-[var(--ivory)]">
-              How it works
-            </a>
           </div>
           <div className="mt-3 flex flex-col gap-2 border-t border-[var(--hairline)] pt-3">
             {isAuthenticated ? (

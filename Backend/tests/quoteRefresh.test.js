@@ -82,10 +82,18 @@ describe('buildVerifiedQuoteRow', () => {
     assert.equal(build(null), null)
   })
 
-  it('fails closed outside explicitly REGULAR provider state', () => {
-    for (const marketState of ['CLOSED', 'PRE', 'POST', 'UNKNOWN', undefined, null]) {
-      assert.equal(build(liveQuote({ marketState })), null)
+  it('accepts a genuine bounded last close outside REGULAR, rejects unknown state', () => {
+    // Closed sessions carry the authoritative last close and must stay
+    // refreshable, otherwise a weekend refresh is impossible
+    // (see quotePolicy.test.js).
+    for (const marketState of ['CLOSED', 'PRE', 'POST', 'POSTPOST', 'PREPRE']) {
+      assert.ok(build(liveQuote({ marketState })), marketState)
     }
+    for (const marketState of ['UNKNOWN', 'WAT', undefined, null, '']) {
+      assert.equal(build(liveQuote({ marketState })), null, String(marketState))
+    }
+    // Even a closed session refuses ancient data.
+    assert.equal(build(liveQuote({ marketState: 'CLOSED', regularMarketTime: new Date(Date.now() - 8 * 86400000) })), null)
   })
 })
 
@@ -125,7 +133,9 @@ describe('quote recovery route persistence', () => {
   it('preserves good rows for missing, mismatched, closed and invalid quotes', async () => {
     const source = readFileSync(new URL('../APIs/StockAPI.js', import.meta.url), 'utf8')
     const route = source.slice(source.indexOf("stockApp.post('/quote/:symbol/refresh'"), source.indexOf('// Sync Control'))
-    for (const quote of [undefined, [liveQuote({ symbol: 'OTHER' })], liveQuote({ marketState: 'CLOSED' }), liveQuote({ marketState: 'UNKNOWN' }), liveQuote({ regularMarketTime: undefined }), liveQuote()]) {
+    // Failures must preserve the stored row. A genuine bounded CLOSED-session
+    // quote is no longer a failure, so it is covered as a success above.
+    for (const quote of [undefined, [liveQuote({ symbol: 'OTHER' })], liveQuote({ marketState: 'UNKNOWN' }), liveQuote({ regularMarketTime: undefined }), liveQuote({ regularMarketPrice: 0 })]) {
       let handler
       let writes = 0
       const existing = Object.freeze({ ...base, price: 99, source: 'yahoo', stale: false })
@@ -145,7 +155,9 @@ describe('quote recovery route persistence', () => {
       let status
       const res = { status: (code) => { status = code; return res }, json: (body) => body }
       await handler({ params: { symbol: 'TST' }, user: { id: 'test' } }, res, (err) => { throw err })
-      const valid = quote?.marketState === 'REGULAR' && quote?.regularMarketTime
+      const valid = Boolean(quote?.regularMarketTime) && quote?.regularMarketPrice > 0
+        && (quote?.marketState === 'REGULAR' || quote?.marketState === 'CLOSED' || quote?.marketState === 'POST')
+        && (!Array.isArray(quote))
       assert.equal(status, valid ? 200 : 502)
       assert.equal(writes, valid ? 1 : 0)
       assert.equal(existing.price, 99)

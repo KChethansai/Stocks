@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "tokens:check": "sh scripts/check-tokens.sh",
     "e2e": "sh scripts/e2e.sh --project=chromium-desktop",
-    "test:unit": "node --test src/utils/historyCachePolicy.test.js src/lib/lazyWithRetry.test.js src/utils/alertMerge.test.js src/utils/sectorTaxonomy.test.js src/components/newsDedupe.test.js"
+    "test:unit": "node --test src/utils/historyCachePolicy.test.js src/lib/lazyWithRetry.test.js src/utils/alertMerge.test.js src/utils/sectorTaxonomy.test.js src/components/newsDedupe.test.js src/components/landing-new/landingStockSelector.test.js src/utils/quoteSession.test.js"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

@@ -1,9 +1,9 @@
-// New long-form landing (12 substantive sections). Replaces Home at `/`;
+// New long-form landing (11 substantive sections). Replaces Home at `/`;
 // the previous 5-section page is archived byte-identical under
 // src/legacy-landing/ with restoration steps.
 //
 // Payload discipline: only S01Hero ships in the initial bundle. Sections
-// S02–S12 are lazy chunks mounted through DeferredSection, which renders
+// S02–S11 are lazy chunks mounted through DeferredSection, which renders
 // the anchor shell immediately (deep links keep working) and loads the
 // chunk when the visitor scrolls near. Factories (not components) are passed
 // down so a failed section can re-run the import() call on retry —
@@ -26,7 +26,6 @@ const LOADERS = {
   activity: () => import('./S09Activity'),
   news: () => import('./S10News'),
   workspace: () => import('./S11Palette'),
-  craft: () => import('./S12Craft'),
 }
 
 export default function HomeNew() {
@@ -56,7 +55,6 @@ export default function HomeNew() {
       <DeferredSection id="activity" load={LOADERS.activity} />
       <DeferredSection id="news" load={LOADERS.news} />
       <DeferredSection id="workspace" load={LOADERS.workspace} />
-      <DeferredSection id="craft" load={LOADERS.craft} />
     </div>
   )
 }

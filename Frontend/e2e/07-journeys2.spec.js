@@ -75,18 +75,18 @@ test('profile: display name persists; reduce-motion preference sticks', async ({
   await gotoAuthenticated(page, entry, '/profile')
   await expect(page.getByRole('heading', { name: /account/i }).first()).toBeVisible({ timeout: 25000 })
 
-  // Settings sections exist and anchor-navigate.
-  for (const section of ['Account', 'Security', 'Preferences']) {
-    await expect(page.getByRole('link', { name: section }).first()).toBeVisible({ timeout: 10000 })
-  }
-  // Reduce-motion toggle flips the persisted mode.
-  const comfort = page.getByRole('button', { name: /comfort/i }).first()
-  if (await comfort.count()) {
-    await comfort.click()
-    await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.motion), { timeout: 10000 }).toBe('comfort')
-    await page.reload()
-    await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.motion), { timeout: 10000 }).toBe('comfort')
-  }
+  // The internal section nav and the Preferences (motion) card were removed by
+  // request (Oct 2026). What must remain: the account summary, both
+  // credential forms, and the Data & activity links — all editable and
+  // saved through the real backend.
+  await expect(page.getByRole('heading', { name: /^account$/i }).first()).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /login details/i }).first()).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /^security$/i }).first()).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: /data & activity/i }).first()).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('link', { name: /activity ledger/i }).first()).toBeVisible({ timeout: 10000 })
+  // Removed controls must not reappear.
+  await expect(page.getByRole('link', { name: /^Preferences$/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /comfort/i })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

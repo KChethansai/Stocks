@@ -56,7 +56,7 @@ test('crossed price alert notifies, read survives reload and polls', async ({ pa
   // Bell shows unread; click marks read.
   const bell = page.getByRole('button', { name: /unread alerts|notifications/i })
   await bell.click()
-  await expect(page.getByText(/market alerts/i)).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('Market Alerts', { exact: true })).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: /VZ.*UP/i }).first().click()
   await page.waitForTimeout(1500)
 

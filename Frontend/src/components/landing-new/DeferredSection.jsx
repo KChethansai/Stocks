@@ -1,4 +1,4 @@
-// Below-fold code deferral for the landing route. Sections S02–S12 load as
+// Below-fold code deferral for the landing route. Sections S02–S11 load as
 // separate chunks only when the visitor scrolls near them (600px root margin
 // preloads before visible), keeping the initial landing payload to S01Hero +
 // shell. The anchor shell renders immediately with the section id, so /#how
@@ -37,7 +37,6 @@ const RESERVE = {
   activity: 600,
   news: 700,
   workspace: 700,
-  craft: 600,
 }
 
 const SECTION_TITLES = {
@@ -51,7 +50,6 @@ const SECTION_TITLES = {
   activity: 'Activity',
   news: 'News',
   workspace: 'Workspace',
-  craft: 'Craft',
 }
 
 function SectionFallback() {

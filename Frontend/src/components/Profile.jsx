@@ -1,4 +1,4 @@
-// Account workspace: overview, login details, security, preferences, data.
+// Account workspace: overview, login details, security, data.
 // Real backend fields only (UserAPI: GET/PUT /profile, PUT /password,
 // profile-picture POST/PUT/DELETE). No verification badges, no sessions list,
 // no fabricated stats. Member-since renders only when createdAt arrives.
@@ -17,15 +17,6 @@ import { useTrade } from '../store/tradeStore'
 import { formatCurrency } from '../utils/marketAnalytics'
 import { Button } from './ui/Button'
 import { Field } from './ui/Primitives'
-import MotionToggle from './layout/MotionToggle'
-
-const SECTIONS = [
-  { id: 'account', label: 'Account' },
-  { id: 'login', label: 'Login' },
-  { id: 'security', label: 'Security' },
-  { id: 'preferences', label: 'Preferences' },
-  { id: 'data', label: 'Data' },
-]
 
 function monogram(name) {
   const c = String(name || 'T').trim().charAt(0).toUpperCase()
@@ -54,7 +45,6 @@ export default function Profile() {
   } = useAuth()
   const portfolio = useTrade((s) => s.portfolio)
 
-  const [active, setActive] = useState('account')
   const [status, setStatus] = useState('')
   const [avatarBusy, setAvatarBusy] = useState(false)
 
@@ -85,60 +75,10 @@ export default function Profile() {
     }
   }, [currentUser?.username, currentUser?.email]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Section spy: a retained entry map plus a deterministic winner rule.
-  // The default last-wins observer breaks for side-by-side cards (identical
-  // tops, both fully visible): ties resolve by keyboard-focus override, then
-  // geometry (stacked → top closest below the chip bar; side-by-side →
-  // document order). Display-only location state — never draft/visibility.
-  useEffect(() => {
-    const order = new Map(SECTIONS.map((s, i) => [`profile-${s.id}`, i]))
-    const seen = new Map()
-    const pick = () => {
-      const visible = [...seen.values()].filter((e) => e.isIntersecting)
-      if (!visible.length) return
-      let best = visible[0]
-      for (const e of visible.slice(1)) {
-        if (e.intersectionRatio - best.intersectionRatio > 0.05) {
-          best = e
-          continue
-        }
-        if (Math.abs(e.intersectionRatio - best.intersectionRatio) <= 0.05) {
-          const ae = document.activeElement
-          const inE = e.target.contains(ae)
-          const inB = best.target.contains(ae)
-          if (inE && !inB) {
-            best = e
-            continue
-          }
-          if (!inE && !inB) {
-            const topE = e.boundingClientRect?.top ?? 0
-            const topB = best.boundingClientRect?.top ?? 0
-            if (Math.abs(topE - topB) > 8) {
-              if (topE < topB) best = e
-              continue
-            }
-            if ((order.get(e.target.id) ?? 99) < (order.get(best.target.id) ?? 99)) best = e
-          }
-        }
-      }
-      setActive(best.target.id.replace('profile-', ''))
-    }
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) seen.set(e.target.id, e)
-        pick()
-      },
-      { rootMargin: '-120px 0px -60% 0px', threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] }
-    )
-    SECTIONS.forEach(({ id }) => {
-      const el = document.getElementById(`profile-${id}`)
-      if (el) obs.observe(el)
-    })
-    return () => obs.disconnect()
-  }, [])
-
   const loginDirty = currentUser && (username !== (currentUser.username || '') || email !== (currentUser.email || ''))
   const pwDirty = currentPw.length > 0 || newPw.length > 0
+  // Unsaved-state feedback: the removed nav carried these dots, so they now
+  // live on the owning card heading only. The computation is unchanged.
   const dirtySections = useMemo(
     () => ({ login: Boolean(loginDirty), security: Boolean(pwDirty) }),
     [loginDirty, pwDirty]
@@ -262,56 +202,19 @@ export default function Profile() {
   const strength = passwordScore(newPw)
   const strengthLabel = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'][strength]
 
-  // When a section turns dirty, bring its chip into view once (page never
-  // moves: block/inline nearest). The owning card's heading dot is the
-  // primary narrow-viewport signal; this keeps the strip's dot visible too.
-  const prevDirtyRef = useRef({})
-  useEffect(() => {
-    for (const id of Object.keys(dirtySections)) {
-      if (dirtySections[id] && !prevDirtyRef.current[id]) {
-        document
-          .querySelector(`a[href="#profile-${id}"]`)
-          ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-      }
-    }
-    prevDirtyRef.current = dirtySections
-  }, [dirtySections])
-
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
       <p className="mf-label text-[var(--brass)] text-xs font-bold tracking-[0.14em] uppercase">Account workspace</p>
       <h1 className="mt-2 text-2xl font-bold text-[var(--ivory)]">Profile &amp; settings</h1>
-      <p className="mt-1 text-sm text-[var(--stone)]">Identity, credentials, preferences, and your data links.</p>
+      <p className="mt-1 text-sm text-[var(--stone)]">Identity, credentials, and your data links.</p>
 
       {/* polite status for form outcomes (mirrors toasts for SR users) */}
       <div aria-live="polite" className="sr-only">{status}</div>
 
-      {/* Unified section nav: one non-selecting anchor-chip bar at every
-          breakpoint. Chips are plain #profile-* jumps (location indicator
-          only via aria-current="location") — they never filter or hide. */}
-      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 bg-[#0B0C0E]/95 backdrop-blur mt-6" role="group" aria-label="Profile sections">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/8 bg-[#111316] p-1">
-          {SECTIONS.map(({ id, label }) => (
-            <a
-              key={id}
-              href={`#profile-${id}`}
-              aria-label={dirtySections[id] ? `${label} — unsaved changes` : label}
-              aria-current={active === id ? 'location' : undefined}
-              className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 min-h-[44px] inline-flex items-center justify-center text-xs font-semibold transition ${
-                active === id ? 'bg-white/[0.07] text-[var(--ivory)]' : 'text-[var(--stone)] hover:text-[var(--ivory)]'
-              }`}
-            >
-              {label}
-              {dirtySections[id] && <span aria-hidden="true" className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#D9A441]" />}
-            </a>
-          ))}
-        </div>
-      </div>
-
       <div className="mt-6 min-w-0 space-y-4">
           {/* Account summary header (D9): compact identity row + capital strip.
               Full width; the four control cards below share a 2-col grid. */}
-          <section id="profile-account" aria-labelledby="profile-account-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-5">
+          <section id="profile-account" aria-labelledby="profile-account-h" className="rounded-2xl border border-white/8 bg-[#111316] p-5">
             <h2 id="profile-account-h" className="text-base font-bold text-[var(--ivory)]">Account</h2>
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -366,12 +269,12 @@ export default function Profile() {
               beside a tall one. */}
           {isGoogle ? (
             <>
-            <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] px-6 py-4">
+            <section id="profile-security" aria-labelledby="profile-security-h" className="rounded-2xl border border-white/8 bg-[#111316] px-6 py-4">
               <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">Security</h2>
               <p className="mt-1.5 text-sm text-[var(--stone)]">Signed in with Google — there is no MarketForge password to change. Manage credentials with your Google account.</p>
             </section>
 
-            <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+            <section id="profile-login" aria-labelledby="profile-login-h" className="rounded-2xl border border-white/8 bg-[#111316] p-6">
               <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">
                 Login details
                 {dirtySections.login && (
@@ -418,7 +321,7 @@ export default function Profile() {
             <div className="grid gap-4 lg:grid-cols-2 items-stretch">
 
           {/* Login details (editable) */}
-          <section id="profile-login" aria-labelledby="profile-login-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
+          <section id="profile-login" aria-labelledby="profile-login-h" className="rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
             <h2 id="profile-login-h" className="text-base font-bold text-[var(--ivory)]">
               Login details
               {dirtySections.login && (
@@ -460,7 +363,7 @@ export default function Profile() {
           </section>
 
           {/* Security (password users) */}
-          <section id="profile-security" aria-labelledby="profile-security-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
+          <section id="profile-security" aria-labelledby="profile-security-h" className="rounded-2xl border border-white/8 bg-[#111316] p-6 flex flex-col">
             <h2 id="profile-security-h" className="text-base font-bold text-[var(--ivory)]">
               Security
               {dirtySections.security && (
@@ -520,22 +423,8 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Preferences: full-width horizontal band (wraps only when 360px forces it) */}
-          <section id="profile-preferences" aria-labelledby="profile-preferences-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
-            <h2 id="profile-preferences-h" className="text-base font-bold text-[var(--ivory)]">Preferences</h2>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[var(--ivory)]">Motion</p>
-                <p className="mf-meta mt-0.5">Full plays reveals and chart draws. Comfort renders everything statically. Saved on this device.</p>
-              </div>
-              <div className="shrink-0">
-                <MotionToggle />
-              </div>
-            </div>
-          </section>
-
           {/* Data & activity: full-width band, 3-up interior at lg (items-start: no forced stretch) */}
-          <section id="profile-data" aria-labelledby="profile-data-h" className="scroll-mt-32 rounded-2xl border border-white/8 bg-[#111316] p-6">
+          <section id="profile-data" aria-labelledby="profile-data-h" className="rounded-2xl border border-white/8 bg-[#111316] p-6">
             <h2 id="profile-data-h" className="text-base font-bold text-[var(--ivory)]">Data &amp; activity</h2>
             <ul className="mt-4 space-y-2 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0 items-start">
               {[

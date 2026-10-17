@@ -90,9 +90,12 @@ const user = await userModel.create({ username: 'phase0t', email: 'phase0t@examp
 const user2 = await userModel.create({ username: 'phase0t2', email: 'phase0t2@example.com', password: 'x'.repeat(60), balance: 100000 })
 const now = new Date()
 await stockModel.create([
-  { symbol: 'TEST', name: 'Test Inc', price: 100, change: 0, changePercent: 0, volume: 1000, marketCap: 100000, sector: 'Technology', source: 'yahoo', asOf: now, providerTime: now, lastVerifiedAt: now, stale: false },
-  { symbol: 'STALE', name: 'Stale Inc', price: 50, change: 0, changePercent: 0, volume: 1000, marketCap: 50000, sector: 'Technology', source: 'yahoo', asOf: now, providerTime: now, lastVerifiedAt: now, stale: true },
-  { symbol: 'UNVER', name: 'Unver Inc', price: 50, change: 0, changePercent: 0, volume: 1000, marketCap: 50000, sector: 'Technology', source: 'unverified' }
+  // marketState is required by the session-aware execution policy: an
+  // absent/unknown session fails closed. 'REGULAR' is the fixture's intent —
+  // a plainly verifiable, in-session quote.
+  { symbol: 'TEST', name: 'Test Inc', price: 100, change: 0, changePercent: 0, volume: 1000, marketCap: 100000, sector: 'Technology', source: 'yahoo', asOf: now, providerTime: now, lastVerifiedAt: now, marketState: 'REGULAR', stale: false },
+  { symbol: 'STALE', name: 'Stale Inc', price: 50, change: 0, changePercent: 0, volume: 1000, marketCap: 50000, sector: 'Technology', source: 'yahoo', asOf: now, providerTime: now, lastVerifiedAt: now, marketState: 'REGULAR', stale: true },
+  { symbol: 'UNVER', name: 'Unver Inc', price: 50, change: 0, changePercent: 0, volume: 1000, marketCap: 50000, sector: 'Technology', source: 'unverified', marketState: 'REGULAR' }
 ])
 
 const KEY = `testkey-${Date.now().toString(36)}-abcd1234`
@@ -158,6 +161,87 @@ for (const [sym, label] of [['STALE', 'stale-409'], ['UNVER', 'unverified-409']]
 }
 const balAfterBlocks = (await userModel.findById(user._id).lean()).balance
 gate('blocked-quotes-no-side-effects', balAfterBlocks === 99900, `balance=${balAfterBlocks}`)
+
+// Outside a regular session a genuine, bounded last close must still fill —
+// this is the defect that made the simulator unusable on evenings and
+// weekends. Uses only local fixtures: no provider call.
+await stockModel.updateOne(
+  { symbol: 'CLSD' },
+  {
+    $set: {
+      symbol: 'CLSD',
+      name: 'Closed Session Co',
+      price: 250,
+      change: 0,
+      changePercent: 0,
+      volume: 1000,
+      marketCap: 100000,
+      sector: 'Technology',
+      source: 'yahoo',
+      asOf: new Date(Date.now() - 3600_000),
+      providerTime: new Date(Date.now() - 3600_000),
+      lastVerifiedAt: new Date(Date.now() - 3600_000),
+      marketState: 'POSTPOST',
+      stale: false
+    }
+  },
+  { upsert: true }
+)
+// A dedicated account: these fills move a balance, and the liquidation gate
+// below asserts an exact total on `user`.
+const sessionUser = await userModel.create({
+  username: 'phase0session', email: 'phase0session@example.com', password: 'x'.repeat(60), balance: 100000
+})
+const beforeClose = 100000
+let closeReceipt = null
+let closeErr = null
+try {
+  closeReceipt = await executePaperTrade({
+    userId: String(sessionUser._id),
+    symbol: 'CLSD',
+    quantity: 1,
+    side: 'BUY',
+    source: 'MANUAL',
+    idempotencyKey: `k-closed-${Date.now().toString(36)}-zz123456`
+  })
+} catch (e) { closeErr = e }
+gate(
+  'closed-session-genuine-close-fills',
+  !closeErr && closeReceipt?.price === 250 && closeReceipt?.quantity === 1,
+  closeErr?.message || `price=${closeReceipt?.price}`
+)
+const afterClose = (await userModel.findById(sessionUser._id).lean()).balance
+gate('closed-session-fills-at-verified-price', afterClose === beforeClose - 250, `balance=${afterClose}`)
+
+// The same shape, but ancient: a closed session far outside the bound must
+// still be refused rather than filling at a months-old price.
+await stockModel.updateOne(
+  { symbol: 'ANCST' },
+  {
+    $set: {
+      symbol: 'ANCST',
+      name: 'Ancient Co',
+      price: 9,
+      change: 0,
+      changePercent: 0,
+      volume: 1,
+      marketCap: 1,
+      sector: 'Technology',
+      source: 'yahoo',
+      asOf: new Date(Date.now() - 30 * 86400_000),
+      providerTime: new Date(Date.now() - 30 * 86400_000),
+      lastVerifiedAt: new Date(Date.now() - 30 * 86400_000),
+      marketState: 'POSTPOST',
+      stale: false
+    }
+  },
+  { upsert: true }
+)
+let ancientErr = null
+try {
+  await executePaperTrade({ userId: String(sessionUser._id), symbol: 'ANCST', quantity: 1, side: 'BUY', source: 'MANUAL', idempotencyKey: `k-ancient-${Date.now().toString(36)}-zz123456` })
+} catch (e) { ancientErr = e }
+gate('ancient-closed-quote-409', ancientErr?.statusCode === 409, ancientErr?.message || 'filled at a months-old price')
 
 // Alert gating: only verified quotes fire.
 const { priceAlertModel } = await import('../models/PriceAlertModel.js').catch(() => ({}))

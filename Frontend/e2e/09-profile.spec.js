@@ -1,4 +1,4 @@
-// Stage G regression: profile workspace persistence, validation, preferences.
+// Stage G regression: profile workspace persistence, validation, data links.
 import { test, expect } from '@playwright/test'
 import { apiUser, gotoAuthenticated, collectPageErrors } from './helpers'
 
@@ -12,9 +12,12 @@ test('profile renders workspace without fabricated badges', async ({ page }) => 
   collectPageErrors(page, errors)
   await gotoAuthenticated(page, entry, '/profile')
   await expect(page.getByRole('heading', { name: /profile/i }).first()).toBeVisible({ timeout: 25000 })
-  for (const section of ['Account', 'Login', 'Security', 'Preferences', 'Data']) {
-    await expect(page.getByRole('link', { name: section }).first()).toBeVisible({ timeout: 10000 })
+  for (const section of ['Account', 'Login details', 'Security', 'Data & activity']) {
+    await expect(page.getByRole('heading', { name: section }).first()).toBeVisible({ timeout: 10000 })
   }
+  // Removed by request (Oct 2026): internal section nav + Preferences card.
+  await expect(page.getByRole('link', { name: /^Preferences$/ })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: /profile sections/i })).toHaveCount(0)
   await expect(page.getByText(/verified/i)).toHaveCount(0)
   await expect(page.getByText(/upload photo|change photo/i).first()).toBeVisible()
   expect(errors).toEqual([])
@@ -66,7 +69,7 @@ test('password: wrong current maps to field; right current updates', async ({ pa
   const errors = []
   collectPageErrors(page, errors)
   await gotoAuthenticated(page, entry, '/profile')
-  await page.getByRole('link', { name: 'Security' }).first().click()
+  await page.getByRole('heading', { name: /^security$/i }).first().scrollIntoViewIfNeeded()
   const currentBox = page.getByRole('textbox', { name: /current password/i })
   const newBox = page.getByRole('textbox', { name: /new password/i })
   await expect(currentBox).toBeVisible({ timeout: 25000 })
@@ -84,33 +87,13 @@ test('password: wrong current maps to field; right current updates', async ({ pa
   expect(errors.every((e) => e.includes('400'))).toBe(true)
 })
 
-test('comfort preference persists across reload', async ({ page }) => {
-  const errors = []
-  collectPageErrors(page, errors)
-  await gotoAuthenticated(page, entry, '/profile')
-  await page.getByRole('link', { name: 'Preferences' }).first().click()
-  const comfort = page.getByRole('button', { name: /^comfort$/i })
-  await expect(comfort).toBeVisible({ timeout: 25000 })
-  await comfort.click()
-  await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.motion), { timeout: 10000 }).toBe('comfort')
-  await page.reload()
-  await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.motion), { timeout: 10000 }).toBe('comfort')
-  // Restore full mode for other specs.
-  await page.getByRole('link', { name: 'Preferences' }).first().click()
-  await page.getByRole('button', { name: /^full$/i }).click()
-  await expect.poll(async () => page.evaluate(() => document.documentElement.dataset.motion), { timeout: 10000 }).toBe('full')
-  expect(errors).toEqual([])
-})
-
 test('data links reach activity and watchlist', async ({ page }) => {
   const errors = []
   collectPageErrors(page, errors)
   await gotoAuthenticated(page, entry, '/profile')
-  await page.getByRole('link', { name: 'Data' }).first().click()
   await page.getByRole('link', { name: /activity ledger/i }).click()
   await page.waitForURL(/\/activity/, { timeout: 15000 })
   await page.goBack()
-  await page.getByRole('link', { name: 'Data' }).first().click()
   await page.getByRole('link', { name: /watchlist & price alerts/i }).click()
   await page.waitForURL(/\/watchlist/, { timeout: 15000 })
   expect(errors).toEqual([])

@@ -92,6 +92,11 @@ export const useTrade = create((set) => ({
       }
       return { success: false, message: response.data?.message || 'Quote refresh failed' }
     } catch (err) {
+      // A throttle is recoverable and must not read as a hard failure: the
+      // order endpoint refreshes the quote itself before deciding.
+      if (err.response?.status === 429) {
+        return { success: false, throttled: true, message: err.response?.data?.message }
+      }
       return {
         success: false,
         message: err.response?.data?.message || 'Live market data is unavailable right now'

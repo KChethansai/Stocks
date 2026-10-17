@@ -40,31 +40,32 @@ export default function S11Palette() {
       </LReveal>
       <LReveal delay={0.08}>
         <Illustrative className="mt-8">
-          <div className="mx-auto max-w-xl overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--ink-900)] shadow-2xl">
+          <div className="w-full overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--ink-900)] shadow-[var(--shadow-float)]">
             <div className="flex items-center gap-3 border-b border-[var(--hairline)] px-4">
-              <Search size={16} className="shrink-0 text-[var(--stone-muted)]" aria-hidden="true" />
+              <Search size={20} className="shrink-0 text-[var(--stone)]" aria-hidden="true" />
               <input
                 type="text"
                 readOnly
                 value="Search markets, symbols, commands…"
                 aria-label="Search markets, symbols, commands (static preview)"
-                className="h-12 w-full bg-transparent text-sm text-[var(--stone)] outline-none"
+                className="h-12 w-full min-w-0 bg-transparent text-sm text-[var(--stone)] outline-none"
               />
               <kbd className="shrink-0 rounded-md border border-[var(--hairline)] bg-[var(--ink-950)] px-2 py-1 text-xs font-semibold tabular-nums text-[var(--stone)]">
                 ⌘K
               </kbd>
             </div>
-            <div className="p-2">
+            {/* Row geometry mirrors the palette's own list: a full-width action
+                row plus a 2-up go-to pair, with `sub` right-anchored so both
+                edges of every row carry content. */}
+            <div className="grid grid-cols-1 gap-1 p-2 sm:grid-cols-2">
               {ROWS.map((r) => (
                 <div
                   key={r.title}
-                  className="flex min-h-[52px] items-center gap-3 rounded-lg px-3 py-2"
+                  className={`flex min-h-[52px] items-center gap-3 rounded-lg px-3 py-2 ${r.action ? 'sm:col-span-2' : ''}`}
                 >
                   <r.icon size={16} className="shrink-0 text-[var(--brass)]" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-[var(--ivory)]">{r.title}</p>
-                    <p className="truncate text-xs text-[var(--stone-muted)]">{r.sub}</p>
-                  </div>
+                  <p className="min-w-0 truncate text-sm font-semibold text-[var(--ivory)]">{r.title}</p>
+                  <p className="ml-auto min-w-0 shrink truncate text-xs text-[var(--stone-muted)]">{r.sub}</p>
                   {r.action && (
                     <span className="shrink-0 rounded-full bg-[var(--ivory)] px-3 py-1 text-xs font-semibold text-[var(--ink-950)]">
                       {r.action}
@@ -74,7 +75,7 @@ export default function S11Palette() {
               ))}
             </div>
           </div>
-          <p className="mf-meta mt-2 text-center">
+          <p className="mf-meta mt-3">
             Static preview — the live palette filters as you type.
           </p>
         </Illustrative>

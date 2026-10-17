@@ -176,11 +176,12 @@ export default function Dashboard() {
       </Reveal>
 
       {/* Main Grid: 8 Columns (Left) + 4 Columns (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (8 cols): Performance Chart & Market Movers */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          {/* Performance Chart Module */}
-          <Reveal delay={0.05} className="rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
+      {/* Two balanced rows instead of two mismatched columns. `items-start`
+          keeps every card its natural height — nothing is stretched to match
+          a neighbour, and no empty filler is added. */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          {/* Row 1 — Performance (8) beside Forecasts (4) */}
+          <Reveal delay={0.05} className="lg:col-span-8 rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 relative overflow-hidden transition duration-200 hover:border-white/20 shadow-xl">
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
@@ -217,18 +218,25 @@ export default function Dashboard() {
             </div>
           </Reveal>
 
-          {/* Market Movers Module */}
-          <Reveal delay={0.1}>
+          {/* Row 1 right: Forecasts */}
+          <Reveal delay={0.1} className="lg:col-span-4">
+            <div className="h-full">
+              <AiInsightWidget symbols={insightSymbols} />
+            </div>
+          </Reveal>
+
+          {/* Row 2 — Market Movers (7) beside Watchlist (5) */}
+          <Reveal delay={0.1} className="lg:col-span-7">
           <SpotlightCard
             spotlightColor="rgba(201, 169, 110, 0.15)"
             tiltIntensity={4}
-            className="rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 flex flex-col"
+            className="h-full rounded-2xl border border-white/8 bg-[#111316]/95 p-5 sm:p-6 flex flex-col"
           >
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 mb-5 border-b border-white/8 pb-4">
               <h3 className="mf-h2">
                 Market Movers
               </h3>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4" role="tablist" aria-label="Market movers">
                 {[
                   { id: 'gainers', label: 'Top Gainers' },
                   { id: 'losers', label: 'Top Losers' },
@@ -236,6 +244,8 @@ export default function Dashboard() {
                 ].map((tab) => (
                   <button
                     key={tab.id}
+                    role="tab"
+                    aria-selected={moverTab === tab.id}
                     onClick={() => setMoverTab(tab.id)}
                     className={`text-xs font-mono pb-1 transition cursor-pointer ${
                       moverTab === tab.id
@@ -250,14 +260,26 @@ export default function Dashboard() {
             </div>
 
             {/* Mover Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div
+              role="tabpanel"
+              aria-label="Market movers results"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+            >
               {movers[moverTab].map((stock) => {
                 const isPos = stock.changePercent >= 0
                 return (
                   <div
                     key={stock.symbol}
+                    role="link"
+                    tabIndex={0}
                     onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                    className="p-4 bg-[#181B1F]/90 rounded-xl border border-white/5 hover:border-[var(--brass)]/40 hover:shadow-lg hover:shadow-[var(--brass)]/5 transition-all duration-200 cursor-pointer group"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate(`/markets?stock=${stock.symbol}`)
+                      }
+                    }}
+                    className="p-4 bg-[#181B1F]/90 rounded-xl border border-white/5 hover:border-[var(--brass)]/40 hover:shadow-lg hover:shadow-[var(--brass)]/5 transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="font-mono text-sm text-[var(--ivory)] font-bold group-hover:text-[var(--brass)] transition">
@@ -286,16 +308,9 @@ export default function Dashboard() {
             </div>
           </SpotlightCard>
           </Reveal>
-        </div>
 
-        {/* Right Column (4 cols): Watchlist & Quick Actions */}
-        <Reveal delay={0.1} className="lg:col-span-4 flex flex-col gap-6">
-          {/* Forecasts */}
-          <div className="min-h-[348px]">
-            <AiInsightWidget symbols={insightSymbols} />
-          </div>
-
-          {/* Watchlist Module */}
+          {/* Row 2 right: Watchlist */}
+          <Reveal delay={0.1} className="lg:col-span-5">
           <SpotlightCard
             spotlightColor="rgba(217, 164, 65, 0.12)"
             tiltIntensity={4}
@@ -327,8 +342,16 @@ export default function Dashboard() {
                 return (
                   <div
                     key={stock.symbol}
+                    role="link"
+                    tabIndex={0}
                     onClick={() => navigate(`/markets?stock=${stock.symbol}`)}
-                    className="grid grid-cols-12 gap-2 py-3 items-center hover:bg-[#181B1F] -mx-2 px-2 rounded-lg transition cursor-pointer group"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate(`/markets?stock=${stock.symbol}`)
+                      }
+                    }}
+                    className="grid grid-cols-12 gap-2 py-3 items-center hover:bg-[#181B1F] -mx-2 px-2 rounded-lg transition cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)]"
                   >
                     <div className="col-span-4 flex flex-col min-w-0">
                       <span className="font-mono text-xs font-bold text-[var(--ivory)] group-hover:text-[var(--brass)] transition truncate">

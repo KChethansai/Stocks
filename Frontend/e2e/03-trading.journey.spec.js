@@ -14,9 +14,16 @@ async function gotoMarkets(page) {
   await expect(page.getByText(/AAPL/i).first()).toBeVisible({ timeout: 25000 })
 }
 
+// The universe is paginated, so a symbol may sit on a later page. Reach it
+// the way a user does — type it into the search box and pick the row —
+// rather than assuming it is the first visible row.
 async function selectStock(page, symbol) {
-  const row = page.getByText(symbol, { exact: true }).first()
-  await row.click().catch(() => {})
+  const search = page.getByPlaceholder(/search ticker, name/i).first()
+  await search.fill(symbol)
+  const row = page.getByRole('button', { name: new RegExp(`^${symbol},`) }).first()
+  await expect(row).toBeVisible({ timeout: 15000 })
+  await row.click()
+  await search.fill('')
   await expect(page.getByRole('heading', { name: new RegExp(`Trade ${symbol}|${symbol}`) }).first()).toBeVisible({ timeout: 15000 })
 }
 

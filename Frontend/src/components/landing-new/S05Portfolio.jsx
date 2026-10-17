@@ -20,7 +20,7 @@ export default function S05Portfolio() {
         />
       </LReveal>
       <LReveal delay={0.08}>
-        <Illustrative>
+        <Illustrative className="mt-8">
           <div className="rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-5 sm:p-6">
             <SectorAllocation
               items={ITEMS}

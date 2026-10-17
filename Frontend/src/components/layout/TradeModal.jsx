@@ -12,19 +12,7 @@ import { Button, Chip } from '../ui/Button'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { QuantityStepper } from '../ui/QuantityStepper'
 import { Dialog } from '../ui/Dialog'
-
-function provenanceOf(stock) {
-  if (!stock || !(Number(stock.price) > 0)) return { state: 'unavailable', label: 'Quote unavailable' }
-  if (!stock.lastVerifiedAt || (stock.source && stock.source !== 'yahoo')) return { state: 'unverified', label: 'Unverified quote' }
-  if (stock.stale) return { state: 'stale', label: 'Stale quote' }
-  if (stock.asOf) {
-    return {
-      state: 'verified',
-      label: `Yahoo · as of ${new Date(stock.asOf).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
-    }
-  }
-  return { state: 'verified', label: 'Yahoo Finance' }
-}
+import { provenanceOf, quoteDisclosure } from '../../utils/quoteSession'
 
 function ProvenanceDot({ state }) {
   const color =
@@ -191,7 +179,6 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
   }
 
   const quote = provenanceOf(selected)
-  const quoteBlocked = quote.state !== 'verified'
 
   // User's current holding for this stock
   const currentHolding = portfolio?.holdings?.find((h) => h.symbol === selected.symbol)
@@ -226,9 +213,15 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
       if (result.success && result.stock) {
         setSelected((prev) => (prev ? { ...prev, ...result.stock } : prev))
         setGateMessage('')
-        toast.success(`Quote refreshed — ${selected.symbol} verified as of now.`)
+        toast.success(`Quote refreshed — ${selected.symbol} verified against the latest provider close.`)
       } else {
-        setGateMessage(result.message || 'Live market data is unavailable right now.')
+        // A throttle is not a dead end: the order itself refreshes the quote
+        // server-side, so tell the user that instead of implying failure.
+        setGateMessage(
+          result.throttled
+            ? 'Another refresh just ran for this symbol — you can submit the order and it will verify the quote automatically.'
+            : result.message || 'Live market data is unavailable right now.'
+        )
       }
     } finally {
       setRefreshing(false)
@@ -237,11 +230,14 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
 
   // Ticket submit → review sheet (never executes directly: opening the
   // interface must not imply an order was placed).
+  //
+  // Quote provenance is enforced authoritatively by the server, which
+  // refreshes the symbol itself and rejects anything it cannot verify. The
+  // client used to hard-block here and tell the user to press Refresh, which
+  // dead-ended on the refresh throttle. We now let the order reach the
+  // server and report its honest outcome; the ticket separately discloses a
+  // non-verified quote (see `quoteDisclosure`) so the price is not a surprise.
   const onSubmitTicket = () => {
-    if (quoteBlocked) {
-      setGateMessage(quote.state === 'stale' ? 'Quote is stale — refresh market data and retry.' : 'Quote unverified — refresh market data and retry.')
-      return
-    }
     if (overLimit) {
       setGateMessage(isBuy ? `Exceeds cash balance by ${formatCurrency(totalCost - cashBalance)}.` : `You own ${sharesOwned} shares.`)
       return
@@ -253,7 +249,11 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
   const executeTrade = async () => {
     const qty = Number(currentQuantity)
     const side = currentSide
-    if (quoteBlocked || (side === 'BUY' && totalCost > cashBalance) || (side === 'SELL' && qty > sharesOwned)) return { success: false }
+    // Funds/holdings are client-side conveniences; the server re-checks
+    // them authoritatively. A non-verified displayed quote is NOT a client
+    // block: the server refreshes the symbol and decides.
+    if (side === 'BUY' && totalCost > cashBalance) return { success: false }
+    if (side === 'SELL' && qty > sharesOwned) return { success: false }
     setSubmitting(true)
     try {
       const response = side === 'BUY' ? await buyStock(selected.symbol, qty, orderKey) : await sellStock(selected.symbol, qty, orderKey)
@@ -274,7 +274,11 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
         return { success: true }
       }
       // Terminal failure: draft + key preserved, retry reuses the same key.
+      setGateMessage(response.message || 'Trade execution failed.')
       toast.error(`${response.message || 'Trade execution failed'} — retry reuses the same order key.`)
+      // Keep the user on the ticket so the honest server message is visible
+      // next to the Refresh control instead of only in a transient toast.
+      setStep('ticket')
       return { success: false }
     } catch {
       toast.error('Trade execution failed — retry reuses the same order key.')
@@ -434,6 +438,17 @@ export default function TradeModal({ stock, isOpen, onClose, defaultSide = 'BUY'
                   <ProvenanceDot state={quote.state} />
                   {quote.label}
                 </p>
+                {/* Non-blocking disclosure. The server verifies authoritatively
+                    and refuses anything it cannot confirm; this only makes sure
+                    the user knows the displayed price may be replaced. */}
+                {quoteDisclosure(selected) && (
+                  <p
+                    role="status"
+                    className="mt-1 text-[11px] leading-snug text-[var(--brass)]"
+                  >
+                    {quoteDisclosure(selected)}
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-[var(--stone)]">

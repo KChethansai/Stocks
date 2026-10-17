@@ -58,16 +58,16 @@ export default function S07Alerts() {
       </LReveal>
       <LReveal delay={0.08}>
         <Illustrative className="mt-8" caption="Watchlist shows genuine quotes; inbox preview is illustrative — sign in for your live alerts.">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-4">
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+            <div className="flex flex-col rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-4">
               <p className="mf-label flex items-center gap-2 text-[var(--stone-muted)]">
                 Watchlist
                 <span className="rounded-full border border-[var(--gain)]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--gain)]">Quotes</span>
               </p>
               {quotesState === 'loading' ? (
-                <div className="mt-3 space-y-3" aria-busy="true" aria-label="Loading watchlist quotes">
+                <div className="mt-3 space-y-2" aria-busy="true" aria-label="Loading watchlist quotes">
                   {SYMBOLS.map((sym) => (
-                    <div key={sym} className="h-[44px] rounded-lg bg-white/[0.04] animate-pulse" />
+                    <div key={sym} className="h-[54px] rounded-lg bg-white/[0.04] animate-pulse" />
                   ))}
                 </div>
               ) : !ready ? (
@@ -78,16 +78,25 @@ export default function S07Alerts() {
                   </button>
                 </div>
               ) : (
-                <ul className="mt-3 space-y-3" aria-live="polite">
+                <ul className="mt-3 space-y-2" aria-live="polite">
+                  {/* The watchlist row is the same object as the inbox tile
+                      (min-h-[54px], rounded tile, two-line body), so the two
+                      cards compute to the same height by construction —
+                      no stretch padding is injected to fake it. */}
                   {rows.map((row) => {
                     const up = Number(row.changePercent || 0) >= 0
                     return (
-                      <li key={row.symbol} className="flex min-h-[44px] items-center gap-3">
+                      <li
+                        key={row.symbol}
+                        className="flex min-h-[54px] items-center gap-3 rounded-lg border border-[rgba(236,233,226,.08)] bg-[#181B1F] px-3 py-2"
+                      >
                         <Star size={16} className="shrink-0 text-[var(--brass)]" aria-hidden="true" />
-                        <span className="text-sm font-bold text-[var(--ivory)]">{row.symbol}</span>
-                        <span className="text-sm text-[var(--stone)] tabular-nums">{fmtPrice(row.price)}</span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold text-[var(--ivory)]">{row.symbol}</span>
+                          <span className="mf-meta">{fmtPrice(row.price)}</span>
+                        </span>
                         <span
-                          className={`ml-auto text-sm font-semibold tabular-nums ${up ? 'text-[var(--gain)]' : 'text-[var(--loss)]'}`}
+                          className={`ml-auto shrink-0 text-sm font-semibold tabular-nums ${up ? 'text-[var(--gain)]' : 'text-[var(--loss)]'}`}
                         >
                           <span aria-hidden="true">{up ? '▲' : '▼'}</span> {fmtPct(row.changePercent)}
                           <span className="sr-only">{up ? 'up' : 'down'}</span>
@@ -99,17 +108,19 @@ export default function S07Alerts() {
               )}
               {ready && (
                 <p className="mf-meta mt-2">
-                  Genuine quotes · as of {asOf || '—'}{anyStale ? ' · some stale' : ''}
+                  {/* Pinned inside its own card: an unpinned note sits at
+                      column 0 and reads as belonging to the other card. */}
+                  <span className="block">Genuine quotes · as of {asOf || '—'}{anyStale ? ' · some stale' : ''}</span>
                 </p>
               )}
             </div>
-            <div className="rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-4">
+            <div className="flex flex-col rounded-xl border border-[rgba(236,233,226,.08)] bg-[#111316] p-4">
               <p className="mf-label flex items-center gap-2 text-[var(--stone-muted)]">
                 <Bell size={16} className="text-[var(--brass)]" aria-hidden="true" />
                 Alert inbox
                 <span className="rounded-full border border-[var(--brass)]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--brass)]">Sample</span>
               </p>
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-3 space-y-2">
                 {INBOX.map((item) => (
                   <li
                     key={item.rule}

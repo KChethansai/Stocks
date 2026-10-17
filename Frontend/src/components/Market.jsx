@@ -311,7 +311,7 @@ export default function Market() {
     try {
       const result = await refreshQuote(selectedStock.symbol)
       if (result.success) {
-        toast.success(`Quote refreshed — ${selectedStock.symbol} verified as of now.`)
+        toast.success(`Quote refreshed — ${selectedStock.symbol} verified against the latest provider close.`)
       } else {
         toast.error(result.message || 'Live market data is unavailable right now')
       }
@@ -435,11 +435,16 @@ export default function Market() {
           </div>
 
           {/* Sector Filter Chips (all canonical sectors, with counts) */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="Filter by sector">
+          {/* Wrapping, not horizontal scrolling. A single clipped scroll row hid
+              six of the eight sectors behind an invisible affordance, so they
+              were undiscoverable in a narrow panel; wrapping makes every
+              category present and tappable at every width. */}
+          <div className="flex shrink-0 flex-wrap gap-1.5" role="group" aria-label="Filter by sector">
             <Chip
               active={selectedSector === 'ALL'}
+              aria-pressed={selectedSector === 'ALL'}
               onClick={() => setSelectedSector('ALL')}
-              className="whitespace-nowrap px-2.5 py-1 text-[11px]"
+              className="min-h-[40px] shrink-0 whitespace-nowrap px-3 py-2 text-[11px] inline-flex items-center"
             >
               All · {stocks.length}
             </Chip>
@@ -447,8 +452,9 @@ export default function Market() {
               <Chip
                 key={sec}
                 active={selectedSector === sec}
+                aria-pressed={selectedSector === sec}
                 onClick={() => setSelectedSector(sec)}
-                className="whitespace-nowrap px-2.5 py-1 text-[11px]"
+                className="min-h-[40px] shrink-0 whitespace-nowrap px-3 py-2 text-[11px] inline-flex items-center"
               >
                 {sec} · {count}
               </Chip>
@@ -485,7 +491,7 @@ export default function Market() {
           </p>
 
           {/* Stock List */}
-          <div className="flex flex-col gap-1.5 flex-1">
+          <div className="flex flex-1 flex-col gap-1.5">
             {pagedStocks.length === 0 && (
               <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#111316] p-5 text-center">
                 <p className="text-xs text-[var(--stone)]">No stocks match these filters.</p>

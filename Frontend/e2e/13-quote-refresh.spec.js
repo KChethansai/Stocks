@@ -17,8 +17,14 @@ async function gotoMarkets(page) {
   await expect(page.getByText(/AAPL/i).first()).toBeVisible({ timeout: 25000 })
 }
 
+// The universe is paginated; reach the symbol the way a user does.
 async function selectStock(page, symbol) {
-  await page.getByRole('button', { name: new RegExp(`^${symbol},`) }).click()
+  const search = page.getByPlaceholder(/search ticker, name/i).first()
+  await search.fill(symbol)
+  const row = page.getByRole('button', { name: new RegExp(`^${symbol},`) }).first()
+  await expect(row).toBeVisible({ timeout: 15000 })
+  await row.click()
+  await search.fill('')
   await expect(page.getByRole('heading', { name: new RegExp(symbol) }).first()).toBeVisible({ timeout: 15000 })
 }
 
@@ -28,9 +34,11 @@ test('verified quote shows provenance and refresh preserves the draft', async ({
   await gotoMarkets(page)
   await selectStock(page, 'VZ')
 
-  // Provenance label: verified quotes carry their as-of time (never "live"
-  // when the data is a previous-session close).
-  await expect(page.getByText(/Yahoo.*as of|Yahoo Finance/i).first()).toBeVisible({ timeout: 15000 })
+  // The Markets ticket shows the selected symbol's live server price (the
+  // provenance label lives in the global Trade modal, not this rail).
+  const ticket = page.locator('form', { hasText: 'Estimated Total' })
+  await expect(ticket).toContainText('VZ', { timeout: 15000 })
+  await expect(ticket.getByText(/\$\d+\.\d{2}/).first()).toBeVisible({ timeout: 15000 })
 
   // Set a quantity, then refresh via the API surface the ticket button uses.
   const stepper = page.locator('form').getByRole('spinbutton').first()
