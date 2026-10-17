@@ -8,7 +8,9 @@ import { cached, invalidateCache } from '../config/cache.js'
 import { baseStocks, toProviderTime } from '../config/universe.js'
 import { buildVerifiedQuoteRow, refreshAllowed, rememberRefresh, fetchQuoteWithRetry } from '../services/quoteRefresh.js'
 import { withProviderBudget } from '../services/providerBudget.js'
+import { fetchQuotesResilient } from '../services/quoteSource.js'
 import { isExecutableQuote } from '../services/quotePolicy.js'
+import { resolveMarketState } from '../services/sessionClock.js'
 
 export const stockApp = exp.Router()
 
@@ -88,6 +90,10 @@ stockApp.post('/quote/:symbol/refresh', verifyToken('USER'), async (req, res, ne
       // the stored row is already the newest verified data. Returning 429 here
       // reported "rate limited" for a request that never needed to be made,
       // which read as an outage. Serve the verified row instead.
+      // A refresh for this symbol already ran inside the throttle window, so
+      // the stored row is already the newest verified data. Returning 429 here
+      // reported "rate limited" for a request that never needed to be made,
+      // which read as an outage. Serve the verified row instead.
       const fresh = await stockModel.findOne({ symbol }).lean()
       if (fresh && isExecutableQuote(fresh, symbol)) {
         return res.status(200).json({
@@ -105,14 +111,20 @@ stockApp.post('/quote/:symbol/refresh', verifyToken('USER'), async (req, res, ne
         symbol
       })
     }
-    rememberRefresh(throttleKey)
+
+    // NOTE: `rememberRefresh` is deliberately NOT called yet. It is consumed
+    // only once a provider fetch actually succeeds — otherwise a request that
+    // made no provider call (circuit open) still locked the user out for the
+    // rest of the window, turning one outage into a 429 cascade.
 
     // Shared provider budget: an open circuit makes no provider call at all.
-    const budget = await withProviderBudget(() => fetchQuoteWithRetry(symbol, () => yahooFinance.quote(symbol)), Date.now())
+    const budget = await withProviderBudget(() => fetchQuotesResilient([symbol], () => yahooFinance.quote(symbol)), Date.now())
 
     let quotes
     if (budget.ok) {
       quotes = budget.value
+      // The provider was actually reached, so the throttle is now spent.
+      rememberRefresh(throttleKey)
     } else {
       const limited = budget.reason === 'rate-limited'
       const cooling = budget.reason === 'circuit-open'
@@ -201,8 +213,8 @@ const syncStocksData = async (force = false) => {
     // circuit makes NO provider call at all and preserves the stored rows.
     const budget = await withProviderBudget(async () => {
       console.log('[Yahoo Finance] Yahoo request started for symbols:', symbols)
-      const fetched = await yahooFinance.quote(symbols)
-      console.log('[Yahoo Finance] Yahoo request succeeded')
+      const fetched = await fetchQuotesResilient(symbols, (list) => yahooFinance.quote(list))
+      console.log(`[Yahoo Finance] Yahoo request succeeded (${fetched.length} quotes)`)
       return fetched
     }, now)
 
@@ -283,7 +295,10 @@ const syncStocksData = async (force = false) => {
             source: 'yahoo',
             asOf: quotesAsOf,
             providerTime: toProviderTime(quote?.regularMarketTime),
-            marketState: quote?.marketState || null,
+            // Provider state wins; derived from the provider's own
+            // timestamp when the chart endpoint supplies none.
+            marketState:
+              resolveMarketState(quote?.marketState, quote?.regularMarketTime, quote?.exchangeTimezoneName) ?? null,
             lastVerifiedAt: quotesAsOf,
             stale: false
           }

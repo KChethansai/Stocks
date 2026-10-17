@@ -2,6 +2,7 @@
 // from unit tests without booting the API router or touching the database).
 import { toProviderTime } from '../config/universe.js'
 import { isClosedSessionState, QUOTE_FRESH_MAX_AGE_MS, MAX_CLOSED_QUOTE_AGE_MS } from './quotePolicy.js'
+import { resolveMarketState } from './sessionClock.js'
 
 // Minimum gap between quote refreshes for one user+symbol (abuse + Yahoo
 // cost guard for the synchronous single-symbol refresh path).
@@ -217,9 +218,13 @@ export function buildVerifiedQuoteRow(base, quote, now = new Date()) {
   // decay overnight, but it is still bounded, and an unknown session state
   // fails closed. Provider state is not an exchange calendar.
   if (!providerTime || !Number.isFinite(age) || age < 0) return null
-  if (quote.marketState === 'REGULAR') {
+  // The provider's own state wins; when it supplies none (the chart
+  // endpoint), the session is derived from the provider's own timestamp in
+  // the exchange timezone. Unresolvable stays unknown, which fails closed.
+  const marketState = resolveMarketState(quote.marketState, providerTime, quote.exchangeTimezoneName)
+  if (marketState === 'REGULAR') {
     if (age > QUOTE_FRESH_MAX_AGE_MS) return null
-  } else if (isClosedSessionState(quote.marketState)) {
+  } else if (isClosedSessionState(marketState)) {
     if (age > MAX_CLOSED_QUOTE_AGE_MS) return null
   } else {
     return null
@@ -240,7 +245,7 @@ export function buildVerifiedQuoteRow(base, quote, now = new Date()) {
     // it, so it must travel with the row. Omitting it made every refreshed
     // row fail the gate as "unknown session" — callers that patched it in
     // afterwards were papering over a builder gap.
-    marketState: quote.marketState,
+    marketState,
     lastVerifiedAt: now,
     stale: false
   }

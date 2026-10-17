@@ -382,3 +382,26 @@ Task-file product truth < live code. D6 is the instance: filesystem won.
   unreachable but the stored quote is still valid, it is returned as a
   degraded 200. Genuine failures stay 429/502/503 with the real cause. No
   refresh path returns 429 for a request that never needed to be made.
+- **D44. Partial-provider recovery (Oct 2026, follow-up to D43):** D43 did not
+  restore service. Production stayed at 0/30 usable because Yahoo's *quote*
+  endpoint was blocked from Render's egress IP while the *chart* endpoint still
+  answered. Yahoo worked from every other host, so this was an IP-level block,
+  not an outage. Three fixes:
+  (1) *Throttle was spent on calls that never happened* — `rememberRefresh`
+     ran before the provider call, so a circuit-open request (which makes no
+     provider call at all) still locked the user out, turning one outage into a
+     429 cascade. It is now consumed only on a successful provider fetch.
+  (2) *Second transport, same provider* — `services/chartQuoteSource.js` reads
+     the provider's chart endpoint. Same genuine price and provider timestamp,
+     not a different or synthetic source. Tried **inside** the single circuit
+     breaker attempt (`services/quoteSource.js`), so a primary failure that
+     recovers via the chart endpoint never records a provider failure.
+  (3) *Session derivation* (`services/sessionClock.js`) — the chart endpoint
+     reports no `marketState`, and rows without one fail closed, so the whole
+     universe was unusable. The session is now derived from the provider's own
+     timestamp in the exchange timezone (US equities 09:30–16:00 ET, weekends
+     closed). This is a fallback ONLY: a *recognised* provider state always
+     wins, an unrecognised state is not trusted, and an unreadable timestamp
+     yields null so the gate still fails closed. A half-day early close (13:00
+     ET) falls inside the window, so a genuinely open market is never reported
+     closed — the unsafe direction is avoided.

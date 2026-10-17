@@ -112,13 +112,26 @@ describe('refreshSymbolForExecution', () => {
     }
   })
 
-  it('returns null when the session state is unknown', async () => {
+  it('derives a missing session from the provider timestamp', async () => {
+    // The chart endpoint supplies no session. Deriving it from the provider's
+    // own timestamp keeps the universe usable; the row must still be fillable.
     const symbol = uniqueSymbol()
     const row = await refreshSymbolForExecution(
       base(symbol),
-      async () => [providerQuote(symbol, { marketState: 'MYSTERY' })]
+      async () => [providerQuote(symbol, { marketState: null })]
     )
-    assert.equal(row, null)
+    assert.ok(row, 'a missing session must be derived, not rejected')
+    assert.ok(['REGULAR', 'CLOSED'].includes(row.marketState), row.marketState)
+    assert.equal(isExecutableQuote(row, symbol), true)
+  })
+
+  it('returns null when the session cannot be resolved at all', async () => {
+    const symbol = uniqueSymbol()
+    const row = await refreshSymbolForExecution(
+      base(symbol),
+      async () => [providerQuote(symbol, { marketState: 'MYSTERY', regularMarketTime: 'nonsense' })]
+    )
+    assert.equal(row, null, 'an unreadable timestamp must fail closed')
   })
 
   it('returns null for a future-dated provider timestamp', async () => {
@@ -164,7 +177,10 @@ describe('failure must not spend the shared cooldown', () => {
   it('allows an immediate retry after unusable provider data', async () => {
     const symbol = uniqueSymbol()
     assert.equal(
-      await refreshSymbolForExecution(base(symbol), async () => [providerQuote(symbol, { marketState: 'MYSTERY' })]),
+      await refreshSymbolForExecution(
+        base(symbol),
+        async () => [providerQuote(symbol, { regularMarketTime: 'nonsense' })]
+      ),
       null
     )
     const row = await refreshSymbolForExecution(base(symbol), async () => [providerQuote(symbol)])

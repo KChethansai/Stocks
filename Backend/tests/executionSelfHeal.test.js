@@ -118,7 +118,9 @@ test('unusable provider data still rejects the order', async () => {
       symbol: 'MSFT',
       shortName: 'Microsoft',
       regularMarketPrice: 101,
-      regularMarketTime: new Date(Date.now() - 400000),
+      // Unreadable timestamp: the session cannot be derived, so this is
+      // genuinely unusable and the order must still be refused.
+      regularMarketTime: 'nonsense',
       marketState: 'MYSTERY'
     }]
   })

@@ -83,15 +83,29 @@ describe('buildVerifiedQuoteRow', () => {
     assert.equal(build(null), null)
   })
 
-  it('accepts a genuine bounded last close outside REGULAR, rejects unknown state', () => {
+  it('accepts a genuine bounded last close outside REGULAR, and derives a missing session', () => {
     // Closed sessions carry the authoritative last close and must stay
     // refreshable, otherwise a weekend refresh is impossible
     // (see quotePolicy.test.js).
     for (const marketState of ['CLOSED', 'PRE', 'POST', 'POSTPOST', 'PREPRE']) {
       assert.ok(build(liveQuote({ marketState })), marketState)
     }
+    // A missing or bogus session is now derived from the provider's own
+    // timestamp in the exchange timezone, because the chart endpoint supplies
+    // no session field and failing closed there made the whole universe
+    // unusable. Derivation is a fallback only; a provider state always wins.
     for (const marketState of ['UNKNOWN', 'WAT', undefined, null, '']) {
-      assert.equal(build(liveQuote({ marketState })), null, String(marketState))
+      const row = build(liveQuote({ marketState }))
+      assert.ok(row, `expected a derived session for ${String(marketState)}`)
+      assert.ok(['REGULAR', 'CLOSED'].includes(row.marketState), row.marketState)
+    }
+    // Still fails closed when the session cannot be resolved at all.
+    for (const marketState of ['UNKNOWN', undefined]) {
+      assert.equal(
+        build(liveQuote({ marketState, regularMarketTime: 'nonsense' })),
+        null,
+        'an unreadable timestamp must not yield a session'
+      )
     }
     // Even a closed session refuses ancient data.
     assert.equal(build(liveQuote({ marketState: 'CLOSED', regularMarketTime: new Date(Date.now() - 8 * 86400000) })), null)
