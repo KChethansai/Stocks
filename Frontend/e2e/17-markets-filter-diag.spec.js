@@ -21,7 +21,7 @@ async function openMarkets(page) {
 test('diagnose category filter hit areas in every state', async ({ page }) => {
   await openMarkets(page)
 
-  const allChip = page.getByRole('button', { name: /^All · /i }).first()
+  const allChip = page.getByRole('button', { name: /^All sectors, \d+ stocks?$/i }).first()
   await expect(allChip).toBeVisible({ timeout: 20000 })
 
   // All-stocks state: the whole chip must be clickable, not a thin sliver.
@@ -29,7 +29,7 @@ test('diagnose category filter hit areas in every state', async ({ page }) => {
   expect(box.height, 'All chip hit height').toBeGreaterThanOrEqual(30)
 
   // Activate a category through its normal visible area (no force).
-  const aCategory = page.getByRole('button', { name: /Technology · \d+/ }).first()
+  const aCategory = page.getByRole('button', { name: /^Technology, \d+ stocks?$/i }).first()
   await expect(aCategory).toBeVisible({ timeout: 10000 })
   const catBox = await aCategory.boundingBox()
   expect(catBox.height, 'category chip hit height').toBeGreaterThanOrEqual(30)
@@ -87,7 +87,47 @@ test('diagnose category filter hit areas in every state', async ({ page }) => {
   if (await toggle.count()) {
     await toggle.click()
     await page.waitForTimeout(400)
-    const collapsedBox = await page.getByRole('button', { name: /^All · /i }).first().boundingBox()
+    const collapsedBox = await page.getByRole('button', { name: /^All sectors, \d+ stocks?$/i }).first().boundingBox()
     expect(collapsedBox?.height || 0).toBeGreaterThanOrEqual(30)
   }
+})
+
+test('the category control is compact — two columns, no one-chip-per-line sprawl', async ({ page }) => {
+  await openMarkets(page)
+  await expect(page.getByRole('button', { name: /^All sectors, \d+ stocks?$/i })).toBeVisible({ timeout: 20000 })
+
+  const geometry = await page.evaluate(() => {
+    const group = document.querySelector('[aria-label="Filter by sector"]')
+    const chips = [...group.querySelectorAll('button')]
+    const rows = new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top)))
+    const heights = chips.map((c) => c.getBoundingClientRect().height)
+    const columns = new Set(chips.map((c) => Math.round(c.getBoundingClientRect().left)))
+    return {
+      chipCount: chips.length,
+      rowCount: rows.size,
+      columnCount: columns.size,
+      height: Math.round(group.getBoundingClientRect().height),
+      minHeight: Math.round(Math.min(...heights)),
+      // Any chip whose visible text is clipped: two sectors truncating to
+      // "Consumer D…" / "Consumer C…" are indistinguishable in practice.
+      clipped: chips
+        .filter((c) => {
+          const span = c.querySelector('span')
+          return span && span.scrollWidth > span.clientWidth + 1
+        })
+        .map((c) => c.getAttribute('aria-label'))
+    }
+  })
+
+  // "All" spans both columns on the first row; the remaining chips pair up.
+  const expectedRows = 1 + Math.ceil((geometry.chipCount - 1) / 2)
+  expect(geometry.rowCount, 'chips should pair up, not stack one per line').toBeLessThanOrEqual(expectedRows)
+  expect(geometry.columnCount, 'chips should form a 2-up grid').toBe(2)
+  // Hit targets stay comfortable (WCAG 2.2 target size) while the block shrinks.
+  expect(geometry.minHeight, 'every chip keeps a real hit target').toBeGreaterThanOrEqual(32)
+  // Coarse guard against future sprawl: one chip per line measured ~330px.
+  expect(geometry.height, 'the whole control should stay compact').toBeLessThanOrEqual(240)
+  // Every sector must be readable, not ellipsised into an indistinguishable
+  // stub. The full canonical name stays in the tooltip and aria-label.
+  expect(geometry.clipped, `truncated chips: ${geometry.clipped.join(', ')}`).toEqual([])
 })

@@ -65,6 +65,87 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, guard]).finally(() => clearTimeout(timer))
 }
 
+// -----------------------------
+// Provider fetch resilience
+// -----------------------------
+// A single transient provider blip used to surface to the user as "Live
+// market data is unavailable right now", with the stored quote left unchanged
+// and no indication of why. Providers fail transiently (short timeouts,
+// 429s, 5xx). One bounded retry absorbs the vast majority of those, and the
+// remaining failure is reported with its actual cause so the caller can tell
+// "rate limited, wait" apart from "provider down".
+
+export const QUOTE_FETCH_ATTEMPTS = 2
+export const QUOTE_FETCH_TIMEOUT_MS = 6 * 1000
+export const QUOTE_FETCH_BACKOFF_MS = 350
+
+// Classifies a provider failure. Only transient classes are worth retrying:
+// a bad symbol or an invalid response will fail identically every time.
+export function classifyProviderError(err) {
+  const message = String(err?.message || '').toLowerCase()
+  const status = err?.status ?? err?.statusCode ?? err?.response?.status
+  if (
+    status === 429 ||
+    message.includes('too many requests') ||
+    message.includes('rate limit') ||
+    message.includes('ratelimit') ||
+    message.includes('429')
+  ) {
+    return { kind: 'rate-limited', retryable: true }
+  }
+  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+    return { kind: 'client-error', retryable: false }
+  }
+  if (status >= 500 || err?.name === 'QuoteProviderTimeout') {
+    return { kind: 'provider-error', retryable: true }
+  }
+  if (
+    err?.name === 'QuoteProviderTimeout' ||
+    message.includes('timed out') ||
+    message.includes('timeout') ||
+    message.includes('econnreset') ||
+    message.includes('socket hang up') ||
+    message.includes('network') ||
+    message.includes('fetch failed')
+  ) {
+    return { kind: 'timeout', retryable: true }
+  }
+  return { kind: 'unavailable', retryable: true }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref?.())
+
+/**
+ * Fetch one symbol's quote with one bounded retry for transient failures.
+ * Throws the last error, tagged with its classification, when every attempt
+ * fails.
+ */
+export async function fetchQuoteWithRetry(
+  symbol,
+  fetcher,
+  { attempts = QUOTE_FETCH_ATTEMPTS, timeoutMs = QUOTE_FETCH_TIMEOUT_MS, backoffMs = QUOTE_FETCH_BACKOFF_MS } = {}
+) {
+  let lastErr
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await withTimeout(
+        deduplicateQuoteRefresh(symbol, fetcher),
+        timeoutMs,
+        'QuoteProviderTimeout'
+      )
+    } catch (err) {
+      const classified = classifyProviderError(err)
+      lastErr = err
+      if (!classified.retryable || attempt === attempts - 1) {
+        lastErr.quoteFailure = classified.kind
+        throw lastErr
+      }
+      await sleep(backoffMs)
+    }
+  }
+  throw lastErr
+}
+
 const executionRefreshLastBySymbol = new Map()
 
 // Pure cooldown check for the execution path.
@@ -103,13 +184,13 @@ export async function refreshSymbolForExecution(base, fetchQuote, now = Date.now
   if (!executionRefreshAllowed(symbol, now)) return null
   let quotes
   try {
-    // Bounded: the caller runs inside a per-user serialised trade queue, so a
-    // hung provider request would otherwise block that user indefinitely.
-    quotes = await withTimeout(
-      deduplicateQuoteRefresh(symbol, fetchQuote),
-      EXECUTION_REFRESH_TIMEOUT_MS,
-      'Quote provider timed out'
-    )
+    // Bounded and retried once: the caller runs inside a per-user serialised
+    // trade queue, so a hung or flaky provider request would otherwise block
+    // that user or fail a trade that would have succeeded on a retry.
+    quotes = await fetchQuoteWithRetry(symbol, fetchQuote, {
+      attempts: 2,
+      timeoutMs: Math.floor(EXECUTION_REFRESH_TIMEOUT_MS / 2)
+    })
   } catch {
     // The cooldown is deliberately NOT consumed on failure. A transient
     // provider error must not cost every account on this symbol a 10s wait,

@@ -28,7 +28,7 @@ import { LiveValue } from './LiveValue'
 import { Button, Chip } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import { Select } from './ui/Select'
-import { normalizeSector } from '../utils/sectorTaxonomy'
+import { normalizeSector, shortSectorLabel } from '../utils/sectorTaxonomy'
 import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 import { AutomationPanel } from './ml/PredictionWidgets'
@@ -434,29 +434,39 @@ export default function Market() {
             />
           </div>
 
-          {/* Sector Filter Chips (all canonical sectors, with counts) */}
-          {/* Wrapping, not horizontal scrolling. A single clipped scroll row hid
-              six of the eight sectors behind an invisible affordance, so they
-              were undiscoverable in a narrow panel; wrapping makes every
-              category present and tappable at every width. */}
-          <div className="flex shrink-0 flex-wrap gap-1.5" role="group" aria-label="Filter by sector">
+          {/* Sector filter: a 2-up grid. Flex-wrapping put one chip per line in
+              this narrow rail because "Communication Services · 5" is wider
+              than half the column, so the control consumed ~330px of vertical
+              space. Two columns + short display labels halves that. The
+              canonical name remains the filter value, the accessible name and
+              the tooltip — only the visible text is abbreviated. */}
+          <div
+            className="grid shrink-0 grid-cols-2 gap-1"
+            role="group"
+            aria-label="Filter by sector"
+          >
             <Chip
               active={selectedSector === 'ALL'}
               aria-pressed={selectedSector === 'ALL'}
+              aria-label={`All sectors, ${stocks.length} stocks`}
               onClick={() => setSelectedSector('ALL')}
-              className="min-h-[40px] shrink-0 whitespace-nowrap px-3 py-2 text-[11px] inline-flex items-center"
+              className="col-span-2 min-h-[36px] justify-between px-2.5 py-1.5 text-[11px] inline-flex items-center gap-2"
             >
-              All · {stocks.length}
+              <span className="font-semibold">All stocks</span>
+              <span className="font-mono tabular-nums opacity-70">{stocks.length}</span>
             </Chip>
             {sectors.map(([sec, count]) => (
               <Chip
                 key={sec}
                 active={selectedSector === sec}
                 aria-pressed={selectedSector === sec}
+                aria-label={`${sec}, ${count} ${count === 1 ? 'stock' : 'stocks'}`}
+                title={sec}
                 onClick={() => setSelectedSector(sec)}
-                className="min-h-[40px] shrink-0 whitespace-nowrap px-3 py-2 text-[11px] inline-flex items-center"
+                className="min-h-[36px] justify-between px-2.5 py-1.5 text-[11px] inline-flex items-center gap-1.5"
               >
-                {sec} · {count}
+                <span className="truncate">{shortSectorLabel(sec)}</span>
+                <span className="shrink-0 font-mono tabular-nums opacity-70">{count}</span>
               </Chip>
             ))}
           </div>

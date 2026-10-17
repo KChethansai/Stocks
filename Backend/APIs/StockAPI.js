@@ -6,7 +6,7 @@ import { historyModel, intradayHistoryModel } from '../models/HistoryModel.js'
 import { checkPriceTriggers } from '../services/priceMonitor.js'
 import { cached, invalidateCache } from '../config/cache.js'
 import { baseStocks, toProviderTime } from '../config/universe.js'
-import { buildVerifiedQuoteRow, refreshAllowed, rememberRefresh, deduplicateQuoteRefresh } from '../services/quoteRefresh.js'
+import { buildVerifiedQuoteRow, refreshAllowed, rememberRefresh, fetchQuoteWithRetry } from '../services/quoteRefresh.js'
 import { isExecutableQuote } from '../services/quotePolicy.js'
 
 export const stockApp = exp.Router()
@@ -68,20 +68,28 @@ stockApp.post('/quote/:symbol/refresh', verifyToken('USER'), async (req, res, ne
     const throttleKey = `${req.user.id}:${symbol}`
     const allowed = refreshAllowed(throttleKey)
     if (!allowed.ok) {
+      // Not a dead end: the order endpoint verifies the quote itself, so a
+      // throttled *refresh* never blocks trading. Say so, and stop pointing
+      // the user at a manual order retry that is no longer required.
       return res.status(429).json({
-        message: 'Quote refresh throttled — retry shortly, then retry the order with the same order key',
-        retryAfterMs: allowed.retryAfterMs
+        message:
+          'Quote refresh throttled — a refresh for this symbol just ran. You can submit the order directly; it verifies the quote automatically.',
+        retryAfterMs: allowed.retryAfterMs,
+        symbol
       })
     }
     rememberRefresh(throttleKey)
 
     let quotes
     try {
-      quotes = await deduplicateQuoteRefresh(symbol, () => yahooFinance.quote(symbol))
+      quotes = await fetchQuoteWithRetry(symbol, () => yahooFinance.quote(symbol))
     } catch (err) {
       console.error(`[Quote Refresh] Yahoo request failed for ${symbol}:`, err.message)
-      return res.status(502).json({
-        message: 'Live market data is unavailable right now — the stored quote is unchanged. Retry shortly; the symbol and quantity are preserved.',
+      const limited = err?.quoteFailure === 'rate-limited'
+      return res.status(limited ? 429 : 502).json({
+        message: limited
+          ? 'The data provider is rate-limiting requests right now. The stored quote is unchanged — you can submit the order and it will retry, or wait a moment and refresh again.'
+          : 'Live market data is unavailable right now — the stored quote is unchanged. Retry shortly; the symbol and quantity are preserved.',
         symbol,
         refreshed: false
       })
