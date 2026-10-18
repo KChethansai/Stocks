@@ -11,6 +11,7 @@ import { withProviderBudget } from '../services/providerBudget.js'
 import { fetchQuotesResilient } from '../services/quoteSource.js'
 import { isExecutableQuote } from '../services/quotePolicy.js'
 import { resolveMarketState } from '../services/sessionClock.js'
+import { fetchGeneralMarketNews, fetchStockNews } from '../services/newsService.js'
 
 export const stockApp = exp.Router()
 
@@ -490,27 +491,36 @@ stockApp.post('/stocks/seed', verifyToken('USER'), async (req, res, next) => {
 })
 
 // -----------------------------
-// Per-stock news (via Yahoo search)
+// Market + per-stock news (via Yahoo search)
 // -----------------------------
-// search() is the only yahoo-finance2 module carrying news (no standalone
-// news module in v3.14.1). News tolerates staleness, so a 30-min in-memory
-// cache per symbol keeps us far under Yahoo rate limits. Fail-soft: Yahoo
-// errors return 200 with an empty (or stale-cached) list, never a 502 —
-// a missing panel must not break the detail view.
-const NEWS_CACHE_TTL_MS = 30 * 60 * 1000
-const NEWS_COUNT = 8
-// Bounded LRU: the key space is attacker-influenced (any valid ticker), so
-// an unbounded Map would grow heap until entries age out. Evict oldest-first.
-const NEWS_CACHE_MAX = 200
-const newsCache = new Map()
-const setNewsCache = (symbol, entry) => {
-  if (newsCache.has(symbol)) newsCache.delete(symbol)
-  newsCache.set(symbol, entry)
-  if (newsCache.size > NEWS_CACHE_MAX) {
-    const oldest = newsCache.keys().next().value
-    newsCache.delete(oldest)
+// Attribution and the general feed live in services/newsAttribution.js and
+// services/newsService.js. Fail-soft by contract: a provider failure returns
+// 200 with an honest `stale` flag and whatever the cache still holds, never a
+// 502 — a news panel must not break the page. Caching, in-flight dedup and
+// the request bound are handled in the service.
+stockApp.get('/news', async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+
+    const limit = Math.min(60, Math.max(10, Number(req.query.limit) || 40))
+    const { articles, cached, stale, error } = await fetchGeneralMarketNews({ limit })
+    return res.status(200).json({
+      message: error
+        ? 'News temporarily unavailable'
+        : cached
+          ? 'News fetched (cache)'
+          : 'News fetched (live)',
+      scope: 'general',
+      cached: Boolean(cached),
+      stale: Boolean(stale),
+      fetchedAt: new Date().toISOString(),
+      count: articles.length,
+      news: articles
+    })
+  } catch (err) {
+    next(err)
   }
-}
+})
 
 stockApp.get('/news/:symbol', async (req, res, next) => {
   try {
@@ -521,44 +531,32 @@ stockApp.get('/news/:symbol', async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid stock symbol' })
     }
 
-    const hit = newsCache.get(symbol)
-    if (hit && Date.now() - hit.at < NEWS_CACHE_TTL_MS) {
-      return res.status(200).json({ message: 'News fetched (cache)', symbol, news: hit.items })
-    }
-
-    let items = []
-    try {
-      const results = await yahooFinance.search(symbol, { quotesCount: 0, newsCount: NEWS_COUNT })
-      items = (results?.news || [])
-        .map((a) => {
-          // providerPublishTime arrives in ms on some articles, s on others.
-          const ts = Number(a?.providerPublishTime) || 0
-          return {
-            title: a?.title || '',
-            publisher: a?.publisher || 'Yahoo Finance',
-            link: a?.link || a?.url || '',
-            publishedAt: ts ? new Date(ts > 1e12 ? ts : ts * 1000).toISOString() : null
-          }
-        })
-        .filter((a) => a.title)
-        .slice(0, NEWS_COUNT)
-    } catch (err) {
-      console.error(`[News] Yahoo Finance search failed for ${symbol}:`, err.message)
-      // Stale cache beats an empty panel; empty beats an error.
-      return res.status(200).json({
-        message: 'News temporarily unavailable',
-        symbol,
-        stale: true,
-        news: hit?.items || []
-      })
-    }
-
-    setNewsCache(symbol, { at: Date.now(), items })
-    return res.status(200).json({ message: 'News fetched (live)', symbol, news: items })
+    const limit = Math.min(40, Math.max(5, Number(req.query.limit) || 20))
+    const { articles, cached, stale, error } = await fetchStockNews(symbol, { limit })
+    // `attributedTo` is the count the provider actually named this symbol on.
+    // It is reported separately from the article total so the UI never implies
+    // every returned article is about the queried stock.
+    const attributedTo = articles.filter((a) => a.symbols?.includes(symbol)).length
+    return res.status(200).json({
+      message: error
+        ? 'News temporarily unavailable'
+        : cached
+          ? 'News fetched (cache)'
+          : 'News fetched (live)',
+      scope: 'symbol',
+      symbol,
+      cached: Boolean(cached),
+      stale: Boolean(stale),
+      fetchedAt: new Date().toISOString(),
+      count: articles.length,
+      attributedTo,
+      news: articles
+    })
   } catch (err) {
     next(err)
   }
 })
+
 // Daily candles don't change intraday: 24h cache. Intraday (60m) candles are
 // fresher: 15m cache. Both are answered from the same route via ?interval=.
 const HISTORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000

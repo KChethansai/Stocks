@@ -116,7 +116,12 @@ export function Select({ value, onChange, options, placeholder = 'Select…', cl
   }
 
   return (
-    <div className="relative" ref={ref}>
+    // `className` lands on the ROOT, not just the trigger. The trigger alone is
+    // an inline-flex box, so a `flex-1 min-w-0` intended to make the control
+    // fill its flex parent was inert: the root sized to the label instead, and
+    // width hints like `w-44` never applied. The trigger keeps `w-full` so it
+    // fills the root, and the root carries the caller's layout classes.
+    <div className={cn('relative min-w-0', className)} ref={ref}>
       <button
         ref={triggerRef}
         type="button"
@@ -127,9 +132,8 @@ export function Select({ value, onChange, options, placeholder = 'Select…', cl
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          'inline-flex items-center gap-2 rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] px-2.5 py-1.5 text-[11px] text-[var(--ivory)] transition-colors duration-150 hover:border-[var(--hairline-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] cursor-pointer',
-          open && 'border-[var(--brass)]/60',
-          className
+          'w-full inline-flex items-center gap-2 rounded-lg border border-[var(--hairline)] bg-[var(--ink-950)] px-2.5 py-1.5 text-[11px] text-[var(--ivory)] transition-colors duration-150 hover:border-[var(--hairline-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brass)] cursor-pointer',
+          open && 'border-[var(--brass)]/60'
         )}
       >
         <span className="truncate">{selected?.label || placeholder}</span>

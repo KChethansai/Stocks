@@ -123,3 +123,85 @@ process in this env — same substitution as round 1).
   integrity pass.
 - [x] **Archived landing intact.** `legacy-landing/` unmodified (no diff
   entries); manifest + README untouched.
+
+## Refinement round 3 — News, Activity ledger, Markets, Dashboard (D45–D48)
+
+Loop: Agent Hub `arena` (real tournament, 4 agents × 2 rounds, seed 4242) +
+`continuous-agent-loop`/`ralphinho-rfc-pipeline` for the surrounding
+implement → review → browser-inspect → correct → retest cycles. Browser: **real
+Playwright MCP** (`browser_navigate` / `browser_run_code_unsafe` /
+`browser_take_screenshot`) driving real Chrome — this round had an actual MCP
+server available, unlike rounds 1–2 which recorded that substitution.
+Skills actually used: `arena` (tournament), `document-agent` review pass,
+`continuous-agent-loop` + `ralphinho-rfc-pipeline` (loop, substitution noted),
+`impeccable`/`ui-ux-pro-max`/`apple-design` consulted for the sector control and
+ledger density decisions.
+
+- [x] **General market news is the default (D45).** Backend
+      `services/newsAttribution.js` + `services/newsService.js`; routes
+      `GET /stock-api/news` and `/stock-api/news/:symbol`. Genuine provider
+      fields only. Publication time and fetch time are separate fields.
+- [x] **Attribution corrected.** Verified against live responses, not mocks:
+      every article is labelled from the provider's own `relatedTickers`.
+      Measured on the live feed: 50 articles, 0 duplicate headlines, 5 rows
+      collapsed, 18 with symbols, 24 with index labels, 19 unattributed
+      (rendered with a neutral marker). Unread symbols omitted, not shown bare.
+- [x] **Bounded/cached/deduplicated.** 6 fixed topics, one fan-out per cache
+      window (never one feed per held stock), 30-min TTL, in-flight promise
+      dedup, LRU, per-search timeout. Cache key includes `limit`.
+- [x] **Ledger is real server-side pagination (D46).** `services/ledgerPagination.js`.
+      Verified live on 140 records (past the old 100 cap): 14 pages, 140
+      collected / 140 unique — no duplicate, no missing row. Filters apply
+      before paging; account (140/96/44), filtered and page counts are
+      separately labelled; page state lives in the URL; out-of-range clamps.
+      Ownership verified by a second account seeing `total=1` against the
+      owner's 140. Legacy no-param contract unchanged for analytics consumers.
+- [x] **CSV export scope explicit.** Server-computed, `page` vs `all`, scope in
+      the filename (`…_page-1-of-14.csv`, `…_all-matching.csv`).
+- [x] **Markets controls compact and fully functional (D48).** Listbox with full
+      canonical names + counts; 230px of controls before the first row (was
+      ~330px). Verified composing together: sector → sort → search → reset →
+      pagination, counts matching the filtered set, page reset on filter change.
+- [x] **Dashboard fits the desktop viewport (D47).** `main.scrollHeight −
+      main.clientHeight = 0` at 1366×768 and 1440×900 (baseline: 144px and 12px
+      overflow). Both sidebar states. Plot fills its frame at every width tested.
+      Mobile/short viewports scroll naturally; no horizontal overflow at 360/390/768.
+- [x] **Independent review applied.** Findings fixed: mobile rail height fed
+      back into its own measurement (gated on `isWide`); Market Movers price
+      hidden below `sm` (tile now wraps); `skip` reachable with an unbounded
+      page (clamped before the query); dead fingerprint guard that could never
+      fire (`new Date(null)` → `0`, which *is* finite); dead `AbortController`
+      that never touched the request; `limit` missing from the cache key; search
+      committing on blur and defeating the page reset; News scope selector
+      disagreeing with the body on an untracked deep-linked symbol; stale banner
+      claiming a cached feed over an empty list; `Select` swallowing `className`;
+      dead `newsDedupe.js`, `AiInsightWidget`/`ForecastsWidget` removed.
+
+### Tests actually run
+
+- Backend `npm run test:unit` **143/143**; Phase-0 **17/17**; JS↔Python parity 4 groups.
+- Frontend `npm run test:unit` **34/34**; eslint **0 errors** (70 warnings, 69
+  pre-existing + 1 inherent to the URL-driven page state); `tokens:check` clean;
+  `vite build` clean.
+- Playwright **78 passed / 1 skipped** on `chromium-desktop` AND `firefox-desktop`
+  (`18-change-shots.spec.js` is capture-only and guarded by `CAPTURE_SHOTS=1`).
+
+### Evidence
+
+`/home/chethan/.tmp/opencode/shots/refine/` — `final-` prefixed:
+`news-general`, `news-symbol`, `activity-p1`, `activity-last`,
+`activity-filtered`, `markets`, `markets-sector-open`, `dash-1366`, `dash-1440`,
+`dash-collapsed`, `dash-360`, `dash-390`, `dash-768`.
+Baselines (`base-` prefix) in the same directory.
+
+### Blocked / unverified (unchanged or new)
+
+- WebKit still unrun (host missing browser deps; `install-deps` needs sudo).
+- ML model accuracy untouched and unverified here; only the *presentation* of
+  agreement counts changed.
+- The dashboard rail's gap is intentionally non-zero when the model returns
+  fewer than 6 forecasts: filling it would mean ~127px-tall rows, i.e. an
+  oversized card with no data behind it. Both branches are asserted in
+  `19-dashboard-geometry.spec.js` rather than one being skipped.
+- Pagination was exercised at 140 records. Very large ledgers (>100k) would want
+  keyset/cursor paging instead of `skip`; not needed at paper-trading volumes.

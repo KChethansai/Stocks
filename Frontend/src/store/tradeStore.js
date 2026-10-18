@@ -19,6 +19,13 @@ export const useTrade = create((set) => ({
   loading: false,
   initializing: false,
 
+  // Activity-ledger page state, deliberately separate from `transactions`
+  // (the legacy 100-row window that portfolio maths depends on). Kept out of
+  // that slice so a page of the ledger can never be mistaken for full history.
+  ledgerPage: null,
+  ledgerLoading: false,
+  ledgerError: null,
+
   //helper: enrich raw holdings (from buy/sell response) with computed pnl fields
   //buy/sell responses return raw DB holdings without pnlPercent, invested, etc.
   //we re-derive them client-side using the current stock prices already in the store.
@@ -182,6 +189,44 @@ export const useTrade = create((set) => ({
       return {
         success: false,
         message: err.response?.data?.message || 'Failed to fetch transactions'
+      }
+    }
+  },
+
+  // One page of the activity ledger. Separate from fetchTransactions on
+  // purpose: Portfolio/Analytics/Dashboard feed the legacy 100-row window into
+  // summarizePortfolio(), so a paginated subset must never land in that shared
+  // `transactions` state. The ledger owns its own page state instead.
+  fetchLedgerPage: async ({ page = 1, pageSize = 10, side = '', q = '' } = {}) => {
+    try {
+      const response = await axios.get(`${API_BASE}/trade-api/transactions`, {
+        withCredentials: true,
+        params: { page, pageSize, ...(side ? { side } : {}), ...(q ? { q } : {}) }
+      })
+      const d = response.data
+      set({ ledgerPage: { ...d, fetchedAt: Date.now() }, ledgerLoading: false, ledgerError: null })
+      return { success: true, ...d }
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to load the activity ledger'
+      set({ ledgerLoading: false, ledgerError: message })
+      return { success: false, message }
+    }
+  },
+
+  // Export rows for an explicit, labelled CSV scope. `scope` is either the page
+  // on screen or every record matching the current filters — the server
+  // computes both, so the file can never disagree with the ledger.
+  fetchLedgerExport: async ({ scope = 'page', page = 1, pageSize = 10, side = '', q = '' } = {}) => {
+    try {
+      const response = await axios.get(`${API_BASE}/trade-api/transactions/export`, {
+        withCredentials: true,
+        params: { scope, page, pageSize, ...(side ? { side } : {}), ...(q ? { q } : {}) }
+      })
+      return { success: true, ...response.data }
+    } catch (err) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Export failed'
       }
     }
   },

@@ -5,6 +5,7 @@ import { stockModel } from '../models/StockModel.js'
 import { userModel } from '../models/UserModel.js'
 import { portfolioModel } from '../models/PortfolioModel.js'
 import { transactionModel } from '../models/TransactionModel.js'
+import { parsePage, parsePageSize, parseSide, fetchLedgerPage, fetchLedgerForExport, accountSideCounts } from '../services/ledgerPagination.js'
 import { orderModel } from '../models/OrderModel.js'
 import { historyModel } from '../models/HistoryModel.js'
 import { executePaperTrade } from '../services/tradeService.js'
@@ -319,21 +320,99 @@ tradeApp.get('/portfolio', async (req, res, next) => {
 })
 
 //get transactions
+//
+// Two contracts on one route, chosen by the query string:
+//
+//   * NO pagination params -> the original contract, unchanged. The newest 100
+//     rows with `scope: 'latest 100'`. Portfolio, Analytics and Dashboard feed
+//     these straight into summarizePortfolio(), so this window must keep
+//     behaving exactly as before; pagination there would silently change every
+//     portfolio figure.
+//
+//   * ?page= present -> real server-side pagination over the FULL collection.
+//     Filters (side + search) are applied in the database BEFORE paging, so
+//     the reported total describes the filtered set and the pages are real.
+//     `accountTotals` is deliberately separate from the filtered total: the
+//     summary cards must never present a filtered count as the account total.
 tradeApp.get('/transactions', async (req, res, next) => {
   try {
-    //fetch transactions sorted by newest first
-    // Scope note: the activity ledger is windowed to the latest 100 records.
-    // All-time totals, realized P&L and CSV exports inherit this scope until
-    // pagination lands. The UI and export carry the same scope label.
-    const transactions = await transactionModel
-      .find({ userId: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean()
-    const total = await transactionModel.countDocuments({ userId: req.user.id })
-    return res
-      .status(200)
-      .json({ message: 'Transactions fetched', transactions, scope: 'latest 100', total })
+    const side = parseSide(req.query.side)
+    const q = req.query.q
+
+    // Any pagination or filter parameter selects the paginated contract. Keying
+    // only on page/pageSize meant `?side=SELL` alone silently fell through to
+    // the legacy 100-row shape, so a client that forgot `page` got a different
+    // response contract instead of an error or a first page.
+    const wantsPaginated =
+      req.query.page !== undefined ||
+      req.query.pageSize !== undefined ||
+      req.query.side !== undefined ||
+      req.query.q !== undefined
+
+    if (!wantsPaginated) {
+      // Legacy shape. Sorted newest-first; see the route comment above.
+      const transactions = await transactionModel
+        .find({ userId: req.user.id })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean()
+      const total = await transactionModel.countDocuments({ userId: req.user.id })
+      return res
+        .status(200)
+        .json({ message: 'Transactions fetched', transactions, scope: 'latest 100', total })
+    }
+
+    const pageSize = parsePageSize(req.query.pageSize)
+    const [result, accountTotals] = await Promise.all([
+      fetchLedgerPage({ userId: req.user.id, page: parsePage(req.query.page), pageSize, side, q }),
+      accountSideCounts(req.user.id)
+    ])
+
+    return res.status(200).json({
+      message: 'Transactions fetched',
+      scope: 'paginated',
+      ...result,
+      accountTotals
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// Explicit, labelled CSV export scope. Two modes, both server-computed so the
+// file always matches a real query:
+//   ?scope=page  -> the records already on screen
+//   ?scope=all   -> every record matching the CURRENT filters
+// The response always reports the true matching `total` plus `truncated`, so a
+// capped export says so instead of quietly pretending it is complete.
+tradeApp.get('/transactions/export', async (req, res, next) => {
+  try {
+    const side = parseSide(req.query.side)
+    const q = req.query.q
+    const scope = req.query.scope === 'page' ? 'page' : 'all'
+
+    let rows
+    let total
+    let truncated = false
+
+    if (scope === 'page') {
+      const result = await fetchLedgerPage({
+        userId: req.user.id,
+        page: parsePage(req.query.page),
+        pageSize: parsePageSize(req.query.pageSize),
+        side,
+        q
+      })
+      rows = result.transactions
+      total = result.total
+    } else {
+      const result = await fetchLedgerForExport({ userId: req.user.id, side, q })
+      rows = result.rows
+      total = result.total
+      truncated = result.truncated
+    }
+
+    return res.status(200).json({ scope, total, exported: rows.length, truncated, rows })
   } catch (err) {
     next(err)
   }

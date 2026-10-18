@@ -28,7 +28,7 @@ import { LiveValue } from './LiveValue'
 import { Button, Chip } from './ui/Button'
 import { SegmentedControl } from './ui/SegmentedControl'
 import { Select } from './ui/Select'
-import { normalizeSector, shortSectorLabel } from '../utils/sectorTaxonomy'
+import { normalizeSector } from '../utils/sectorTaxonomy'
 import Reveal from './ui/Reveal'
 import { QuantityStepper } from './ui/QuantityStepper'
 import { AutomationPanel } from './ml/PredictionWidgets'
@@ -443,42 +443,32 @@ export default function Market() {
               className="w-full bg-[#111316] border border-[rgba(255,255,255,0.08)] rounded-lg py-1.5 pl-9 pr-3 text-xs text-[var(--ivory)] focus:outline-none focus:border-[var(--brass)] transition placeholder-[var(--stone-muted)]"
             />
           </div>
+          {/* Sector filter: a single compact listbox.
 
-          {/* Sector filter: a 2-up grid. Flex-wrapping put one chip per line in
-              this narrow rail because "Communication Services · 5" is wider
-              than half the column, so the control consumed ~330px of vertical
-              space. Two columns + short display labels halves that. The
-              canonical name remains the filter value, the accessible name and
-              the tooltip — only the visible text is abbreviated. */}
-          <div
-            className="grid shrink-0 grid-cols-2 gap-1"
-            role="group"
-            aria-label="Filter by sector"
-          >
-            <Chip
-              active={selectedSector === 'ALL'}
-              aria-pressed={selectedSector === 'ALL'}
-              aria-label={`All sectors, ${stocks.length} stocks`}
-              onClick={() => setSelectedSector('ALL')}
-              className="col-span-2 min-h-[36px] justify-between px-2.5 py-1.5 text-[11px] inline-flex items-center gap-2"
-            >
-              <span className="font-semibold">All stocks</span>
-              <span className="font-mono tabular-nums opacity-70">{stocks.length}</span>
-            </Chip>
-            {sectors.map(([sec, count]) => (
-              <Chip
-                key={sec}
-                active={selectedSector === sec}
-                aria-pressed={selectedSector === sec}
-                aria-label={`${sec}, ${count} ${count === 1 ? 'stock' : 'stocks'}`}
-                title={sec}
-                onClick={() => setSelectedSector(sec)}
-                className="min-h-[36px] justify-between px-2.5 py-1.5 text-[11px] inline-flex items-center gap-1.5"
-              >
-                <span className="truncate">{shortSectorLabel(sec)}</span>
-                <span className="shrink-0 font-mono tabular-nums opacity-70">{count}</span>
-              </Chip>
-            ))}
+              A permanent grid of sector buttons was tried twice and abandoned
+              both times. In a 288px rail "Communication Services . 5" is wider
+              than half the column, so flex-wrap put one chip per line and the
+              control consumed ~330px of vertical space above the stock list; a
+              2-up grid of abbreviated chips fixed the height but left the reader
+              decoding abbreviations ("Cons Def", "Comm Svcs") with no
+              explanation. A listbox carries the FULL canonical name, keeps the
+              rail controls on one row, and is the accessible primitive already
+              used for sort. Counts stay visible in the trigger and in the
+              option label, so the control is informative even when closed. */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Select
+              value={selectedSector}
+              onChange={setSelectedSector}
+              ariaLabel="Filter by sector"
+              className="flex-1 min-w-0"
+              options={[
+                { value: 'ALL', label: `All stocks (${stocks.length})` },
+                ...sectors.map(([sec, count]) => ({
+                  value: sec,
+                  label: `${sec} (${count})`
+                }))
+              ]}
+            />
           </div>
 
           {/* Sort + result scope + reset */}
@@ -507,6 +497,9 @@ export default function Market() {
             )}
           </div>
           <p className="mf-meta font-mono px-1" aria-live="polite">
+            {selectedSector !== 'ALL' && (
+              <span className="text-[var(--brass)]">{selectedSector} · </span>
+            )}
             {filteredStocks.length} of {stocks.length} listed{pageCount > 1 ? ` · page ${safePage} of ${pageCount}` : ''}
           </p>
 

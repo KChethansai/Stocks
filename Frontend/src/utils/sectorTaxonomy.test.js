@@ -3,7 +3,7 @@
 // Run: node --test src/utils/sectorTaxonomy.test.js (zero new deps).
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeSector, canonicalSectorList, shortSectorLabel, UNKNOWN_SECTOR } from './sectorTaxonomy.js'
+import { normalizeSector, canonicalSectorList, UNKNOWN_SECTOR } from './sectorTaxonomy.js'
 
 // Raw sector strings present in Backend/config/universe.js (Oct 2026).
 const UNIVERSE_SECTORS = [
@@ -43,31 +43,5 @@ describe('normalizeSector', () => {
   it('canonical list has no duplicates', () => {
     const list = canonicalSectorList()
     assert.equal(new Set(list).size, list.length)
-  })
-})
-
-describe('shortSectorLabel', () => {
-  it('shortens only the display text, never the canonical name', () => {
-    // The filter value, accessible name and tooltip all still use the
-    // canonical sector; only the visible chip text is abbreviated.
-    assert.equal(shortSectorLabel('Communication Services'), 'Comm Svcs')
-    assert.equal(shortSectorLabel('Consumer Defensive'), 'Cons Def')
-    assert.equal(shortSectorLabel('Consumer Cyclical'), 'Cons Cyc')
-    assert.equal(shortSectorLabel('Financial Services'), 'Financials')
-    assert.equal(shortSectorLabel('Technology'), 'Tech')
-  })
-
-  it('keeps names that need no shortening unchanged', () => {
-    for (const name of ['Healthcare', 'Energy', 'Industrials', 'Utilities']) {
-      assert.equal(shortSectorLabel(name), name)
-    }
-  })
-
-  it('never abbreviates an unrecognised sector to an initial or blank', () => {
-    assert.equal(shortSectorLabel('Weird Sector Name'), 'Weird Sector Name')
-    assert.equal(shortSectorLabel(UNKNOWN_SECTOR), 'Unknown')
-    assert.equal(shortSectorLabel(''), UNKNOWN_SECTOR)
-    assert.equal(shortSectorLabel(undefined), UNKNOWN_SECTOR)
-    assert.equal(shortSectorLabel(null), UNKNOWN_SECTOR)
   })
 })

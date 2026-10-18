@@ -855,3 +855,44 @@ html[data-motion="comfort"] .mf-scene * {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 6rem 6rem;
 }
+
+/* ── Dashboard: viewport-aware chart frame ───────────────────────────
+   The dashboard resolves its chart height in CSS rather than by handing
+   the chart a measured pixel number. A JS-measured number fed to
+   TerminalLineChart arrives a frame late, and that frame is real
+   overflow (measured at 11px mid-resize, 241px on a hard downsize).
+
+   The frame is also a COLUMN FLEX BOX and its direct child is a flex
+   item. That is deliberate, and it is the whole reason this rule does
+   not name any class inside TerminalCharts.jsx. A percentage height
+   only resolves when every link of the chain has a DEFINITE height; one
+   link with `height: auto` and the rest resolve to `auto` as well, the
+   @visx ParentSize div at the bottom measures itself instead of its box,
+   and the SVG is pinned to whatever that content turned out to be. In a
+   faithful replica of that chain a 530px frame reported 154px to the
+   SVG with no rule at all — the chart renders as a sliver at the top of
+   an otherwise empty frame, and it looks correct only while it has no
+   data, because the loading/empty branches return a div whose height is
+   a direct child of the frame.
+
+   flex-basis resolves against a definite parent, so `.mf-chart-frame >
+   *` gets a definite height from layout even though the frame itself got
+   its height from `flex-1`, and `height: 100%` then reaches the plot
+   whatever that plot happens to be wrapped in. min-height on the frame is
+   the guard rail: below 180px the plot stops shrinking and <main> scrolls
+   rather than crushing the axis labels. min-height: 0 on the child lets
+   the same floor apply instead of being defeated by the plot's content. */
+.mf-chart-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+}
+.mf-chart-frame > * {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+}
+.mf-chart-frame > * > *,
+.mf-chart-frame > * > * > * {
+  height: 100%;
+}

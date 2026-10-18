@@ -59,5 +59,12 @@ const transactionSchema = new Schema(
 
 transactionSchema.index({ userId: 1, createdAt: -1 })
 transactionSchema.index({ userId: 1, symbol: 1, createdAt: -1 })
+// Paginated ledger reads. The `_id` tie-breaker is part of the sort on purpose:
+// several trades can share a createdAt millisecond, and without a total order
+// MongoDB may return tied rows in a different order per page, which shows the
+// user a duplicated row on one page and silently drops another. Putting _id in
+// the index also lets the sort be satisfied without an in-memory sort.
+transactionSchema.index({ userId: 1, createdAt: -1, _id: -1 })
+transactionSchema.index({ userId: 1, type: 1, createdAt: -1, _id: -1 })
 
 export const transactionModel = model('transaction', transactionSchema)

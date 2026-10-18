@@ -405,3 +405,74 @@ Task-file product truth < live code. D6 is the instance: filesystem won.
      yields null so the gate still fails closed. A half-day early close (13:00
      ET) falls inside the window, so a genuinely open market is never reported
      closed — the unsafe direction is avoided.
+
+- **D45. General market news + honest attribution (Oct 2026, refinement):**
+  "All symbols" meant six per-symbol feeds merged, and the app stamped the
+  *retrieval query* symbol onto every returned article — so a Motley Fool piece
+  about Danaher came back from the NVDA search labelled `NVDA`. Yahoo's `search`
+  is a retrieval endpoint: what it returns is what matched the query, not what
+  the article is about. The provider does publish the subject, on
+  `relatedTickers` (verified live: an ETF piece carries `["NVDA"]`, an Opendoor
+  piece carries `["OPEN","^IXIC","Z","^GSPC"]`). Attribution now uses only that.
+  Unsupported tickers are dropped rather than rendered bare; provider-attached
+  indexes are labelled readably (`^GSPC` → S&P 500). An article the provider
+  names nothing on gets a neutral marker, never a borrowed ticker.
+  General news is the default, from a bounded set of market-level queries
+  (`newsService.js`). Those were chosen by measurement, not taste: Yahoo's
+  search degrades on long queries — `business economy` returned 1 row,
+  `federal reserve interest rates` and `global markets earnings` returned 0 —
+  so every shipped topic is one or two words and returned 6–8 rows.
+  *Duplicate collapsing needed a second identity.* Yahoo publishes the same
+  syndicated release twice under different slugs with **different `uuid`s and
+  different publication times**, so neither URL nor uuid identifies them and the
+  feed rendered one headline twice. `duplicateFingerprint` (title+publisher)
+  collapses those, time-boxed to 24h so a publisher genuinely running the same
+  headline twice is not silently fused. An undated row is never collapsed on
+  title alone. The collapse is recorded (`duplicateCount`), not hidden.
+
+- **D46. Real pagination for the activity ledger (Oct 2026):** the old route
+  fetched the newest 100 rows and rendered all of them, labelled "latest 100 of
+  136" — 36 records unreachable, and group counts describing a window rather
+  than the history. Pagination is opt-in via query params; **no params keeps the
+  legacy contract byte-for-byte** because Portfolio/Analytics/Dashboard feed that
+  window into `summarizePortfolio()` and must not silently change. Any
+  `page`/`pageSize`/`side`/`q` selects the paginated contract. Filters run in the
+  database before paging, ordering is `createdAt desc, _id desc` (the `_id`
+  tie-breaker is load-bearing: without a total order, tied rows can reorder
+  between pages and duplicate one row while dropping another — verified across
+  all 14 pages of a 140-record ledger). `page` is clamped to the last real page
+  *before* the skip, not after. Account totals, filtered totals and page rows
+  are three separately labelled numbers. CSV export scope is explicit and
+  server-computed, and the scope is in the filename.
+
+- **D47. Dashboard composition (Arena champion, Oct 2026):** 4 agents, 2 rounds,
+  seed 4242. The winning card was "Analogy + Build, then break + Speed"; it beat
+  a rival that had built its own headless-Chromium geometry replica. The
+  decisive difference: the champion makes the fit **structural** (a `flex-1` row
+  inside a viewport-height root, only the panel row flexes, everything else
+  `shrink-0`) rather than JS-measured, so surplus has exactly one place to go
+  and the late-frame overflow bug class cannot occur.
+  The chart is sized in CSS, not from a measured pixel count — but only because
+  the percentage chain is made definite at every link via `.mf-chart-frame > *`
+  (a flex child resolves `flex-basis` against a definite parent). Dead-ending
+  that chain renders the plot as an ~18–154px sliver inside a 530px frame with
+  **no other signal reporting it**, because the shell is `h-screen
+  overflow-hidden` and the loading/empty branches carry the height as an inline
+  style where `height:100%` does resolve — so the panel looks right until real
+  history arrives. `19-dashboard-geometry.spec.js` now compares frame height
+  against plot height for exactly this reason.
+  Measured after: `main.scrollHeight − main.clientHeight = 0` at 1366×768 and
+  1440×900, both sidebar states, plot filling its frame at every width.
+  Note for future work: `documentElement.scrollHeight` is USELESS here — the
+  shell pins `<main>` as the scroll container, so it always equals the viewport.
+  Measure `main`.
+
+- **D48. Sector filter is a listbox (Oct 2026):** the third attempt at this
+  control. A permanent button grid failed twice — flex-wrap put one chip per
+  line in a 288px rail and ate ~330px; abbreviating to fit left the reader
+  decoding `Comm Svcs`/`Cons Def` with no explanation. A listbox carries the
+  full canonical name with its count, occupies one row, and is the accessible
+  primitive already used for sort. `shortSectorLabel` and its map were deleted
+  rather than left unused. Separately, `Select` now applies `className` to its
+  root: it previously landed on the inner `<button>`, making every caller's
+  `flex-1`/`w-*` hint inert.

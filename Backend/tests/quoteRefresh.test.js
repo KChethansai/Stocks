@@ -108,7 +108,16 @@ describe('buildVerifiedQuoteRow', () => {
       )
     }
     // Even a closed session refuses ancient data.
-    assert.equal(build(liveQuote({ marketState: 'CLOSED', regularMarketTime: new Date(Date.now() - 8 * 86400000) })), null)
+    //
+    // Measured against the fixture's own fixed `now`, NOT Date.now(). The
+    // previous version mixed a fixed `now` with a wall-clock timestamp, so the
+    // age it asserted on drifted by a day every 24h and the test silently
+    // started passing (or failing) with the calendar rather than with the code.
+    const eightDaysBefore = new Date(now.getTime() - 8 * 86400000)
+    assert.equal(build(liveQuote({ marketState: 'CLOSED', regularMarketTime: eightDaysBefore })), null)
+    // ...and seven days is still inside the closed-session window.
+    const sevenDaysBefore = new Date(now.getTime() - 7 * 86400000 + 60000)
+    assert.ok(build(liveQuote({ marketState: 'CLOSED', regularMarketTime: sevenDaysBefore })), '7 days is still usable')
   })
 })
 
